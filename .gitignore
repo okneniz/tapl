@@ -1,0 +1,5 @@
+.stack-work/
+tapl.cabal
+*~
+.idea
+tapl.iml
