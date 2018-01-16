@@ -20,7 +20,8 @@ extra-source-files:
 description:         Please see the README on Github at <https://github.com/githubuser/tapl#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+  - base >= 4.7 && < 5
+  - parsec
 
 library:
   source-dirs: src
