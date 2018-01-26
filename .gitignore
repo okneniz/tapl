@@ -1,5 +1,5 @@
-.stack-work/
-tapl.cabal
+.stack-work
 *~
 .idea
 tapl.iml
+tapl.cabal

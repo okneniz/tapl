@@ -1,0 +1,57 @@
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: c93ffcc9ed570e7db8656c7bcdb399613834d22ff33dc6e9ece04ce04cbaf3dd
+
+name:           tapl
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/githubuser/tapl#readme>
+homepage:       https://github.com/githubuser/tapl#readme
+bug-reports:    https://github.com/githubuser/tapl/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2018 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/tapl
+
+library
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+    , hspec ==2.*
+    , parsec
+  exposed-modules:
+      Lib
+      TAPL.Arith
+      TAPL.Untyped
+  other-modules:
+      Paths_tapl
+  default-language: Haskell2010
+
+test-suite tapl-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , hspec ==2.*
+    , parsec
+    , tapl
+  other-modules:
+      TAPL.ArithSpec
+      TAPL.UntypedSpec
+      Paths_tapl
+  default-language: Haskell2010

@@ -1,0 +1,8 @@
+image: haskell:7.10
+
+pipelines:
+  default:
+    - step:
+        script:
+          - stack setup
+          - stack test
