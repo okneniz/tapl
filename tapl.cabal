@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c93ffcc9ed570e7db8656c7bcdb399613834d22ff33dc6e9ece04ce04cbaf3dd
+-- hash: 41d6769502b9b3aeed6a82935ffc7f24b1ad3b5ab32c88ac42dbac202d427718
 
 name:           tapl
 version:        0.1.0.0
@@ -34,6 +34,7 @@ library
   exposed-modules:
       Lib
       TAPL.Arith
+      TAPL.TypedArith
       TAPL.Untyped
   other-modules:
       Paths_tapl
@@ -52,6 +53,7 @@ test-suite tapl-test
     , tapl
   other-modules:
       TAPL.ArithSpec
+      TAPL.TypedArithSpec
       TAPL.UntypedSpec
       Paths_tapl
   default-language: Haskell2010
