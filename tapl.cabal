@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 41d6769502b9b3aeed6a82935ffc7f24b1ad3b5ab32c88ac42dbac202d427718
+-- hash: 6e0b404fd9df5e1ca3e6fbfe590dcbefacbfabca5d7b4d0e9fd8375ec87540c0
 
 name:           tapl
 version:        0.1.0.0
@@ -34,6 +34,7 @@ library
   exposed-modules:
       Lib
       TAPL.Arith
+      TAPL.SimpleBool
       TAPL.TypedArith
       TAPL.Untyped
   other-modules:
@@ -53,6 +54,7 @@ test-suite tapl-test
     , tapl
   other-modules:
       TAPL.ArithSpec
+      TAPL.SimpleBoolSpec
       TAPL.TypedArithSpec
       TAPL.UntypedSpec
       Paths_tapl
