@@ -548,7 +548,7 @@ eval' :: Context -> Term -> Maybe Term
 eval' context (TIf _ (TTrue _) t _ ) = return t
 eval' context (TIf _ (TFalse _) _ t) = return t
 eval' context (TIf info t1 t2 t3) = liftM (\t1' -> TIf info t1' t2 t3) (eval' context t1)
-eval' context (TApp _ (TAbs _ _  _ t) v) | isVal v = return $ substitutionTop v t
+eval' context (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ substitutionTop v t
 
 eval' context (TApp info t1 t2) | isVal t1   = liftM2 (TApp info) (return t1) (eval' context t2)
                                 | otherwise  = liftM2 (TApp info) (eval' context t1) (return t2)
@@ -804,7 +804,6 @@ tmmap onvar s t = walk s t
                                            where walkField (p, x) = (p, walk (c + 1) x)
 
                   walk c (TFix info t) = TFix info (walk c t)
-                  walk _ p = error $ show p
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d c t = tmmap onvar c t

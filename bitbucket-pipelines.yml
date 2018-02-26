@@ -3,6 +3,16 @@ image: haskell:7.10
 pipelines:
   default:
     - step:
+        caches:
+          - stack
+          - stack-root
+          - stack-home
         script:
           - stack setup
           - stack test
+
+definitions:
+  caches:
+    stack: $PWD/.stack-work
+    stack-root: /root/.stack
+    stack-home: $HOME/.stack
