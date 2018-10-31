@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ff3f59014d71ee7c4a5331d3d68f0a594adf1d508f052c9055377046b22eed93
+-- hash: 506deca5345886cef6cc8b7a1e6b894ad73975f986c6a6fb94d43b8322ec5cd8
 
 name:           tapl
 version:        0.1.0.0
@@ -34,6 +34,10 @@ library
   exposed-modules:
       Lib
       TAPL.Arith
+      TAPL.Bot.Evaluator
+      TAPL.Bot.Lexer
+      TAPL.Bot.Parser
+      TAPL.Bot.Types
       TAPL.FullError.Evaluator
       TAPL.FullError.Lexer
       TAPL.FullError.Memory
@@ -65,6 +69,7 @@ test-suite tapl-test
     , tapl
   other-modules:
       TAPL.ArithSpec
+      TAPL.BotSpec
       TAPL.FullErrorSpec
       TAPL.FullRefSpec
       TAPL.FullSimpleSpec
