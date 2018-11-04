@@ -13,7 +13,6 @@ import Text.Parsec.Prim (try)
 import Text.Parsec.Expr
 import Control.Monad (guard)
 import Data.Either (isLeft, isRight)
-import Debug.Trace (traceM)
 
 import Prelude hiding (succ, pred, lookup)
 import qualified Prelude (lookup)
