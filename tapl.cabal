@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e5e0868eec4290c6f7f8ef36a1d6a6859258b897cea71655131afd1f71207cbf
+-- hash: 76532e1b7d964d5e9ff99fc6ff1ac324312f569eeb8f2de61196cf11066e48cb
 
 name:           tapl
 version:        0.1.0.0
@@ -49,7 +49,12 @@ library
       TAPL.FullRef.Parser
       TAPL.FullRef.TypeChecker
       TAPL.FullRef.Types
-      TAPL.FullSimple
+      TAPL.FullSimple.Context
+      TAPL.FullSimple.Evaluator
+      TAPL.FullSimple.Lexer
+      TAPL.FullSimple.Parser
+      TAPL.FullSimple.TypeChecker
+      TAPL.FullSimple.Types
       TAPL.RcdSubBot.Evaluator
       TAPL.RcdSubBot.Lexer
       TAPL.RcdSubBot.Parser
