@@ -80,6 +80,9 @@ instance Show (FullRefContext Term) where
   show c@(FullRefContext n s (TLookup _ t k)) =
       (show $ c `withTerm` t) ++ "." ++ (show $ c `withTerm` k)
 
+  show c@(FullRefContext n s (TAscribe _ t ty)) =
+    (show $ c `withTerm` t) ++ ":" ++ show ty
+
   show c@(FullRefContext n s (TFix _ t)) = show $ c `withTerm` t
 
 instance Show (FullRefContext AST) where

@@ -65,11 +65,11 @@ spec = do
         describe "ascribe" $ do
            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
                examples = [
-                  ("true as Bool", "true:Bool"),
-                  ("false as Bool", "false:Bool"),
                   ("\"foo\" as String", "\"foo\":String"),
-                  ("unit as Unit", "unit:Unit"),
+                  ("false as Bool", "false:Bool"),
                   ("1.1 as Float", "1.1:Float"),
+                  ("true as Bool", "true:Bool"),
+                  ("unit as Unit", "unit:Unit"),
                   ("1.1000001 as Float", "1.1000001:Float")
                 ]
            mapM_ test examples
@@ -87,6 +87,10 @@ spec = do
                     ("(lambda x:(Bool -> A).lambda y:A.y)", "(lambda x.(lambda y.y)):((Bool -> A) -> (A -> A))"),
                     ("(lambda x:A -> A.lambda y:A.x y)", "(lambda x.(lambda y.x y)):((A -> A) -> (A -> A))"),
                     ("(lambda x:A.x)", "(lambda x.x):(A -> A)"),
+                    ("(lambda x:Top.x)", "(lambda x.x):(Top -> Top)"),
+                    ("(lambda x:Bot.x)", "(lambda x.x):(Bot -> Bot)"),
+                    ("(lambda x:Bot.x)", "(lambda x.x):(Bot -> Bot)"),
+                    ("(lambda x:{Bot*Top}.x.1)", "(lambda x.x.1):({Bot*Top} -> Top)"),
                     ("(lambda x:{Bool*{Unit*Top}}.true)", "(lambda x.true):({Bool*{Unit*Top}} -> Bool)"),
                     ("(lambda x:{Bool*{Unit*(A->B)}}.x)", "(lambda x.x):({Bool*{Unit*(A -> B)}} -> {Bool*{Unit*(A -> B)}})"),
                     ("(lambda x:{Bool*{Unit*{Unit*Float}}}.x)", "(lambda x.x):({Bool*{Unit*{Unit*Float}}} -> {Bool*{Unit*{Unit*Float}}})")
@@ -134,7 +138,10 @@ spec = do
                     \lambda y:Nat. \
                     \lambda z:Float. \
                     \lambda p:Float. \
-                    \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14 9.8", "9.8:Float")
+                    \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14 9.8", "9.8:Float"),
+                  ("(lambda x:{a:Bool}.x) {a=true, b=false}", "{a=true, b=false}:{a=Bool, b=Bool}"),
+                  ("(lambda x:{a:Bool}.if x.a then false else true) {a=true, b=false}", "false:Bool"),
+                  ("(lambda x:<a:Unit>.x) <a=unit> as <a:Unit,b:Unit,c:Nat>", "<a=unit>:<a:Unit, b:Unit, c:Nat>")
                  ]
             mapM_ test examples
 

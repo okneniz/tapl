@@ -188,6 +188,7 @@ isVal (FullRefContext _ _ (TFloat _ _)) = True
 isVal (FullRefContext _ _ (TInt _ _)) = True
 isVal (FullRefContext _ _ (TUnit _)) = True
 isVal (FullRefContext _ _ (TZero _)) = True
+isVal c@(FullRefContext _ _ (TAscribe _ t _)) = isVal $ c `withTerm` t
 isVal t | isNumerical t = True
 isVal (FullRefContext _ _ (TAbs _ _ _ _)) = True
 isVal (FullRefContext _ _ (TLoc _ _)) = True

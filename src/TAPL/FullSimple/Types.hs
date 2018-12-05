@@ -8,7 +8,8 @@ import Control.Applicative hiding ((<|>), many, optional)
 import Text.Parsec
 import Text.Parsec.String
 import Text.Parsec.Prim (try)
-import Data.List (findIndex, intercalate, all, nub, (\\))
+import Data.List (findIndex, intercalate, all, nub, (\\), sortBy)
+import Data.Function (on)
 import Data.Either (isLeft, isRight)
 import Data.Maybe (isJust)
 
@@ -35,7 +36,7 @@ data Term = TTrue Info
           | TTag Info String Term Type
           | TKeyword Info String
           | TFix Info Term
-          deriving (Show, Eq)
+          deriving (Show)
 
 data Type = TyBool
           | TyArrow Type Type
@@ -49,7 +50,8 @@ data Type = TyBool
           | TyID String
           | TyVariant [(String, Type)]
           | TyKeyword
-          deriving (Eq)
+          | TyTop
+          | TyBot
 
 type VarName = Int
 type Depth = Int
@@ -94,3 +96,40 @@ data TypeError = TypeMissmatch Info String
 
 instance Show TypeError where
     show (TypeMissmatch info message) = message ++ " in " ++ (show $ row info) ++ ":" ++ (show $ column info)
+
+
+instance Eq Type where
+  TyBool == TyBool = True
+  TyString == TyString = True
+  TyUnit == TyUnit = True
+  TyNat == TyNat = True
+  TyFloat == TyFloat = True
+  TyInt == TyInt = True
+  (TyID x) == (TyID y) = x == y
+  TyTop == TyTop = True
+  TyBot == TyBot = True
+  (TyArrow tys1 tys2) == (TyArrow tyt1 tyt2) = (tys1 == tyt1) && (tys2 == tyt2)
+  (TyProduct tyT1 tyT2) == (TyProduct tyT1' tyT2') = (tyT1 == tyT2) && (tyT1' == tyT2')
+  (TyRecord tys1) == (TyRecord tys2) = ((length tys1) == (length tys2)) && (all eqPair $ zip (sortBy ordPair tys1) (sortBy ordPair tys2))
+               where eqPair ((x, ty1), (y, ty2)) = (x == y) && (ty1 == ty2)
+  (TyVariant tys1) == (TyVariant tys2) = ((length tys1) == (length tys2)) && (all eqPair $ zip (sortBy ordPair tys1) (sortBy ordPair tys2))
+                where eqPair ((x, ty1), (y, ty2)) = (x == y) && (ty1 == ty2)
+  _ == _ = False
+
+(<:) :: Type -> Type -> Bool
+_ <: TyTop = True
+TyBot <: _ = True
+(TyArrow tys1 tys2) <: (TyArrow tyt1 tyt2) = (tyt1 <: tys1) && (tys2 <: tyt2)
+(TyProduct tyS1 tyS2) <: (TyProduct tyT1 tyT2) = (tyS1 <: tyT1) && (tyS2 <: tyT2)
+(TyRecord ty1) <: (TyRecord ty2) = all f ty2
+                             where f (k,ty) = case Prelude.lookup k ty1 of
+                                                   (Just x) -> x <: ty
+                                                   Nothing -> False
+(TyVariant ty1) <: (TyVariant ty2) = all f ty2
+                               where f (k,ty) = case Prelude.lookup k ty1 of
+                                                     (Just x) -> x <: ty
+                                                     Nothing -> False
+x <: y | x == y = True
+x <: y = False
+
+ordPair = compare `on` fst

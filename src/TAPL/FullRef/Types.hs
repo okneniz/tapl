@@ -36,7 +36,7 @@ data Term = TTrue Info
           | TRecord Info [(String, Term)]
           | TKeyword Info String
           | TFix Info Term
-          deriving (Show, Eq)
+          deriving (Show)
 
 type VarName = Int
 type Depth = Int
@@ -128,7 +128,7 @@ TyBot <: _ = True
                                                    (Just x) -> x <: ty
                                                    Nothing -> False
 x <: y | x == y = True
-_ <: y = False
+x <: y = False
 
 ordPair = compare `on` fst
 

@@ -68,9 +68,10 @@ instance TypeChecker (FullSimpleContext Term) where
       ty1 <- typeOf $ FullSimpleContext n $ t1
       ty2 <- typeOf $ FullSimpleContext n $ t2
       case ty1 of
-           (TyArrow ty1' ty2') -> if ty2 == ty1'
+           (TyArrow ty1' ty2') -> if ty2 <: ty1'
                                   then return ty2'
-                                  else Left $ TypeMissmatch info $ "type mismatch in " ++ show info
+                                  else Left $ TypeMissmatch info $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
+           TyBot -> return TyBot
            x -> Left $ TypeMissmatch info $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
 
   typeOf c@(FullSimpleContext n (TAbs _ name ty t)) = do
@@ -121,16 +122,16 @@ instance TypeChecker (FullSimpleContext Term) where
 
   typeOf c@(FullSimpleContext n (TAscribe info t ty)) = do
       ty' <- typeOf $ c `withTerm` t
-      if ty' == ty
+      if ty' <: ty
       then return ty
       else Left $ TypeMissmatch info "body of as-term does not have the expected type"
 
-  typeOf c@(FullSimpleContext _ (TFix info t)) = do
-      ty <- typeOf $ c `withTerm` t
-      case ty of
-          (TyArrow t1 t2) | t1 == t2 -> return t2
-          (TyArrow _ _) -> Left $ TypeMissmatch info $ "result of body not compatible with domain"
-          _ -> Left $ TypeMissmatch info $ "arrow type expected"
+  typeOf c@(FullSimpleContext n (TFix info t1)) = do
+    tyT1 <- typeOf $ c `withTerm` t1
+    case tyT1 of
+         (TyArrow tyT11 tyT12) | tyT12 <: tyT11 -> return tyT12
+         (TyArrow tyT11 tyT12) -> Left $ TypeMissmatch info  "result of body not compatible with domain"
+         _ -> Left $ TypeMissmatch info  "arrow type expected"
 
   typeOf c@(FullSimpleContext _ (TCase info v@(TTag _ key _ _) branches)) = do
     ty' <- typeOf $ c `withTerm` v

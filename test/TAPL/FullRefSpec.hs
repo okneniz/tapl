@@ -55,17 +55,15 @@ spec = do
                 ]
            mapM_ test examples
 
-        describe "ascribe" $ do -- выводит типы при Top некорректно
+        describe "ascribe" $ do
            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
                examples = [
-                  ("true as Bool", "true:Bool"),
-                  ("false as Bool", "false:Bool"),
                   ("\"foo\" as String", "\"foo\":String"),
-                  ("unit as Unit", "unit:Unit"),
+                  ("false as Bool", "false:Bool"),
                   ("1.1 as Float", "1.1:Float"),
-                  ("1.1000001 as Float", "1.1000001:Float"),
-                  ("{1.1,0.2} as {Float * Top}", "{1.1,0.2}:{Float*Float}"),
-                  ("{a=true, b=false} as {a:Bool, b:Top}", "{a=true, b=false}:{a=Bool, b=Bool}")
+                  ("true as Bool", "true:Bool"),
+                  ("unit as Unit", "unit:Unit"),
+                  ("1.1000001 as Float", "1.1000001:Float")
                 ]
            mapM_ test examples
 
@@ -160,7 +158,9 @@ spec = do
                     \lambda y:Nat. \
                     \lambda z:Float. \
                     \lambda p:Float. \
-                    \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14 9.8", "9.8:Float")
+                    \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14 9.8", "9.8:Float"),
+                  ("(lambda x:{a:Bool}.x) {a=true, b=false}", "{a=true, b=false}:{a=Bool, b=Bool}"),
+                  ("(lambda x:{a:Bool}.if x.a then false else true) {a=true, b=false}", "false:Bool")
                  ]
             mapM_ test examples
 

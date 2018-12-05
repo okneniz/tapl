@@ -325,31 +325,23 @@ notArrowAnnotation = try booleanAnnotation
                  <|> try natAnnotation
                  <|> try floatAnnotation
                  <|> try baseTypeAnnotation
+                 <|> try topAnnotation
+                 <|> try botAnnotation
 
 booleanAnnotation :: LCTypeParser
-booleanAnnotation = do
-    string "Bool"
-    return TyBool
+booleanAnnotation = primitiveType "Bool" TyBool
 
 stringAnnotation :: LCTypeParser
-stringAnnotation = do
-    string "String"
-    return TyString
+stringAnnotation = primitiveType "String" TyString
 
 unitAnnotation :: LCTypeParser
-unitAnnotation = do
-    string "Unit"
-    return TyUnit
+unitAnnotation = primitiveType "Unit" TyUnit
 
 natAnnotation :: LCTypeParser
-natAnnotation = do
-    string "Nat"
-    return TyNat
+natAnnotation = primitiveType "Nat" TyNat
 
 floatAnnotation :: LCTypeParser
-floatAnnotation = do
-    string "Float"
-    return TyFloat
+floatAnnotation = primitiveType "Float" TyFloat
 
 baseTypeAnnotation :: LCTypeParser
 baseTypeAnnotation = do
@@ -361,6 +353,17 @@ recordAnnotation :: LCTypeParser
 recordAnnotation = braces $ do
     tys <- keyValue2 `sepBy` comma
     return $ TyRecord tys
+
+topAnnotation :: LCTypeParser
+topAnnotation = primitiveType "Top" TyTop
+
+botAnnotation :: LCTypeParser
+botAnnotation = primitiveType "Bot" TyBot
+
+primitiveType :: String -> Type -> LCTypeParser
+primitiveType name ty = do
+    string name
+    return ty
 
 keyValue2 :: Parsec String (FullSimpleContext Term) (String, Type)
 keyValue2 = do
