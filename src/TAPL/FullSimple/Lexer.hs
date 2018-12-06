@@ -24,23 +24,19 @@ languageDefinition = emptyDef {
         "Nat",
         "Float",
         "Unit",
-        "Ref",
         "succ",
         "pred",
         "zero?",
         "ref",
         "let",
+        "as",
         "in",
         "case",
         "of",
-        "as",
         "fix",
         "*"
     ],
     Token.reservedOpNames = [
-        ":=",
-        "!",
-        ".",
         "="
     ]
 }

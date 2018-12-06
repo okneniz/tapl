@@ -36,6 +36,8 @@ data Term = TTrue Info
           | TRecord Info [(String, Term)]
           | TKeyword Info String
           | TFix Info Term
+          | TTag Info String Term Type
+          | TCase Info Term [(String, String, Term)]
           deriving (Show)
 
 type VarName = Int
@@ -62,6 +64,7 @@ data Type = TyBool
           | TyProduct Type Type
           | TyRecord [(String, Type)]
           | TyKeyword
+          | TyVariant [(String, Type)]
 
 instance Show Type where
     show TyBool = "Bool"
@@ -78,6 +81,8 @@ instance Show Type where
     show (TyID s) = s
     show (TyProduct t1 t2) = "{" ++ show t1 ++ "*" ++ show t2 ++ "}"
     show (TyRecord ts) =  "{" ++ (intercalate ", " $ (\(k,ty) -> k ++ "=" ++ show ty) <$> ts) ++ "}"
+    show (TyVariant ts) = "<" ++ (intercalate ", " $ map field ts) ++ ">"
+                    where field (k,t) = k ++ ":" ++ show t
 
 data EvaluationError = ParsecError ParseError
                      | InvalidOperation Info String
@@ -115,6 +120,8 @@ instance Eq Type where
   (TyProduct tyT1 tyT2) == (TyProduct tyT1' tyT2') = (tyT1 == tyT2) && (tyT1' == tyT2')
   (TyRecord tys1) == (TyRecord tys2) = ((length tys1) == (length tys2)) && (all eqPair $ zip (sortBy ordPair tys1) (sortBy ordPair tys2))
                where eqPair ((x, ty1), (y, ty2)) = (x == y) && (ty1 == ty2)
+  (TyVariant tys1) == (TyVariant tys2) = ((length tys1) == (length tys2)) && (all eqPair $ zip (sortBy ordPair tys1) (sortBy ordPair tys2))
+                where eqPair ((x, ty1), (y, ty2)) = (x == y) && (ty1 == ty2)
   _ == _ = False
 
 (<:) :: Type -> Type -> Bool
@@ -127,6 +134,10 @@ TyBot <: _ = True
                              where f (k,ty) = case Prelude.lookup k ty1 of
                                                    (Just x) -> x <: ty
                                                    Nothing -> False
+(TyVariant ty1) <: (TyVariant ty2) = all f ty2
+                               where f (k,ty) = case Prelude.lookup k ty1 of
+                                                     (Just x) -> x <: ty
+                                                     Nothing -> False
 x <: y | x == y = True
 x <: y = False
 

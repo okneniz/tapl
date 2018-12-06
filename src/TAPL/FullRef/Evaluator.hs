@@ -178,6 +178,14 @@ normalize c@(FullRefContext ns mem (TFix info t)) = do
     (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
     return $ FullRefContext ns mem' (TFix info t')
 
+normalize c@(FullRefContext ns mem (TCase _ (TTag _ key v _) branches)) | isVal $ c `withTerm` v = do
+  (_, t) <- Prelude.lookup key $ (\(key, varName, t) -> (key, (varName, t))) <$> branches
+  return $ FullRefContext ns mem $ substitutionTop v t
+
+normalize c@(FullRefContext ns mem (TCase info t fields)) = do
+  (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
+  return $ FullRefContext ns mem' (TCase info t' fields)
+
 normalize _ = Nothing
 
 isVal :: FullRefContext Term -> Bool
@@ -195,6 +203,7 @@ isVal (FullRefContext _ _ (TLoc _ _)) = True
 isVal c@(FullRefContext _ _ (TPair _ t1 t2)) = (isVal $ c `withTerm` t1) && (isVal $ c `withTerm` t2)
 isVal c@(FullRefContext ns mem' (TRecord _ fields)) = all (\(_, t) -> isVal $ c `withTerm` t) fields
 isVal c@(FullRefContext _ _ (TFix _ t)) = isVal $ c `withTerm` t
+isVal c@(FullRefContext _ _ (TTag _ _ t _)) = isVal $ c `withTerm` t
 isVal _ = False
 
 isNumerical :: FullRefContext Term -> Bool
@@ -226,6 +235,9 @@ termMap onvar s t = walk s t
                     walk c (TPair info t1 t2) = TPair info (walk c t1) (walk c t2)
                     walk c (TRecord info ts) = TRecord info $ (\(k, t) -> (k, walk c t)) <$> ts
                     walk c (TLookup info t1 t2) = TLookup info (walk c t1) (walk c t2)
+                    walk c (TTag info k t ty) = TTag info k (walk c t) ty
+                    walk c (TCase info t branches) = TCase info (walk c t) $ walkBranch <$> branches
+                                               where walkBranch (k, v, x) = (k, v, walk (c + 1) x)
                     walk c t@(TKeyword _ _) = t
                     walk c (TFix info t) = TFix info (walk c t)
                     walk c t@(TLoc _ l) = t

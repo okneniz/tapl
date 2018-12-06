@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module TAPL.FullRef.Context where
 
@@ -84,6 +85,14 @@ instance Show (FullRefContext Term) where
     (show $ c `withTerm` t) ++ ":" ++ show ty
 
   show c@(FullRefContext n s (TFix _ t)) = show $ c `withTerm` t
+
+  show (FullRefContext ns s (TTag _ key t ty)) =
+    "<" ++ key ++ "=" ++ show (FullRefContext ns s t) ++ ">"
+
+  show c@(FullRefContext ns s (TCase _ t cases)) =
+    "case " ++ (show $ c `withTerm` t) ++ " of " ++
+    intercalate " | " (df <$> cases)
+    where df (caseName, varName, t) = "<" ++ caseName ++ "=" ++ varName ++ "> -> " ++ show (FullRefContext ns s t)
 
 instance Show (FullRefContext AST) where
   show (FullRefContext n m ast) = intercalate ";" $ (\t -> show $ FullRefContext n m t) <$> ast

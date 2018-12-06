@@ -45,6 +45,9 @@ term = try (abstraction <?> "abstraction")
    <|> try notApply
    <|> parens term
 
+padded :: Stream s m Char => String -> ParsecT s u m String
+padded x = spaces *> string x <* spaces
+
 lookup' :: LCParser -> LCParser -> LCParser
 lookup' key tm = do
     t <- tm
@@ -82,11 +85,13 @@ apply = chainl1 notApply $ do
 
 notApply :: LCParser
 notApply = try value
+       <|> try ((variant value) <?> "variant")
        <|> try (assign <?> "assignment")
        <|> try (condition <?> "condition")
        <|> try (let' <?> "let")
        <|> try (deref <?> "deref")
        <|> try (fix <?> "fix")
+       <|> try (case' <?> "case")
        <|> try (abstraction <?> "abstraction")
        <|> try (variable <?> "variable")
        <|> try (parens notApply)
@@ -205,11 +210,37 @@ let' = do
     v <- identifier
     reserved "="
     t1 <- term
+    optional spaces
     reserved "in"
+    optional spaces
     context <- getState
     modifyState $ \c -> addName c v
     t2 <- term
     return $ TLet (Just p) v t1 t2
+
+case' :: LCParser
+case' = do
+  reserved "case"
+  t <- term
+  optional spaces
+  reserved "of"
+  optional spaces
+  branches <- branch `sepBy` (reservedOp "|")
+  pos <- getPosition
+  return $ TCase (Just pos) t branches
+  where branch = do
+          (caseName, varName) <- pattern
+          reservedOp "->"
+          context <- getState
+          modifyState $ \c -> addName c varName
+          t2 <- term
+          setState context
+          return (caseName, varName, t2)
+        pattern = angles $ do
+          caseName <- identifier
+          reservedOp "="
+          varName <- identifier
+          return (caseName, varName)
 
 pair :: LCParser
 pair = lookup' integer $ braces $ do
@@ -265,6 +296,18 @@ variable = anotated $ lookup' (try integer <|> try keyword) $ do
          Just n -> return $ TVar (Just p) n (length $ ns)
          Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
 
+variant :: LCParser -> LCParser
+variant x = do
+  reservedOp "<"
+  pos <- getPosition
+  key <- identifier
+  reservedOp "="
+  t <- x
+  reservedOp ">"
+  reserved "as"
+  ty <- variantAnnotation
+  return $ TTag (Just pos) key t ty
+
 -- Types annotations --
 
 termType :: LCTypeParser
@@ -298,6 +341,7 @@ notArrowAnnotation = try (booleanAnnotation <?> "boolean type")
                  <|> try (idTypeAnnotation  <?> "atomic type")
                  <|> try (productAnnotation <?> "product type")
                  <|> try (recordAnnotation  <?> "record annotation")
+                 <|> try (variantAnnotation <?> "variant annotation")
 
 primitiveType :: String -> Type -> LCTypeParser
 primitiveType name ty = do
@@ -360,3 +404,17 @@ keyValue2 = do
     colon
     v <- typeAnnotation
     return (k, v)
+
+keyType :: Char -> Parsec String (FullRefContext Term) (String, Type)
+keyType c = do
+     k <- identifier
+     char c
+     v <- typeAnnotation
+     return (k, v)
+
+variantAnnotation :: LCTypeParser
+variantAnnotation = do
+    string "<"
+    ts <- (keyType ':') `sepBy` (padded ",")
+    string ">"
+    return $ TyVariant ts

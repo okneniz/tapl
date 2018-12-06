@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module TAPL.FullRef.TypeChecker where
 import TAPL.FullRef.Types
@@ -6,6 +7,8 @@ import TAPL.FullRef.Context
 
 import Control.Monad (liftM)
 import Data.Either (isRight, isLeft)
+import Data.List (intercalate, all, nub, (\\), find, sortBy)
+import Data.Ord (comparing)
 
 import Prelude hiding (lookup)
 import qualified Prelude (lookup)
@@ -153,3 +156,66 @@ instance TypeChecker (FullRefContext Term) where
          (TyArrow tyT11 tyT12) -> Left $ TypeMissmatch info  "result of body not compatible with domain"
          _ -> Left $ TypeMissmatch info  "arrow type expected"
 
+  typeOf c@(FullRefContext _ _ (TCase info v@(TTag _ key _ _) branches)) = do
+    ty' <- typeOf $ c `withTerm` v
+
+    case ty' of
+      TyVariant fields -> do
+        _ <- checkInvalidCaseBranches branches fields
+        _ <- checkAbsentCaseBranches branches fields
+        _ <- checkInvalidBranchesTypes branches fields
+        _ <- checkValidBranchesTypes branches fields
+        branch <- matchedBranch key branches
+        field <- matchedVariantField key fields
+        vty' <- typeOfBranch branch field
+        return vty'
+    where variantKey = fst
+          branchKey (x, _, _) = x
+          variantKeys fs = variantKey <$> fs
+          branchesKeys bs = branchKey <$> bs
+          typeOfBranch (_, varName, t) (_, vty) = typeOf $ (bind c varName (VarBind vty)) `withTerm` t
+          branchesTypes bs fs = (\(br,fi) -> typeOfBranch br fi) <$> zip (sortBy (comparing branchKey) bs)
+                                                                         (sortBy (comparing variantKey) fs)
+
+          matchedBranch k caseBranches = do
+            case find (\x -> k == (branchKey x)) caseBranches of
+              Just branch -> return branch
+              _ -> Left $ TypeMissmatch info $ "Missmatch case branch with key " ++ show k
+
+          matchedVariantField k variantFields = do
+            case Prelude.lookup k variantFields of
+              Just field -> return (k, field)
+              _ -> Left $ TypeMissmatch info $ "Missmatch variant with key " ++ show k
+
+          checkInvalidCaseBranches bs fs = do
+            case (branchesKeys bs) \\ (variantKeys fs) of
+              [] -> Right []
+              fs -> Left $ TypeMissmatch info $ "Invalid case branch " ++ intercalate ", " fs
+
+          checkAbsentCaseBranches bs fs = do
+            case (variantKeys fs) \\ (branchesKeys bs) of
+              [] -> Right []
+              fs -> Left $ TypeMissmatch info $ "Absent case branch " ++ intercalate ", " fs
+
+          checkInvalidBranchesTypes bs fs = do
+            case filter isLeft $ (branchesTypes bs fs) of
+              [] -> Right []
+              fs -> Left $ TypeMissmatch info $ "Invalid case branch types " ++ intercalate ", " (show <$> fs)
+
+          checkValidBranchesTypes bs fs = do
+            case nub $ fromRight <$> (branchesTypes bs fs) of
+              l | (length l) > 1 -> Left $ TypeMissmatch info $ "Case branches have different types " ++ intercalate ", " (show <$> l)
+              _ -> Right []
+
+  typeOf c@(FullRefContext _ _ (TTag info key t ty)) = do
+    ty' <- typeOf $ c `withTerm` t
+    case ty of
+        TyVariant tys -> case Prelude.lookup key tys of
+                              Just x -> if x == ty'
+                                        then return ty
+                                        else Left $ TypeMissmatch info $ "field does not have expected type"
+                              _ -> Left $ TypeMissmatch info $ "label " ++ key ++ " not found"
+        _ -> Left $ TypeMissmatch info $ "Annotation is not a variant type"
+
+fromRight (Right x) = x
+fromRight (Left x) = undefined

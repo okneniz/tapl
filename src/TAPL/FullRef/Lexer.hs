@@ -30,16 +30,19 @@ languageDefinition = emptyDef {
         "zero?",
         "ref",
         "let",
-        "in",
         "as",
+        "in",
+        "case",
+        "of",
         "fix",
         "*"
     ],
     Token.reservedOpNames = [
         ":=",
         "!",
-        ".",
-        "="
+        "=",
+        "|",
+        "->"
     ]
 }
 
@@ -50,6 +53,7 @@ reserved      = Token.reserved      lexer
 reservedOp    = Token.reservedOp    lexer
 parens        = Token.parens        lexer
 braces        = Token.braces        lexer
+angles        = Token.angles        lexer
 comma         = Token.comma         lexer
 floatNum      = Token.float         lexer
 natural       = Token.natural       lexer

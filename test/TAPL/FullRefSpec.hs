@@ -55,6 +55,18 @@ spec = do
                 ]
            mapM_ test examples
 
+        describe "variants" $ do
+          let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+              examples = [
+                ("<a=unit> as <a:Unit,b:Unit,c:Nat>", "<a=unit>:<a:Unit, b:Unit, c:Nat>"),
+                ("(lambda x:<a:Unit,b:Unit,c:Nat>.x)", "(lambda x.x):<a:Unit, b:Unit, c:Nat> -> <a:Unit, b:Unit, c:Nat>"),
+                ("let z = <a=true> as <a:Bool,b:Unit,c:Nat> in (lambda x:<a:Bool, b:Unit, c:Nat>.x) z", "<a=true>:<a:Bool, b:Unit, c:Nat>"),
+                ("case <b=zero> as <a:Int,b:Nat> of <b=x> -> succ succ pred pred pred x | <a=y> -> zero", "succ succ zero:Nat"),
+                ("case <b=zero> as <a:Nat,b:Nat> of <b=x> -> if (zero? x) then false else true | <a=y> -> true", "false:Bool"),
+                ("case <b=succ zero> as <a:Nat,b:Nat> of <a=x> -> <a=succ x> as <a:Nat>| <b=y> -> <a=succ y> as <a:Nat>", "<a=succ succ zero>:<a:Nat>")
+               ]
+          mapM_ test examples
+
         describe "ascribe" $ do
            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
                examples = [

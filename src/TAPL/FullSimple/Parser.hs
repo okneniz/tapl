@@ -241,16 +241,18 @@ keyValue c = do
 
 let' :: LCParser
 let' = do
-    padded "let"
+    reserved "let"
+    p <- getPosition
     v <- identifier
-    padded "="
+    reserved "="
     t1 <- term
+    optional spaces
+    reserved "in"
+    optional spaces
     context <- getState
-    padded "in"
     modifyState $ \c -> addName c v
     t2 <- term
-    pos <- getPosition
-    return $ TLet (infoFrom pos) v t1 t2
+    return $ TLet (infoFrom p) v t1 t2
 
 case' :: LCParser
 case' = do
@@ -276,8 +278,7 @@ case' = do
           varName <- identifier
           return (caseName, varName)
 
-
-variant :: LCParser -> LCParser -- кажется это херни просто не должно быть
+variant :: LCParser -> LCParser
 variant x = do
   padded "<"
   pos <- getPosition
