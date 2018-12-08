@@ -10,8 +10,6 @@ import TAPL.FullRef.Lexer
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 
-import Data.Either (isLeft, isRight)
-
 import Prelude hiding (succ, pred, lookup)
 import qualified Prelude (lookup)
 
@@ -45,9 +43,6 @@ term = try (abstraction <?> "abstraction")
    <|> try notApply
    <|> parens term
 
-padded :: Stream s m Char => String -> ParsecT s u m String
-padded x = spaces *> string x <* spaces
-
 lookup' :: LCParser -> LCParser -> LCParser
 lookup' key tm = do
     t <- tm
@@ -56,7 +51,7 @@ lookup' key tm = do
 
 dotRef :: LCParser -> Term -> LCParser
 dotRef key t = do
-    _ <- char '.'
+    dot
     pos <- getPosition
     i <- key
     t' <- (try $ dotRef key (TLookup (Just pos) t i)) <|> (return $ TLookup (Just pos) t i)
@@ -71,7 +66,7 @@ anotated e = do
 ascribed :: Term -> LCParser
 ascribed t = do
     spaces
-    _ <- string "as"
+    reserved "as"
     optional spaces
     ty <- typeAnnotation
     pos <- getPosition
@@ -84,16 +79,16 @@ apply = chainl1 notApply $ do
             return $ TApp (Just pos)
 
 notApply :: LCParser
-notApply = try value
-       <|> try ((variant value) <?> "variant")
-       <|> try (assign <?> "assignment")
-       <|> try (condition <?> "condition")
-       <|> try (let' <?> "let")
-       <|> try (deref <?> "deref")
-       <|> try (fix <?> "fix")
-       <|> try (case' <?> "case")
-       <|> try (abstraction <?> "abstraction")
-       <|> try (variable <?> "variable")
+notApply = value
+       <|> ((variant value) <?> "variant")
+       <|> (assign <?> "assignment")
+       <|> (condition <?> "condition")
+       <|> (let' <?> "let")
+       <|> (deref <?> "deref")
+       <|> (fix <?> "fix")
+       <|> (case' <?> "case")
+       <|> (abstraction <?> "abstraction")
+       <|> (variable <?> "variable")
        <|> try (parens notApply)
 
 assign :: LCParser
@@ -103,24 +98,24 @@ assign = chainl1 notAssign $ do
            return $ TAssign (Just p)
 
 notAssign :: LCParser
-notAssign = try value
-        <|> try (condition <?> "condition")
-        <|> try (deref <?> "deref")
-        <|> try (ref <?> "ref")
-        <|> try (fix <?> "fix")
-        <|> try (variable <?> "variable")
+notAssign = value
+        <|> (condition <?> "condition")
+        <|> (deref <?> "deref")
+        <|> (ref <?> "ref")
+        <|> (fix <?> "fix")
+        <|> (variable <?> "variable")
         <|> try (parens notAssign)
 
 value :: LCParser
-value = anotated $ try (boolean <?> "boolean")
-               <|> try (string' <?> "string")
-               <|> try (succ <?> "succ")
-               <|> try (pred <?> "pred")
-               <|> try (isZero <?> "isZero?")
-               <|> try (zero <?> "zero")
-               <|> try (float <?> "float")
-               <|> try (integer <?> "integer")
-               <|> try (unit <?> "unit")
+value = anotated $ (boolean <?> "boolean")
+               <|> (string' <?> "string")
+               <|> (succ <?> "succ")
+               <|> (pred <?> "pred")
+               <|> (isZero <?> "isZero?")
+               <|> (zero <?> "zero")
+               <|> (float <?> "float")
+               <|> (integer <?> "integer")
+               <|> (unit <?> "unit")
                <|> try (record <?> "record")
                <|> try (pair <?> "pair")
 
@@ -208,7 +203,7 @@ let' = do
     reserved "let"
     p <- getPosition
     v <- identifier
-    reserved "="
+    reservedOp "="
     t1 <- term
     optional spaces
     reserved "in"
@@ -266,7 +261,7 @@ keyValue :: String -> Parsec String (FullRefContext Term) (String, Term)
 keyValue s = do
     k <- identifier
     optional spaces
-    string s
+    reservedOp s
     optional spaces
     v <- term
     optional spaces
@@ -324,34 +319,34 @@ typeAnnotation = (try arrowAnnotation <?> "arrow type annotation")
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
                     optional spaces
-                    string "->"
+                    reservedOp "->"
                     optional spaces
                     return $ TyArrow
 
 notArrowAnnotation :: LCTypeParser
-notArrowAnnotation = try (booleanAnnotation <?> "boolean type")
-                 <|> try (stringAnnotation  <?> "string type")
-                 <|> try (natAnnotation     <?> "nat type")
-                 <|> try (floatAnnotation   <?> "float type")
-                 <|> try (intAnnotation     <?> "int type")
-                 <|> try (unitAnnotation    <?> "unit type")
-                 <|> try (refAnnotation     <?> "ref type")
-                 <|> try (topAnnotation     <?> "top type")
-                 <|> try (botAnnotation     <?> "bot type")
-                 <|> try (idTypeAnnotation  <?> "atomic type")
+notArrowAnnotation = (booleanAnnotation     <?> "boolean type")
+                 <|> (stringAnnotation      <?> "string type")
+                 <|> (natAnnotation         <?> "nat type")
+                 <|> (floatAnnotation       <?> "float type")
+                 <|> (intAnnotation         <?> "int type")
+                 <|> (unitAnnotation        <?> "unit type")
+                 <|> (refAnnotation         <?> "ref type")
+                 <|> (topAnnotation         <?> "top type")
+                 <|> (botAnnotation         <?> "bot type")
+                 <|> (idTypeAnnotation      <?> "atomic type")
                  <|> try (productAnnotation <?> "product type")
                  <|> try (recordAnnotation  <?> "record annotation")
                  <|> try (variantAnnotation <?> "variant annotation")
 
 primitiveType :: String -> Type -> LCTypeParser
 primitiveType name ty = do
-    string name
+    reserved name
     return ty
 
 idTypeAnnotation :: LCTypeParser
 idTypeAnnotation = do
-    i <- oneOf ['A'..'Z']
-    d <- many $ oneOf ['a'..'z']
+    i <- try $ oneOf ['A'..'Z']
+    d <- try $ many $ oneOf ['a'..'z']
     return $ TyID (i:d)
 
 topAnnotation :: LCTypeParser
@@ -387,9 +382,7 @@ refAnnotation = do
 productAnnotation :: LCTypeParser
 productAnnotation = braces $ do
     ty1 <- typeAnnotation
-    optional spaces
-    string "*"
-    optional spaces
+    reservedOp "*"
     ty2 <- typeAnnotation
     return $ TyProduct ty1 ty2
 
@@ -405,16 +398,7 @@ keyValue2 = do
     v <- typeAnnotation
     return (k, v)
 
-keyType :: Char -> Parsec String (FullRefContext Term) (String, Type)
-keyType c = do
-     k <- identifier
-     char c
-     v <- typeAnnotation
-     return (k, v)
-
 variantAnnotation :: LCTypeParser
-variantAnnotation = do
-    string "<"
-    ts <- (keyType ':') `sepBy` (padded ",")
-    string ">"
+variantAnnotation = angles $ do
+    ts <- keyValue2 `sepBy` comma
     return $ TyVariant ts

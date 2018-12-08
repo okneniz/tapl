@@ -25,6 +25,10 @@ languageDefinition = emptyDef {
         "Float",
         "Unit",
         "Ref",
+        "Top",
+        "Bot",
+        "Int",
+        "Unit",
         "succ",
         "pred",
         "zero?",
@@ -34,10 +38,10 @@ languageDefinition = emptyDef {
         "in",
         "case",
         "of",
-        "fix",
-        "*"
+        "fix"
     ],
     Token.reservedOpNames = [
+        "*",
         ":=",
         "!",
         "=",
