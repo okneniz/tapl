@@ -247,7 +247,7 @@ pair = lookup' integer $ braces $ do
 
 record :: LCParser
 record = lookup' keyword $ braces $ do
-    ts <- (keyValue "=") `sepBy` comma
+    ts <- (keyValue (reservedOp "=") term) `sepBy` comma
     p <- getPosition
     return $ TRecord (Just p) ts
 
@@ -256,16 +256,6 @@ keyword = do
   word <- identifier
   p <- getPosition
   return $ TKeyword (Just p) word
-
-keyValue :: String -> Parsec String (FullRefContext Term) (String, Term)
-keyValue s = do
-    k <- identifier
-    optional spaces
-    reservedOp s
-    optional spaces
-    v <- term
-    optional spaces
-    return (k, v)
 
 abstraction :: LCParser
 abstraction = do
@@ -302,6 +292,12 @@ variant x = do
   reserved "as"
   ty <- variantAnnotation
   return $ TTag (Just pos) key t ty
+
+keyValue devider val = do
+  key <- identifier
+  devider
+  value <- val
+  return (key,value)
 
 -- Types annotations --
 
@@ -388,17 +384,10 @@ productAnnotation = braces $ do
 
 recordAnnotation :: LCTypeParser
 recordAnnotation = braces $ do
-    tys <- keyValue2 `sepBy` comma
+    tys <- (keyValue colon typeAnnotation) `sepBy` comma
     return $ TyRecord tys
-
-keyValue2 :: Parsec String (FullRefContext Term) (String, Type)
-keyValue2 = do
-    k <- identifier
-    colon
-    v <- typeAnnotation
-    return (k, v)
 
 variantAnnotation :: LCTypeParser
 variantAnnotation = angles $ do
-    ts <- keyValue2 `sepBy` comma
+    ts <- (keyValue colon typeAnnotation) `sepBy` comma
     return $ TyVariant ts
