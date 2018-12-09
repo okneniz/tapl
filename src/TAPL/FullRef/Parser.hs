@@ -38,8 +38,7 @@ fullRefParser = do
     return (case context of FullRefContext names memory _ -> FullRefContext names memory ast)
 
 term :: LCParser
-term = try (abstraction <?> "abstraction")
-   <|> try apply
+term = try apply
    <|> try notApply
    <|> parens term
 
@@ -81,7 +80,7 @@ apply = chainl1 notApply $ do
 notApply :: LCParser
 notApply = value
        <|> ((variant value) <?> "variant")
-       <|> (assign <?> "assignment")
+       <|> try (assign <?> "assignment")
        <|> (condition <?> "condition")
        <|> (let' <?> "let")
        <|> (deref <?> "deref")
@@ -89,7 +88,7 @@ notApply = value
        <|> (case' <?> "case")
        <|> (abstraction <?> "abstraction")
        <|> (variable <?> "variable")
-       <|> try (parens notApply)
+       <|> (parens notApply)
 
 assign :: LCParser
 assign = chainl1 notAssign $ do
@@ -104,7 +103,7 @@ notAssign = value
         <|> (ref <?> "ref")
         <|> (fix <?> "fix")
         <|> (variable <?> "variable")
-        <|> try (parens notAssign)
+        <|> (parens notAssign)
 
 value :: LCParser
 value = anotated $ (boolean <?> "boolean")
@@ -146,7 +145,7 @@ pred :: LCParser
 pred = fun "pred" TPred
 
 boolean :: LCParser
-boolean = try true <|> try false
+boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
 

@@ -43,8 +43,7 @@ terms = term `sepEndBy` op
                  optionMaybe newline
 
 term :: LCParser
-term = try (abstraction <?> "abstraction")
-   <|> try apply
+term = try apply
    <|> try notApply
    <|> parens term
 
@@ -63,7 +62,7 @@ notApply = value
        <|> (case' <?> "case")
        <|> (abstraction <?> "abstraction")
        <|> (variable <?> "variable")
-       <|> try (parens notApply)
+       <|> (parens notApply)
 
 value :: LCParser
 value = optionalAscribed $ (boolean <?> "boolean")
@@ -93,7 +92,7 @@ abstraction = do
     return $ TAbs (infoFrom pos) varName varType t
 
 variable :: LCParser
-variable = optionalAscribed $ lookup' (try integer <|> try keyword) $ do
+variable = optionalAscribed $ lookup' (integer <|> keyword) $ do
     name <- identifier
     context <- getState
     let ns = names context
@@ -109,7 +108,7 @@ string' = do
     return $ TString (infoFrom p) t
 
 boolean :: LCParser
-boolean = try true <|> try false
+boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
 
@@ -301,14 +300,14 @@ productAnnotation = braces $ chainl1 typeAnnotation $ do
     return $ TyProduct
 
 notArrowAnnotation :: LCTypeParser
-notArrowAnnotation = try booleanAnnotation
-                 <|> try stringAnnotation
-                 <|> try unitAnnotation
-                 <|> try natAnnotation
-                 <|> try floatAnnotation
-                 <|> try baseTypeAnnotation
-                 <|> try topAnnotation
-                 <|> try botAnnotation
+notArrowAnnotation = booleanAnnotation
+                 <|> stringAnnotation
+                 <|> unitAnnotation
+                 <|> natAnnotation
+                 <|> floatAnnotation
+                 <|> baseTypeAnnotation
+                 <|> topAnnotation
+                 <|> botAnnotation
 
 booleanAnnotation :: LCTypeParser
 booleanAnnotation = primitiveType "Bool" TyBool
@@ -349,5 +348,5 @@ botAnnotation = primitiveType "Bot" TyBot
 
 primitiveType :: String -> Type -> LCTypeParser
 primitiveType name ty = do
-    string name
+    reserved name
     return ty
