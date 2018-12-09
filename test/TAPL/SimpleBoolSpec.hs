@@ -1,37 +1,45 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module TAPL.SimpleBoolSpec where
 
 import Test.Hspec
-import TAPL.SimpleBool
+import TAPL.SimpleBool.Evaluator (eval)
 
 spec :: Spec
 spec = do
   describe "eval" $ do
-    it "true" $ do
-        eval "true" `shouldBe` "true:Bool"
+    describe "values" $ do
+        describe "primitive values" $ do
+           let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+               examples = [
+                  ("true", "true:Bool"),
+                  ("false", "false:Bool")
+                ]
+           mapM_ test examples
 
-    it "false" $ do
-        eval "false" `shouldBe` "false:Bool"
+        describe "abstractions" $ do
+            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+                examples = [
+                    ("(lambda x:Bool.x)", "(lambda x.x):(Bool -> Bool)"),
+                    ("(lambda x:Bool.lambda y:Bool.x)", "(lambda x.(lambda y.x)):(Bool -> (Bool -> Bool))")
+                 ]
+            mapM_ test examples
 
-    it "if true then true else false -> true:Bool" $ do
-        eval "if true then true else false" `shouldBe` "true:Bool"
+    describe "operations" $ do
+        describe "condition" $ do
+           let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+               examples = [
+                  ("if true then false else false", "false:Bool"),
+                  ("if false then false else true", "true:Bool")
+                ]
+           mapM_ test examples
 
-    it "(λx:Bool.λy:Bool.λz:Bool.if x then y else z) true -> (λy.(λz.if true then y else z)):(Bool->Bool)" $ do
-        eval "(λx:Bool.λy:Bool.λz:Bool.if x then y else z) true" `shouldBe` "(λy.(λz.if true then y else z)):(Bool->Bool)"
-
-    it "(λx:Bool.λy:Bool.λz:Bool.if x then y else z) true true -> (λz.if true then true else z):(Bool->Bool)" $ do
-        eval "(λx:Bool.λy:Bool.λz:Bool.if x then y else z) true true" `shouldBe` "(λz.if true then true else z):(Bool->Bool)"
-
-    it "(λx:Bool.λy:Bool.λz:Bool.if x then y else z) true true false -> true:Bool" $ do
-        eval "(λx:Bool.λy:Bool.λz:Bool.if x then y else z) true true false" `shouldBe` "true:Bool"
-
-    it "(λx:Bool->Bool.if x false then true else false)(λx:Bool. if x then false else true) -> true:Bool" $ do
-        eval "(λx:Bool->Bool.if x false then true else false)(λx:Bool. if x then false else true)" `shouldBe` "true:Bool"
-
-    it "(λx:Bool->Bool.if x false then true else false)(λx:Bool. if x then false else true) -> true:Bool" $ do
-        eval "(λx:Bool->Bool.if x false then true else false)(λx:Bool. if x then false else true)" `shouldBe` "true:Bool"
-
-    it "(λx:Bool->Bool.if x false then true else false)(λx:Bool. if x then false else true) -> true:Bool" $ do
-        eval "(λx:Bool->Bool.if x false then true else false)(λx:Bool. if x then false else true)" `shouldBe` "true:Bool"
-
-    it "(λx:Bool->Bool.if x false then true else false)(λx:Bool. if x then true else false) -> false:Bool" $ do
-        eval "(λx:Bool->Bool.if x false then true else false)(λx:Bool. if x then true else false)" `shouldBe` "false:Bool"
+        describe "apply" $ do
+            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+                examples = [
+                  ("(lambda x:Bool. if x then false else true) true", "false:Bool"),
+                  ("(lambda x:Bool.lambda y:(Bool -> (Bool -> Bool)). if x then y true else y false) true",
+                    "(lambda y.if true then y true else y false):((Bool -> (Bool -> Bool)) -> (Bool -> Bool))"
+                  )
+                 ]
+            mapM_ test examples
