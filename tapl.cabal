@@ -1,8 +1,10 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.1.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 76532e1b7d964d5e9ff99fc6ff1ac324312f569eeb8f2de61196cf11066e48cb
+-- hash: 9c4ac7285b1a5b13994f3f3870bba1c76f2760007a8a65b7edbb26bbff6b62ee
 
 name:           tapl
 version:        0.1.0.0
@@ -15,10 +17,9 @@ copyright:      2018 Author name here
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
-cabal-version:  >= 1.10
-
 extra-source-files:
     README.md
+    ChangeLog.md
 
 source-repository head
   type: git
