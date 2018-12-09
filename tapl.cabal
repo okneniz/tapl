@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9c4ac7285b1a5b13994f3f3870bba1c76f2760007a8a65b7edbb26bbff6b62ee
+-- hash: 2d79839e0945a9332451061e8717699e1f121d5d21b6ae66f4e1563485516480
 
 name:           tapl
 version:        0.1.0.0
@@ -19,7 +19,6 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
-    ChangeLog.md
 
 source-repository head
   type: git
@@ -34,7 +33,10 @@ library
     , parsec
   exposed-modules:
       Lib
-      TAPL.Arith
+      TAPL.Arith.Evaluator
+      TAPL.Arith.Lexer
+      TAPL.Arith.Parser
+      TAPL.Arith.Types
       TAPL.Bot.Evaluator
       TAPL.Bot.Lexer
       TAPL.Bot.Parser
