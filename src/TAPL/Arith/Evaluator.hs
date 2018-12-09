@@ -1,4 +1,4 @@
-module TAPL.Arith.Evaluator where
+module TAPL.Arith.Evaluator (eval) where
 
 import TAPL.Arith.Types
 import TAPL.Arith.Parser

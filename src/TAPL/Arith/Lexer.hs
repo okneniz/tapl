@@ -1,4 +1,4 @@
-module TAPL.Arith.Lexer where
+module TAPL.Arith.Lexer (reserved, parens, semi) where
 
 import Text.Parsec (letter, alphaNum, lower, oneOf, (<|>))
 import Text.ParserCombinators.Parsec.Language (emptyDef)

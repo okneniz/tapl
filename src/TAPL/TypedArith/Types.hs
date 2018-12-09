@@ -33,7 +33,6 @@ data Type = TyBool
 type VarName = Int
 type Depth = Int
 data Info = Info { row :: Int, column :: Int } deriving (Eq)
-type Location = Int
 type AST = [Term]
 
 data Binding = NameBind | VarBind Type deriving (Show)
@@ -49,13 +48,11 @@ instance Show Type where
     show TyNat = "Nat"
 
 data EvaluationError = ParsecError ParseError
-                     | InvalidOperation Info String
                      | TypeError String
                      deriving (Eq)
 
 instance Show EvaluationError where
     show (ParsecError e) = show e
-    show (InvalidOperation info s) = show info
     show (TypeError s) = show s
 
 data TypeError = TypeMissmatch Info String

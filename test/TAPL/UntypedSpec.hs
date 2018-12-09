@@ -1,19 +1,24 @@
 module TAPL.UntypedSpec where
 
 import Test.Hspec
-import TAPL.Untyped
+import TAPL.Untyped.Evaluator (eval)
 
 spec :: Spec
 spec = do
   describe "eval" $ do
-    it "(λx.xx) -> (λx.xx)" $ do
-        eval "(λx.xx)" `shouldBe` "(λx.xx)"
+    describe "values" $ do
+      describe "abstractions" $ do
+          let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+              examples = [
+                ("(lambda x.x x)", "(lambda x.x x)"),
+                ("(lambda x.lambda y.x y)", "(lambda x.(lambda y.x y))")
+               ]
+          mapM_ test examples
 
-    it "(λx.xx)(λx.xx) -> (λx.xx)(λx.xx)" $ do
-        eval "(λx.xx)(λx.xx)" `shouldBe` "(λx.xx)(λx.xx)"
-
-    it "(λx.λy.λz.x)(λz.zz) -> (λy.λz.λz.z'z')" $ do
-        eval "(λx.λy.λz.x)(λz.zz)" `shouldBe` "(λy.(λz.(λz'.z'z')))"
-
-    it "x -> x" $ do -- current implementation does not support free variables
-        eval "x" `shouldBe` "\"untyped \955-calculus\" (line 1, column 2):\nunexpected end of input\nexpecting \"'\"\nvariable x has't been bound in context"
+    describe "apply" $ do
+      let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+          examples = [
+            ("(lambda x.lambda y.lambda z.y z) (lambda z.z z)", "(lambda y.(lambda z.y z))"),
+            ("(lambda x.lambda y.lambda z.x)(lambda z.z z)", "(lambda y.(lambda z.(lambda z'.z' z')))")
+           ]
+      mapM_ test examples

@@ -13,11 +13,6 @@ import Data.Either (isRight, isLeft)
 import Prelude hiding (lookup)
 import qualified Prelude (lookup)
 
-evalFile :: String -> IO (Either EvaluationError String)
-evalFile path = do
-    code <- readFile path
-    return $ eval code path
-
 eval :: String -> String -> Either EvaluationError String
 eval code path = do
     ast <- (wrapErrors $ parse code path)

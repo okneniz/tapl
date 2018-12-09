@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module TAPL.SimpleBool.Evaluator where
+module TAPL.SimpleBool.Evaluator (eval) where
 
 import TAPL.SimpleBool.Types
 import TAPL.SimpleBool.Parser

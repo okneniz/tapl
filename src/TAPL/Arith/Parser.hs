@@ -1,4 +1,4 @@
-module TAPL.Arith.Parser where
+module TAPL.Arith.Parser (parse) where
 
 import TAPL.Arith.Types
 import TAPL.Arith.Lexer

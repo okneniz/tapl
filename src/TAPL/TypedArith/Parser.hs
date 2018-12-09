@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module TAPL.TypedArith.Parser where
+module TAPL.TypedArith.Parser (parse) where
 
 import TAPL.TypedArith.Types
 import TAPL.TypedArith.Context

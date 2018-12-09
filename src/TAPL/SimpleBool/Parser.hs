@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module TAPL.SimpleBool.Parser where
+module TAPL.SimpleBool.Parser (parse) where
 
 import TAPL.SimpleBool.Types
 import TAPL.SimpleBool.Context
@@ -34,10 +34,6 @@ simpleBoolParser = do
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
-
-terms :: Parsec String (SimpleBoolContext Term) [Term]
-terms = term `sepEndBy` op
-  where op = do { semi; optionMaybe newline }
 
 term :: LCParser
 term = try apply

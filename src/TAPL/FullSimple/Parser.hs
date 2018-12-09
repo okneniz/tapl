@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module TAPL.FullSimple.Parser where
+module TAPL.FullSimple.Parser (parse) where
 
 import TAPL.FullSimple.Types
 import TAPL.FullSimple.Context
@@ -34,13 +34,6 @@ fullSimpleParser = do
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
-
-terms :: Parsec String (FullSimpleContext Term) [Term]
-terms = term `sepEndBy` op
-        where  def = []
-               op = do
-                 semi
-                 optionMaybe newline
 
 term :: LCParser
 term = try apply

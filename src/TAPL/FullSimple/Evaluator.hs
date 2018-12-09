@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module TAPL.FullSimple.Evaluator where
+module TAPL.FullSimple.Evaluator (eval) where
 
 import TAPL.FullSimple.Types
 import TAPL.FullSimple.Parser

@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module TAPL.FullRef.Evaluator where
+module TAPL.FullRef.Evaluator (eval) where
 import TAPL.FullRef.Types
 import TAPL.FullRef.Parser
 import TAPL.FullRef.Context
@@ -11,11 +11,6 @@ import Data.Either (isRight, isLeft)
 
 import Prelude hiding (succ, pred, lookup)
 import qualified Prelude (lookup)
-
-evalFile :: String -> IO (Either EvaluationError String)
-evalFile path = do
-    code <- readFile path
-    return $ eval code path
 
 eval :: String -> String -> Either EvaluationError String
 eval code path = do

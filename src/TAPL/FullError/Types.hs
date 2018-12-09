@@ -60,13 +60,11 @@ instance Show Type where
     show TyTop = "Top"
 
 data EvaluationError = ParsecError ParseError
-                     | InvalidOperation Info String
                      | TypeError String
                      deriving (Eq)
 
 instance Show EvaluationError where
     show (ParsecError e) = show e
-    show (InvalidOperation info s) = show info
     show (TypeError s) = show s
 
 data TypeError = TypeMissmatch Info String

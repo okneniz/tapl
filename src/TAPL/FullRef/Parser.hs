@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module TAPL.FullRef.Parser where
+module TAPL.FullRef.Parser (parse) where
 
 import TAPL.FullRef.Types
 import TAPL.FullRef.Context
