@@ -76,14 +76,14 @@ termShiftAbove d c t = termMap onVar (typeShiftAbove d) c t
                  where onVar c info name depth | name >= c = TVar info (name + d) (depth + d)
                        onVar c info name depth = TVar info name (depth + d)
 
-shift :: VarName -> Term -> Term
-shift d t = termShiftAbove d 0 t
+termShift :: VarName -> Term -> Term
+termShift d t = termShiftAbove d 0 t
 
-substitution :: VarName -> Term -> Term -> Term
-substitution j s t = termMap onVar onType 0 t
-               where onVar c info name depth | name == j + c = shift c s
-                     onVar c info name depth = TVar info name depth
-                     onType j ty = ty
+termSubstitution :: VarName -> Term -> Term -> Term
+termSubstitution j s t = termMap onVar onType 0 t
+                   where onVar c info name depth | name == j + c = termShift c s
+                         onVar c info name depth = TVar info name depth
+                         onType j ty = ty
 
 substitutionTop :: Term -> Term -> Term
-substitutionTop s t = shift (-1) (substitution 0 (shift 1 s) t)
+substitutionTop s t = termShift (-1) (termSubstitution 0 (termShift 1 s) t)
