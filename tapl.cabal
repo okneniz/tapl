@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dc1e6394f0a0e0e63afba6a816a4f3aa54a67310a789fad2dc8c06f59029b051
+-- hash: ab72eddde2592f05be8ca6298b24013aefa049be69b30e6d4081bb8f03f20af9
 
 name:           tapl
 version:        0.1.0.0
@@ -58,6 +58,13 @@ library
       TAPL.FullError.Memory
       TAPL.FullError.Parser
       TAPL.FullError.Types
+      TAPL.FullRecon.Context
+      TAPL.FullRecon.Evaluator
+      TAPL.FullRecon.Lexer
+      TAPL.FullRecon.Parser
+      TAPL.FullRecon.TypeChecker
+      TAPL.FullRecon.TypeReconstructor
+      TAPL.FullRecon.Types
       TAPL.FullRef.Context
       TAPL.FullRef.Evaluator
       TAPL.FullRef.Lexer
@@ -119,6 +126,7 @@ test-suite tapl-test
       TAPL.EquirecSpec
       TAPL.FullEquirecSpec
       TAPL.FullErrorSpec
+      TAPL.FullReconSpec
       TAPL.FullRefSpec
       TAPL.FullSimpleSpec
       TAPL.RcdSubBotSpec
