@@ -1,146 +1,127 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module TAPL.FullSimple.Evaluator (eval) where
+module TAPL.FullSimple.Evaluator (evalString) where
 
-import TAPL.FullSimple.Types
-import TAPL.FullSimple.Parser
-import TAPL.FullSimple.Context
-import TAPL.FullSimple.TypeChecker
 import Data.List (findIndex, intercalate, all, nub, (\\), last)
 import Data.Either (isLeft, isRight)
 import Data.Maybe (isJust)
+import qualified Data.Map.Strict as Map
 
-eval :: String -> String -> Either EvaluationError String
-eval code path = do
-  case (parse path code) of
-    Left e -> Left $ ParsecError e
-    Right c@(FullSimpleContext ns ast) ->
-      if correctAST c
-      then case last $ (\t -> fullNormalize $ FullSimpleContext ns t) <$> ast of
-                result -> case typeOf result of
-                               Right ty -> return $ show result ++ ":" ++ show ty
-                               Left x -> Left $ TypeError $ show x
-      else Left $ TypeError $ show $ head $ typeErrors c
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Class (lift)
 
-correctAST :: FullSimpleContext AST -> Bool
-correctAST (FullSimpleContext _ []) = False -- ?
-correctAST c = all isRight $ allTypes c -- use isCorrect ?
+import TAPL.FullSimple.Types
+import TAPL.FullSimple.Context
+import TAPL.FullSimple.Parser
+import TAPL.FullSimple.TypeChecker
+import TAPL.FullSimple.Pretty
 
-typeErrors :: FullSimpleContext AST -> [TypeError]
-typeErrors (FullSimpleContext _ []) = []
-typeErrors c = map fromLeft $ filter isLeft $ allTypes c
+type Eval a = ReaderT LCNames Maybe a
 
-allTypes :: FullSimpleContext AST -> [Either TypeError Type]
-allTypes (FullSimpleContext ns ast) = fmap f ast where f t = typeOf (FullSimpleContext ns t)
+evalString :: String -> String -> Either String String
+evalString code source = do
+  case parse source code of
+    Left e -> Left $ show e
+    Right (ast, names) -> do
+      types <- sequence $ typeOf names <$> ast
+      let result = last  $ eval names ast
+      ty <- typeOf names result
+      result' <- render names result
+      return $ result' ++ ":" ++ (show $ pretty ty)
 
-fullNormalize :: FullSimpleContext Term -> FullSimpleContext Term
-fullNormalize c = case normalize c of
-                       Just c' -> fullNormalize c'
-                       Nothing -> c
+eval :: LCNames -> AST -> AST
+eval n ast = fullNormalize n <$> ast
 
-normalize :: FullSimpleContext Term -> Maybe (FullSimpleContext Term)
-normalize c@(FullSimpleContext _ (TIf _ (TTrue _) t _ )) = return $ c `withTerm` t
-normalize c@(FullSimpleContext _ (TIf _ (TFalse _) _ t)) = return $ c `withTerm` t
+fullNormalize :: LCNames -> Term -> Term
+fullNormalize n t =
+    case runReaderT (normalize t) n of
+         Just t' -> fullNormalize n t'
+         Nothing -> t
 
-normalize c@(FullSimpleContext _ (TIf info t1 t2 t3)) = do
-  (FullSimpleContext _ t1') <- normalize $ c `withTerm` t1
-  return $ c `withTerm` (TIf info t1' t2 t3)
+normalize :: Term -> Eval Term
+normalize (TIf _ (TTrue _) t _) = return t
+normalize (TIf _ (TFalse _) _ t) = return t
 
-normalize c@(FullSimpleContext ns (TApp _ (TAbs _ _ _ t) v)) | isVal v =
-    return $ FullSimpleContext ns (substitutionTop v t)
+normalize (TIf info t1 t2 t3) = do
+    t1' <- normalize t1
+    return $ TIf info t1' t2 t3
 
-normalize c@(FullSimpleContext ns (TApp info t1 t2)) | isVal t1  = do
-    (FullSimpleContext ns t2') <- normalize $ c `withTerm` t2
-    return $ FullSimpleContext ns (TApp info t1 t2')
+normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ substitutionTop v t
 
-normalize c@(FullSimpleContext ns (TApp info t1 t2)) = do
-    (FullSimpleContext ns t1') <- normalize $ c `withTerm` t1
-    return $ FullSimpleContext ns (TApp info t1' t2)
+normalize (TApp info t1 t2) | isVal t1 = do
+    t2' <- normalize t2
+    return $ TApp info t1 t2'
 
-normalize c@(FullSimpleContext ns (TSucc info t)) = do
-    (FullSimpleContext ns t') <- normalize $ c `withTerm` t
-    return $ FullSimpleContext ns (TSucc info t')
+normalize (TApp info t1 t2) = do
+    t1' <- normalize t1
+    return $ TApp info t1' t2
 
-normalize c@(FullSimpleContext ns (TPred _ (TZero info))) =
-    return $ FullSimpleContext ns (TZero info)
+normalize (TSucc info t) = do
+    t' <- normalize t
+    return $ TSucc info t'
 
-normalize c@(FullSimpleContext ns (TPred _ (TSucc _ t))) | isNumerical t =
-    return $ FullSimpleContext ns t
+normalize (TPred _ (TZero info)) = return $ TZero info
+normalize (TPred _ (TSucc _ t)) | isNumerical t = return t
+normalize (TPred info t) = do
+    t' <- normalize t
+    return $ TPred info t'
 
-normalize c@(FullSimpleContext ns (TPred info t)) = do
-    (FullSimpleContext ns t') <- normalize $ c `withTerm` t
-    return $ FullSimpleContext ns (TPred info t')
+normalize (TIsZero _ (TZero info)) = return $ TTrue info
+normalize (TIsZero _ (TSucc info t)) | isNumerical t = return $ TFalse info
+normalize (TIsZero info t) = do
+    t' <- normalize t
+    return $ TIsZero info t'
 
-normalize c@(FullSimpleContext ns (TIsZero _ (TZero info))) =
-    return $ FullSimpleContext ns (TTrue info)
+normalize (TPair info t1 t2) | isVal t1 = do
+    t2' <- normalize t2
+    return $ TPair info t1 t2'
 
-normalize c@(FullSimpleContext ns (TIsZero _ (TSucc info t))) | isNumerical t =
-    return $ FullSimpleContext ns (TFalse info)
+normalize (TPair info t1 t2) = do
+    t1' <- normalize t1
+    return $ TPair info t1' t2
 
-normalize c@(FullSimpleContext ns (TIsZero info t)) = do
-    (FullSimpleContext ns t') <- normalize $ c `withTerm` t
-    return $ FullSimpleContext ns (TIsZero info t')
+normalize (TRecord _ fields) | (Map.size fields) == 0 = lift Nothing
+normalize t@(TRecord _ fields) | isVal t = lift Nothing
 
-normalize c@(FullSimpleContext ns (TPair info t1 t2)) | isVal t1  = do
-    (FullSimpleContext ns t2') <- normalize $ c `withTerm` t2
-    return $ FullSimpleContext ns (TPair info t1 t2')
+normalize (TRecord info fields) = do
+    fields' <- sequence $ evalField <$> Map.toList fields
+    return $ TRecord info (Map.fromList fields')
+    where evalField (k, field) = do
+            field' <- normalize field
+            return (k, field')
 
-normalize c@(FullSimpleContext ns (TPair info t1 t2)) = do
-    (FullSimpleContext ns t1') <- normalize $ c `withTerm` t1
-    return $ FullSimpleContext ns (TPair info t1' t2)
+normalize (TLookup _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
+normalize (TLookup _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
 
-normalize (FullSimpleContext ns (TRecord _ [])) = Nothing
-normalize (FullSimpleContext ns t@(TRecord _ fields)) | isVal t = Nothing
+normalize (TLookup _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = lift $ Map.lookup key fields
+normalize (TLookup info t k) = do
+    t' <- normalize t
+    return $ TLookup info t' k
 
-normalize c@(FullSimpleContext ns (TRecord info fields)) = do
-    return $ FullSimpleContext ns (TRecord info fields')
-     where (fields') = foldl evalField [] fields
-           evalField fs (k, t) = case normalize $ FullSimpleContext ns t of
-                                      (Just (FullSimpleContext ns t')) -> evalField fs (k, t')
-                                      _ -> fs ++ [(k, t)]
+normalize (TLet info v t1 t2) | isVal t1 = return $ substitutionTop t1 t2
 
-normalize c@(FullSimpleContext ns (TLookup _ (TPair _ t _) (TInt _ 0))) | isVal t = return $ c `withTerm` t
-normalize c@(FullSimpleContext ns (TLookup _ (TPair _ _ t) (TInt _ 1))) | isVal t = return $ c `withTerm` t
+normalize (TLet info v t1 t2) = do
+    t1' <- normalize t1
+    return $ TLet info v t1' t2
 
-normalize c@(FullSimpleContext ns (TLookup _ t@(TRecord _ fields) (TKeyword _ key))) | isVal t = do
-    case Prelude.lookup key fields of
-         Just t -> return $ FullSimpleContext ns t
-         Nothing -> error $ "Lookup invalid key : " ++ show key ++ " for record " ++ (show $ c `withTerm` t)
+normalize (TAscribe info t ty) = return t
 
-normalize c@(FullSimpleContext ns (TLookup info t k)) = do
-    (FullSimpleContext ns t') <- normalize $ c `withTerm` t
-    return $ FullSimpleContext ns (TLookup info t' k)
+normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = do
+    return $ substitutionTop t1 t2
 
-normalize c@(FullSimpleContext ns (TLet info v t1 t2)) | isVal t1 =
-    return $ c `withTerm` (substitutionTop t1 t2)
+normalize (TFix info t) = do
+    t' <- normalize t
+    return $ TFix info t'
 
-normalize c@(FullSimpleContext ns (TLet info v t1 t2)) = do
-    (FullSimpleContext ns t1') <- normalize $ c `withTerm` t1
-    return $ FullSimpleContext ns (TLet info v t1' t2)
+normalize (TCase _ (TTag _ key v _) branches) | isVal v = do
+    case Map.lookup key branches of
+         Just (_, t) -> return $ substitutionTop v t
 
-normalize c@(FullSimpleContext ns (TAscribe info t ty)) | isVal t = do
-    return $ FullSimpleContext ns t
+normalize c@(TCase info t fields) = do
+    t' <- normalize t
+    return $ TCase info t' fields
 
-normalize c@(FullSimpleContext ns (TAscribe info t ty)) = do
-    (FullSimpleContext ns t') <- normalize $ c `withTerm` t
-    return $ FullSimpleContext ns t'
-
-normalize c@(FullSimpleContext ns t1@(TFix _ a@(TAbs _ _ _ t2))) | isVal a = do
-    return $ withTerm c $ substitutionTop t1 t2
-
-normalize c@(FullSimpleContext ns (TFix info t)) = do
-    (FullSimpleContext ns t') <- normalize $ c `withTerm` t
-    return $ FullSimpleContext ns (TFix info t')
-
-normalize (FullSimpleContext ns (TCase _ (TTag _ key v _) branches)) | isVal v = do
-  (_, t) <- lookup key $ (\(key, varName, t) -> (key, (varName, t))) <$> branches
-  return $ FullSimpleContext ns $ substitutionTop v t
-
-normalize c@(FullSimpleContext ns (TCase info t fields)) = do
-  (FullSimpleContext ns t') <- normalize $ c `withTerm` t
-  return $ FullSimpleContext ns (TCase info t' fields)
-
-normalize _ = Nothing
+normalize _ = lift Nothing
 
 isVal :: Term -> Bool
 isVal (TTrue _) = True
@@ -151,7 +132,7 @@ isVal (TUnit _) = True
 isVal (TFloat _ _) = True
 isVal (TPair _ t1 t2) = (isVal t1) && (isVal t2)
 isVal x | isNumerical x = True
-isVal (TRecord _ ts) = all (\(_,y) -> isVal y) ts
+isVal (TRecord _ ts) = all isVal $ Map.elems ts
 isVal (TAscribe _ t _) = isVal t
 isVal (TTag _ _ t _) = isVal t
 isVal _ = False
@@ -178,13 +159,13 @@ tmmap onvar s t = walk s t
                   walk c (TFloat info t) = TFloat info t
                   walk c (TInt info t) = TInt info t
                   walk c (TPair info t1 t2) = TPair info (walk c t1) (walk c t2)
-                  walk c (TRecord info fields) = TRecord info $ (\(k,v) -> (k, walk c v)) <$> fields
+                  walk c (TRecord info fields) = TRecord info $ Map.map (walk c) fields
                   walk c (TTag info k t ty) = TTag info k (walk c t) ty
                   walk c (TLookup info r k) = TLookup info (walk c r) k
                   walk c (TLet info x t1 t2) = TLet info x (walk c t1) (walk (c+1) t2)
                   walk c (TAscribe info t ty) = TAscribe info (walk c t) ty
-                  walk c (TCase info t branches) = TCase info (walk c t) $ walkBranch <$> branches
-                                             where walkBranch (k, v, x) = (k, v, walk (c + 1) x)
+                  walk c (TCase info t branches) = TCase info (walk c t) $ Map.map walkBranch branches
+                                             where walkBranch (x, y) = (x, walk (c + 1) y)
                   walk c (TFix info t) = TFix info (walk c t)
                   walk c t@(TKeyword _ _) = t
 

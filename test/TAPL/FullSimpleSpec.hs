@@ -3,7 +3,9 @@
 module TAPL.FullSimpleSpec where
 
 import Test.Hspec
-import TAPL.FullSimple.Evaluator (eval)
+import TAPL.FullSimple.Evaluator (evalString)
+
+eval = evalString
 
 spec :: Spec
 spec = do
@@ -133,7 +135,9 @@ spec = do
                     \lambda y:Nat. \
                     \lambda z:Float. \
                     \lambda p:Float. \
-                    \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14", "(lambda p.if (lambda x.zero? x) succ zero then 3.14 else p):(Float -> Float)"),
+                    \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14",
+                    "(lambda p.if (lambda x.zero? x) succ zero then 3.14 else p):(Float -> Float)"
+                  ),
                   ("(lambda x:Nat -> Bool. \
                     \lambda y:Nat. \
                     \lambda z:Float. \
@@ -151,7 +155,7 @@ spec = do
                   ("let diverge = (lambda u:Unit.fix (lambda x:T.x)) in diverge", "(lambda u.(lambda x.x)):(Unit -> T)"),
                   (
                     "let ff = (lambda ie:Nat -> Bool.lambda x:Nat.if zero? x then true else (if zero? (pred x) then false else ie (pred pred x))) in let iseven = fix ff in iseven",
-                    "(lambda x.if zero? x then true else if zero? pred x then false else (lambda ie.(lambda x'.if zero? x' then true else if zero? pred x' then false else ie pred pred x')) pred pred x):(Nat -> Bool)"
+                    "(lambda x.if zero? x then true else if zero? pred x then false\n                                    else (lambda ie.(lambda x'.if zero? x'\n                                                               then true\n                                                               else if zero? pred x'\n                                                                    then false\n                                                                    else ie pred pred x')) pred pred x):(Nat -> Bool)"
                   )
                  ]
             mapM_ test examples

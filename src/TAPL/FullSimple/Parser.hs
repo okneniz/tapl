@@ -9,28 +9,28 @@ import TAPL.FullSimple.Lexer
 import Prelude hiding (abs, succ, pred)
 import Control.Monad
 import Control.Applicative hiding ((<|>), many, optional)
+
 import Text.Parsec hiding (parse)
 import Text.Parsec.String
 import Text.Parsec.Prim (try)
+
 import Data.List (findIndex, intercalate, all, nub, (\\))
 import Data.Either (isLeft, isRight)
 import Data.Maybe (isJust)
+import qualified Data.Map.Strict as Map
 
-type LCParser = Parsec String (FullSimpleContext Term) Term
-type LCTypeParser = Parsec String (FullSimpleContext Term) Type
+type LCParser = Parsec String LCNames Term
+type LCTypeParser = Parsec String LCNames Type
 
-parse :: String -> String -> Either ParseError (FullSimpleContext AST)
-parse = runParser fullSimpleParser pureContext
-  where pureContext = FullSimpleContext withoutNames unit
-        withoutNames = []
-        unit = TUnit $ Info { row = 0, column = 0 }
+parse :: String -> String -> Either ParseError (AST, LCNames)
+parse = runParser fullSimpleParser []
 
-fullSimpleParser :: Parsec String (FullSimpleContext Term) (FullSimpleContext AST)
+fullSimpleParser :: Parsec String LCNames (AST, LCNames)
 fullSimpleParser = do
     ast <- term `sepEndBy` semi
     eof
-    context <- getState
-    return (case context of FullSimpleContext names _ -> FullSimpleContext names ast)
+    names <- getState
+    return (ast, names)
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
@@ -79,7 +79,7 @@ abstraction = do
     dot
     optional spaces
     context <- getState
-    setState $ bind context varName $ (VarBind varType)
+    modifyState $ bind varName (VarBind varType)
     t <- term
     setState context
     return $ TAbs (infoFrom pos) varName varType t
@@ -87,11 +87,10 @@ abstraction = do
 variable :: LCParser
 variable = optionalAscribed $ lookup' (integer <|> keyword) $ do
     name <- identifier
-    context <- getState
-    let ns = names context
+    names <- getState
     pos <- getPosition
-    case findIndex ((== name) . fst) ns of
-         Just n -> return $ TVar (infoFrom pos) n (length $ ns)
+    case findIndex ((== name) . fst) names of
+         Just n -> return $ TVar (infoFrom pos) n (length $ names)
          Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 string' :: LCParser
@@ -196,7 +195,7 @@ record :: LCParser
 record = lookup' keyword $ braces $ do
     ts <- (keyValue (reservedOp "=") term) `sepBy` comma
     pos <- getPosition
-    return $ TRecord (infoFrom pos) ts
+    return $ TRecord (infoFrom pos) $ Map.fromList ts
 
 keyword :: LCParser
 keyword = do
@@ -228,15 +227,16 @@ case' = do
   optional spaces
   branches <- branch `sepBy` (reservedOp "|")
   pos <- getPosition
-  return $ TCase (infoFrom pos) t branches
+  return $ TCase (infoFrom pos) t $ Map.fromList branches
   where branch = do
+          pos <- getPosition
           (caseName, varName) <- pattern
           reservedOp "->"
           context <- getState
           modifyState $ \c -> addName c varName
           t2 <- term
           setState context
-          return (caseName, varName, t2)
+          return (caseName, (varName, t2))
         pattern = angles $ do
           caseName <- identifier
           reservedOp "="
@@ -326,12 +326,12 @@ baseTypeAnnotation = do
 recordAnnotation :: LCTypeParser
 recordAnnotation = braces $ do
     tys <- (keyValue colon typeAnnotation) `sepBy` comma
-    return $ TyRecord tys
+    return $ TyRecord $ Map.fromList tys
 
 variantAnnotation :: LCTypeParser
 variantAnnotation = angles $ do
     ts <- (keyValue colon typeAnnotation) `sepBy` comma
-    return $ TyVariant ts
+    return $ TyVariant $ Map.fromList ts
 
 topAnnotation :: LCTypeParser
 topAnnotation = primitiveType "Top" TyTop
@@ -340,6 +340,4 @@ botAnnotation :: LCTypeParser
 botAnnotation = primitiveType "Bot" TyBot
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = do
-    reserved name
-    return ty
+primitiveType name ty = reserved name >> return ty

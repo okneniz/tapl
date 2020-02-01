@@ -1,203 +1,224 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module TAPL.FullSimple.TypeChecker where
-
-import TAPL.FullSimple.Types
-import TAPL.FullSimple.Context
-import Control.Monad (liftM)
+module TAPL.FullSimple.TypeChecker (typeOf) where
 
 import Prelude hiding (abs, succ, pred)
+
 import Data.List (intercalate, all, nub, (\\), find, sortBy)
 import Data.Either (isLeft, isRight)
 import Data.Maybe (fromJust)
 import Data.Ord (comparing)
 
-class LCContext c => TypeChecker c where
-  typeFromContext :: c -> VarName -> Maybe Binding
-  isCorrect :: c -> Bool
-  typeOf :: c -> Either TypeError Type
+import qualified Data.Map.Strict as Map
 
-instance TypeChecker (FullSimpleContext Term) where
-  typeFromContext context name = liftM snd $ pickVar context name
-  isCorrect c = isRight $ typeOf c
+import Control.Monad (liftM, when)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.Except
 
-  typeOf (FullSimpleContext _ (TTrue _)) = return TyBool
-  typeOf (FullSimpleContext _ (TFalse _)) = return TyBool
-  typeOf (FullSimpleContext _ (TString _ _)) = return TyString
-  typeOf (FullSimpleContext _ (TUnit _)) = return TyUnit
-  typeOf (FullSimpleContext _ (TZero _)) = return TyNat
-  typeOf (FullSimpleContext _ (TInt _ _)) = return TyInt
+import TAPL.FullSimple.Types
+import TAPL.FullSimple.Context
 
-  typeOf (FullSimpleContext n (TSucc info t)) = do
-      ty <- typeOf $ FullSimpleContext n t
-      case ty of
-          TyNat -> return TyNat
-          ty -> Left $ TypeMissmatch info $ "argument of succ is not a natural number (" ++ show ty ++ ")"
+type Inferred a = ExceptT TypeError (State LCNames) a
 
-  typeOf (FullSimpleContext n (TPred info t)) = do
-      ty <- typeOf $ FullSimpleContext n t
-      case ty of
-         TyNat -> return TyNat
-         ty -> Left $ TypeMissmatch info $ "argument of pred is not a natural number (" ++ show ty ++ ")"
+data TypeError = TypeMissmatch Info String
 
-  typeOf (FullSimpleContext n (TIsZero info t)) = do
-      ty <- typeOf $ FullSimpleContext n t
-      case ty of
-        TyNat -> return TyBool
-        ty -> Left $ TypeMissmatch info $ "argument of zero? is not a natural number (" ++ show ty ++ ")"
+typeOf :: LCNames -> Term -> Either String Type
+typeOf names term =
+    case evalState (runExceptT (infer term)) names of
+         Left x -> Left $ show x
+         Right x -> return x
 
-  typeOf (FullSimpleContext n (TIf info t1 t2 t3)) = do
-      ty1 <- typeOf $ FullSimpleContext n t1
-      ty2 <- typeOf $ FullSimpleContext n t2
-      ty3 <- typeOf $ FullSimpleContext n t3
-      case ty1 of
-           TyBool -> if ty2 == ty3
-                     then return ty2
-                     else Left $ TypeMissmatch info $ "branches of condition have different types (" ++ show ty2 ++ " and " ++ show ty3 ++ ")"
-           ty -> Left $ TypeMissmatch info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty ++ ")"
+infer :: Term -> Inferred Type
+infer (TTrue _) = return TyBool
+infer (TFalse _) = return TyBool
+infer (TString _ _) = return TyString
+infer (TUnit _) = return TyUnit
+infer (TZero _) = return TyNat
+infer (TInt _ _) = return TyInt
 
-  typeOf c@(FullSimpleContext n v@(TVar info varname depth)) =
-      let ty = typeFromContext c varname
-      in case ty of
-              Just (VarBind ty') -> return ty'
-              Just x -> Left $ TypeMissmatch info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
-              Nothing -> Left $ TypeMissmatch info $ "var type error"
+infer (TSucc info t) = do
+  ty <- infer t
+  case ty of
+      TyNat -> return TyNat
+      ty -> argumentError info TyNat ty
 
-  typeOf (FullSimpleContext n (TApp info t1 t2)) = do
-      ty1 <- typeOf $ FullSimpleContext n $ t1
-      ty2 <- typeOf $ FullSimpleContext n $ t2
-      case ty1 of
-           (TyArrow ty1' ty2') -> if ty2 <: ty1'
-                                  then return ty2'
-                                  else Left $ TypeMissmatch info $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
-           TyBot -> return TyBot
-           x -> Left $ TypeMissmatch info $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
+infer (TPred info t) = do
+  ty <- infer t
+  case ty of
+     TyNat -> return TyNat
+     ty -> argumentError info TyNat ty
 
-  typeOf c@(FullSimpleContext n (TAbs _ name ty t)) = do
-      let t' = bind (FullSimpleContext n t) name (VarBind ty)
-      ty' <- typeOf t'
-      return $ TyArrow ty ty'
+infer (TIsZero info t) = do
+  ty <- infer t
+  case ty of
+    TyNat -> return TyBool
+    ty -> argumentError info TyNat ty
 
-  typeOf (FullSimpleContext _ (TFloat info x)) = Right TyFloat
+infer (TIf info t1 t2 t3) = do
+  ty1 <- infer t1
+  names <- lift $ get
+  case ty1 of
+       TyBool -> do
+          ty2 <- infer t2
+          ty3 <- infer t3
+          if ty2 == ty3
+          then return ty2
+          else throwE $ TypeMissmatch info $ "branches of condition have different types (" ++ show t2 ++ " and " ++ show t3 ++ ")"
+       ty -> throwE $ TypeMissmatch info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty ++ ")"
 
-  typeOf c@(FullSimpleContext n (TPair info t1 t2)) = do
-    ty1 <- typeOf $ c `withTerm` t1
-    ty2 <- typeOf $ c `withTerm` t2
+infer v@(TVar info varname depth) = do
+  names <- lift $ get
+  case liftM snd $ pickVar names varname of
+       Just (VarBind ty') -> return ty'
+       Just x -> throwE $ TypeMissmatch info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
+       Nothing -> throwE $ TypeMissmatch info $ "var type error"
+
+infer (TApp info t1 t2) = do
+    ty1 <- infer t1
+    ty2 <- infer t2
+    case ty1 of
+         (TyArrow ty1' ty2') | ty2 <: ty1' -> return ty2'
+         (TyArrow ty1' ty2') -> throwE $ TypeMissmatch info $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
+         TyBot -> return TyBot
+         x -> throwE $ TypeMissmatch info $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
+
+infer c@(TAbs _ name ty t) = do
+  names <- lift $ get
+  lift $ modify $ bind name (VarBind ty)
+  ty' <- infer t
+  lift $ put names
+  return $ TyArrow ty ty'
+
+infer (TFloat info x) = return TyFloat
+
+infer (TPair info t1 t2) = do
+    ty1 <- infer t1
+    ty2 <- infer t2
     return $ TyProduct ty1 ty2
 
-  typeOf c@(FullSimpleContext n v@(TRecord info fields)) = do
-      let f t = typeOf $ c `withTerm` t
-      let tyFields = (\(k, v) -> (k, f v)) <$> fields
-      let check = all (\(k, v) -> isRight v) tyFields
-      let tys = fmap (\(k, (Right t)) -> (k,t)) tyFields
-      let err = head $ fmap snd $ filter (\(_, v) -> isLeft v) tyFields
-      if check
-      then return $ TyRecord tys
-      else err
+infer (TRecord info fields) = do
+    tys <- sequence $ fmap tyField $ Map.toList fields
+    return $ TyRecord $ Map.fromList tys
+    where tyField (k,v) = do
+            tyf <- infer v
+            return (k, tyf)
 
-  typeOf c@(FullSimpleContext n (TLookup _ t (TInt info i))) =
-      case (typeOf $ c `withTerm` t, i) of
-           ((Right (TyProduct ty _)), 0) -> Right ty
-           ((Right (TyProduct _ ty)), 1) -> Right ty
-           ((Right (TyProduct _ ty)), _) -> Left $ TypeMissmatch info "invalid index for pair"
-           (x, _) | isRight x -> Left $ TypeMissmatch info "invalid lookup operation"
-           (x, _) -> x
+infer (TLookup _ t (TInt info i)) = do
+    ty <- infer t
+    case (ty, i) of
+         ((TyProduct ty _), 0) -> return ty
+         ((TyProduct _ ty), 1) -> return ty
+         ((TyProduct _ ty), _) -> throwE $ TypeMissmatch info "invalid index for pair"
+         (x, _)                -> throwE $ TypeMissmatch info "invalid lookup operation"
 
-  typeOf c@(FullSimpleContext n (TLookup _ t (TKeyword info key))) =
-      case typeOf $ c `withTerm` t of
-           (Right (TyRecord fields)) -> case Prelude.lookup key fields of
-                                             Just ty -> return ty
-                                             _ -> Left $ TypeMissmatch info $ "invalid keyword " ++ show key ++ " for record " ++ (show $ c `withTerm` t)
-           x | isRight x -> Left $ TypeMissmatch info "invalid lookup operation"
-           x -> x
+infer (TLookup _ t (TKeyword info key)) = do
+    ty <- infer t
+    case ty of
+         (TyRecord fields) ->
+            case Map.lookup key fields of
+                 Just ty -> return ty
+                 _ -> throwE $ TypeMissmatch info $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
+         _ -> throwE $ TypeMissmatch info "invalid lookup operation"
 
-  typeOf c@(FullSimpleContext n (TLookup info t k)) = do
-      Left $ TypeMissmatch info "invalid lookup operation"
+infer (TLookup info t k) = throwE $ TypeMissmatch info "invalid lookup operation"
 
-  typeOf c@(FullSimpleContext n (TLet info v t1 t2)) = do
-      ty1 <- typeOf $ FullSimpleContext n t1
-      ty2 <- typeOf $ (bind c v (VarBind ty1)) `withTerm` t2
-      return ty2
+infer (TLet info v t1 t2) = do
+    ty1 <- infer t1
+    lift $ modify $ bind v (VarBind ty1)
+    ty2 <- infer t2
+    return ty2
 
-  typeOf c@(FullSimpleContext n (TAscribe info t ty)) = do
-      ty' <- typeOf $ c `withTerm` t
-      if ty' <: ty
-      then return ty
-      else Left $ TypeMissmatch info "body of as-term does not have the expected type"
+infer (TAscribe info t ty) = do
+    ty' <- infer t
+    if ty' <: ty
+    then return ty
+    else throwE $ TypeMissmatch info "body of as-term does not have the expected type"
 
-  typeOf c@(FullSimpleContext n (TFix info t1)) = do
-    tyT1 <- typeOf $ c `withTerm` t1
+infer (TFix info t1) = do
+    tyT1 <- infer t1
     case tyT1 of
          (TyArrow tyT11 tyT12) | tyT12 <: tyT11 -> return tyT12
-         (TyArrow tyT11 tyT12) -> Left $ TypeMissmatch info  "result of body not compatible with domain"
-         _ -> Left $ TypeMissmatch info  "arrow type expected"
+         (TyArrow tyT11 tyT12) -> throwE $ TypeMissmatch info  "result of body not compatible with domain"
+         _ -> throwE $ TypeMissmatch info  "arrow type expected"
 
-  typeOf c@(FullSimpleContext _ (TCase info v@(TTag _ key _ _) branches)) = do
-    ty' <- typeOf $ c `withTerm` v
-
+infer (TCase info v@(TTag _ key _ _) branches) = do
+    ty' <- infer v
     case ty' of
-      TyVariant fields -> do
-        _ <- checkInvalidCaseBranches branches fields
-        _ <- checkAbsentCaseBranches branches fields
-        _ <- checkInvalidBranchesTypes branches fields
-        _ <- checkValidBranchesTypes branches fields
-        branch <- matchedBranch key branches
-        field <- matchedVariantField key fields
-        vty' <- typeOfBranch branch field
-        return vty'
-    where variantKey = fst
-          branchKey (x, _, _) = x
-          variantKeys fs = variantKey <$> fs
-          branchesKeys bs = branchKey <$> bs
-          typeOfBranch (_, varName, t) (_, vty) = typeOf $ (bind c varName (VarBind vty)) `withTerm` t
-          branchesTypes bs fs = (\(br,fi) -> typeOfBranch br fi) <$> zip (sortBy (comparing branchKey) bs)
-                                                                         (sortBy (comparing variantKey) fs)
+         TyVariant fields -> do
+            when (not $ null invalidCaseBranches)
+                 (throwE $ TypeMissmatch info $ "Invalid case branches : " ++ intercalate ", " invalidCaseBranches)
 
-          matchedBranch k caseBranches = do
-            case find (\x -> k == (branchKey x)) caseBranches of
-              Just branch -> return branch
-              _ -> Left $ TypeMissmatch info $ "Missmatch case branch with key " ++ show k
+            when (not $ null absentCaseBranches)
+                 (throwE $ TypeMissmatch info $ "Absent case branches : " ++ intercalate ", " absentCaseBranches)
 
-          matchedVariantField k variantFields = do
-            case Prelude.lookup k variantFields of
-              Just field -> return (k, field)
-              _ -> Left $ TypeMissmatch info $ "Missmatch variant with key " ++ show k
+            cases <- sequence $ fmap caseType $ Map.toList $ Map.intersectionWith (,) branches fields
 
-          checkInvalidCaseBranches bs fs = do
-            case (branchesKeys bs) \\ (variantKeys fs) of
-              [] -> Right []
-              fs -> Left $ TypeMissmatch info $ "Invalid case branch " ++ intercalate ", " fs
+            let casesTypes' = nub $ snd <$> cases
+            when (length casesTypes' /= 1)
+                 (throwE $ TypeMissmatch info $ "Case branches have different types : " ++ intercalate ", " (show <$> casesTypes'))
 
-          checkAbsentCaseBranches bs fs = do
-            case (variantKeys fs) \\ (branchesKeys bs) of
-              [] -> Right []
-              fs -> Left $ TypeMissmatch info $ "Absent case branch " ++ intercalate ", " fs
+            case (Map.lookup key $ Map.fromList cases) of
+                 Just vty' -> return vty'
+                 _ -> throwE $ TypeMissmatch info $ "Variant with key " ++ show key ++ " not found."
 
-          checkInvalidBranchesTypes bs fs = do
-            case filter isLeft $ (branchesTypes bs fs) of
-              [] -> Right []
-              fs -> Left $ TypeMissmatch info $ "Invalid case branch types " ++ intercalate ", " (show <$> fs)
+            where variantKeys = Map.keys fields
+                  branchesKeys = Map.keys branches
+                  invalidCaseBranches = branchesKeys \\ variantKeys
+                  absentCaseBranches = variantKeys \\ branchesKeys
+                  caseType (caseName, ((varName, t), vty)) = do
+                    lift $ modify $ bind varName (VarBind vty)
+                    ty <- infer t
+                    return (caseName, ty)
 
-          checkValidBranchesTypes bs fs = do
-            case nub $ fromRight <$> (branchesTypes bs fs) of
-              l | (length l) > 1 -> Left $ TypeMissmatch info $ "Case branches have different types " ++ intercalate ", " (show <$> l)
-              _ -> Right []
-
-  typeOf c@(FullSimpleContext _ (TTag info key t ty)) = do
-    ty' <- typeOf $ c `withTerm` t
+infer (TTag info key t ty) = do
+    ty' <- infer t
     case ty of
-        TyVariant tys -> case Prelude.lookup key tys of
-                              Just x -> if x == ty'
-                                        then return ty
-                                        else Left $ TypeMissmatch info $ "field does not have expected type"
-                              _ -> Left $ TypeMissmatch info $ "label " ++ key ++ " not found"
-        _ -> Left $ TypeMissmatch info $ "Annotation is not a variant type"
+         TyVariant tys ->
+            case Map.lookup key tys of
+                 Just x -> if x == ty'
+                           then return ty
+                           else throwE $ TypeMissmatch info $ "field does not have expected type"
+                 _ -> throwE $ TypeMissmatch info $ "label " ++ key ++ " not found"
+         _ -> throwE $ TypeMissmatch info $ "Annotation is not a variant type"
 
-  typeOf x = error $ show x ++ " ??"
+argumentError :: Info -> Type -> Type -> Inferred Type
+argumentError info expected actual = throwE $ TypeMissmatch info message
+    where message = "Argument error, expected " ++ show expected  ++ ". Got " ++ show actual ++ "."
 
-fromRight (Right x) = x
-fromRight (Left x) = undefined
+instance Show TypeError where
+    show (TypeMissmatch info message) = message ++ " in " ++ (show $ row info) ++ ":" ++ (show $ column info)
 
-fromLeft (Right x) = undefined
-fromLeft (Left x) = x
+instance Eq Type where
+  TyBool == TyBool = True
+  TyString == TyString = True
+  TyUnit == TyUnit = True
+  TyNat == TyNat = True
+  TyFloat == TyFloat = True
+  TyInt == TyInt = True
+  (TyID x) == (TyID y) = x == y
+  TyTop == TyTop = True
+  TyBot == TyBot = True
+  (TyArrow tys1 tys2) == (TyArrow tyt1 tyt2) = (tys1 == tyt1) && (tys2 == tyt2)
+  (TyProduct tyT1 tyT2) == (TyProduct tyT1' tyT2') = (tyT1 == tyT2) && (tyT1' == tyT2')
+  (TyRecord tys1) == (TyRecord tys2) = tys1 == tys2
+  (TyVariant tys1) == (TyVariant tys2) = tys1 == tys2
+  _ == _ = False
+
+(<:) :: Type -> Type -> Bool
+_ <: TyTop = True
+TyBot <: _ = True
+(TyArrow tys1 tys2) <: (TyArrow tyt1 tyt2) = (tyt1 <: tys1) && (tys2 <: tyt2)
+(TyProduct tyS1 tyS2) <: (TyProduct tyT1 tyT2) = (tyS1 <: tyT1) && (tyS2 <: tyT2)
+
+(TyRecord ty1) <: (TyRecord ty2) =
+    all f $ Map.elems $ Map.intersectionWith (,) ty1 $ Map.filterWithKey (\k _ -> Map.member k ty1) ty2
+    where f (ty1', ty2') = ty1' <: ty2'
+
+(TyVariant ty1) <: (TyVariant ty2) =
+    all f $ Map.elems $ Map.intersectionWith (,) ty1 $ Map.filterWithKey (\k _ -> Map.member k ty1) ty2
+    where f (ty1', ty2') = ty1' <: ty2'
+
+x <: y | x == y = True
+x <: y = False
