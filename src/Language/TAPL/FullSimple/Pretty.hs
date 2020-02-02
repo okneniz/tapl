@@ -20,6 +20,7 @@ render names term =
          Left x -> Left x
          Right x -> return $ show x
 
+prettify :: Term -> Printed (Doc a)
 prettify (TTrue _) = return $ pretty "true"
 prettify (TFalse _) = return $ pretty "false"
 prettify (TString _ s) = return $ dquotes $ pretty s
@@ -51,7 +52,7 @@ prettify (TIf _ t1 t2 t3) = do
                      , (pretty "else" <+> doc3)
                      ]
 
-prettify (TVar _ varname depth) = do
+prettify (TVar _ varname _) = do
     c <- lift $ get
     case nameFromContext c varname of
          Just name -> return $ pretty name
@@ -92,7 +93,7 @@ prettify (TLet _ v t1 t2) = do
     doc2 <- prettify t2
     return $ pretty "let" <+> align (pretty v <+> equals <+> doc1 <+> pretty "in" <+> doc2)
 
-prettify (TTag _ key t ty) = do
+prettify (TTag _ key t _) = do
     doc <- prettify t
     return $ angles $ pretty key <> equals <> doc
 
@@ -105,13 +106,15 @@ prettify (TCase _ t cs) = do
     cases <- sequence $ renderCase <$> Map.toList cs
     let cases' = foldl1 (\x y -> x <> hardline <> y) cases
     return $ pretty "case" <> align (doc <+> pretty "of" <+> hardline <> cases')
-    where renderCase (caseName, (varName, t)) = do
-            docC <- prettify t
+    where renderCase (caseName, (varName, x)) = do
+            docC <- prettify x
             return $ pretty "|" <+> (angles (pretty caseName <> equals <> pretty varName) <+> pretty "->" <+> docC)
 
 prettify (TFix _ t) = prettify t
 
 instance Pretty Type where
+    pretty TyTop = pretty "Top"
+    pretty TyBot = pretty "Bot"
     pretty TyBool = pretty "Bool"
     pretty TyInt = pretty "Int"
     pretty TyString = pretty "String"

@@ -2,19 +2,7 @@
 
 module Language.TAPL.FullSimple.Types where
 
-import Prelude hiding (abs, succ, pred)
-import Control.Monad
-import Control.Applicative hiding ((<|>), many, optional)
-import Text.Parsec
-import Text.Parsec.String
-import Text.Parsec.Prim (try)
-import Data.List (findIndex, intercalate, all, nub, (\\), sortBy)
-import Data.Function (on)
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
-
 import Data.Map (Map)
-import qualified Data.Map.Strict as Map
 
 data Term = TTrue Info
           | TFalse Info

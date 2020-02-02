@@ -4,11 +4,7 @@
 module Language.TAPL.FullSimple.TypeChecker (typeOf) where
 
 import Prelude hiding (abs, succ, pred)
-
-import Data.List (intercalate, all, nub, (\\), find, sortBy)
-import Data.Either (isLeft, isRight)
-import Data.Maybe (fromJust)
-import Data.Ord (comparing)
+import Data.List (intercalate, all, nub, (\\))
 
 import qualified Data.Map.Strict as Map
 
@@ -42,23 +38,22 @@ infer (TSucc info t) = do
   ty <- infer t
   case ty of
       TyNat -> return TyNat
-      ty -> argumentError info TyNat ty
+      _ -> argumentError info TyNat ty
 
 infer (TPred info t) = do
   ty <- infer t
   case ty of
      TyNat -> return TyNat
-     ty -> argumentError info TyNat ty
+     _ -> argumentError info TyNat ty
 
 infer (TIsZero info t) = do
   ty <- infer t
   case ty of
     TyNat -> return TyBool
-    ty -> argumentError info TyNat ty
+    _ -> argumentError info TyNat ty
 
 infer (TIf info t1 t2 t3) = do
   ty1 <- infer t1
-  names <- lift $ get
   case ty1 of
        TyBool -> do
           ty2 <- infer t2
@@ -66,9 +61,9 @@ infer (TIf info t1 t2 t3) = do
           if ty2 == ty3
           then return ty2
           else throwE $ TypeMissmatch info $ "branches of condition have different types (" ++ show t2 ++ " and " ++ show t3 ++ ")"
-       ty -> throwE $ TypeMissmatch info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty ++ ")"
+       _ -> throwE $ TypeMissmatch info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")"
 
-infer v@(TVar info varname depth) = do
+infer v@(TVar info varname _) = do
   names <- lift $ get
   case liftM snd $ pickVar names varname of
        Just (VarBind ty') -> return ty'
@@ -80,25 +75,25 @@ infer (TApp info t1 t2) = do
     ty2 <- infer t2
     case ty1 of
          (TyArrow ty1' ty2') | ty2 <: ty1' -> return ty2'
-         (TyArrow ty1' ty2') -> throwE $ TypeMissmatch info $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
+         (TyArrow ty1' _) -> throwE $ TypeMissmatch info $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
          TyBot -> return TyBot
-         x -> throwE $ TypeMissmatch info $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
+         _ -> throwE $ TypeMissmatch info $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
 
-infer c@(TAbs _ name ty t) = do
+infer (TAbs _ name ty t) = do
   names <- lift $ get
   lift $ modify $ bind name (VarBind ty)
   ty' <- infer t
   lift $ put names
   return $ TyArrow ty ty'
 
-infer (TFloat info x) = return TyFloat
+infer (TFloat _ _) = return TyFloat
 
-infer (TPair info t1 t2) = do
+infer (TPair _ t1 t2) = do
     ty1 <- infer t1
     ty2 <- infer t2
     return $ TyProduct ty1 ty2
 
-infer (TRecord info fields) = do
+infer (TRecord _ fields) = do
     tys <- sequence $ fmap tyField $ Map.toList fields
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = do
@@ -108,23 +103,23 @@ infer (TRecord info fields) = do
 infer (TLookup _ t (TInt info i)) = do
     ty <- infer t
     case (ty, i) of
-         ((TyProduct ty _), 0) -> return ty
-         ((TyProduct _ ty), 1) -> return ty
-         ((TyProduct _ ty), _) -> throwE $ TypeMissmatch info "invalid index for pair"
-         (x, _)                -> throwE $ TypeMissmatch info "invalid lookup operation"
+         ((TyProduct x _), 0) -> return x
+         ((TyProduct _ x), 1) -> return x
+         ((TyProduct _ _), _) -> throwE $ TypeMissmatch info "invalid index for pair"
+         (_, _)               -> throwE $ TypeMissmatch info "invalid lookup operation"
 
 infer (TLookup _ t (TKeyword info key)) = do
     ty <- infer t
     case ty of
          (TyRecord fields) ->
             case Map.lookup key fields of
-                 Just ty -> return ty
+                 Just x -> return x
                  _ -> throwE $ TypeMissmatch info $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
          _ -> throwE $ TypeMissmatch info "invalid lookup operation"
 
-infer (TLookup info t k) = throwE $ TypeMissmatch info "invalid lookup operation"
+infer (TLookup info _ _) = throwE $ TypeMissmatch info "invalid lookup operation"
 
-infer (TLet info v t1 t2) = do
+infer (TLet _ v t1 t2) = do
     ty1 <- infer t1
     lift $ modify $ bind v (VarBind ty1)
     ty2 <- infer t2
@@ -140,7 +135,7 @@ infer (TFix info t1) = do
     tyT1 <- infer t1
     case tyT1 of
          (TyArrow tyT11 tyT12) | tyT12 <: tyT11 -> return tyT12
-         (TyArrow tyT11 tyT12) -> throwE $ TypeMissmatch info  "result of body not compatible with domain"
+         (TyArrow _ _) -> throwE $ TypeMissmatch info  "result of body not compatible with domain"
          _ -> throwE $ TypeMissmatch info  "arrow type expected"
 
 infer (TCase info v@(TTag _ key _ _) branches) = do

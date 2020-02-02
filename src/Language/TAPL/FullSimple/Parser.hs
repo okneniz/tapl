@@ -7,16 +7,11 @@ import Language.TAPL.FullSimple.Context
 import Language.TAPL.FullSimple.Lexer
 
 import Prelude hiding (abs, succ, pred)
-import Control.Monad
-import Control.Applicative hiding ((<|>), many, optional)
 
 import Text.Parsec hiding (parse)
-import Text.Parsec.String
 import Text.Parsec.Prim (try)
 
-import Data.List (findIndex, intercalate, all, nub, (\\))
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
+import Data.List (findIndex)
 import qualified Data.Map.Strict as Map
 
 type LCParser = Parsec String LCNames Term
@@ -76,7 +71,7 @@ abstraction = do
     reserved "lambda"
     varName <- identifier
     varType <- termType
-    dot
+    _ <- dot
     optional spaces
     context <- getState
     modifyState $ bind varName (VarBind varType)
@@ -103,9 +98,6 @@ boolean :: LCParser
 boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
-
-nat :: LCParser
-nat = zero <|> succ <|> pred
 
 fun :: String -> (Info -> Term -> Term) -> LCParser
 fun name tm = do
@@ -163,10 +155,10 @@ lookup' key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
-  where dotRef key t = do
-          dot
+  where dotRef k t = do
+          _ <- dot
           pos <- getPosition
-          i <- key
+          i <- k
           t' <- (try $ dotRef key (TLookup (infoFrom pos) t i)) <|> (return $ TLookup (infoFrom pos) t i)
           return t'
 
@@ -186,7 +178,7 @@ optionalAscribed e = do
 pair :: LCParser
 pair = lookup' integer $ braces $ do
     t1 <- term
-    comma
+    _ <- comma
     t2 <- term
     pos <- getPosition
     return $ TPair (infoFrom pos) t1 t2
@@ -216,6 +208,7 @@ let' = do
     context <- getState
     modifyState $ \c -> addName c v
     t2 <- term
+    setState context
     return $ TLet (infoFrom p) v t1 t2
 
 case' :: LCParser
@@ -229,7 +222,6 @@ case' = do
   pos <- getPosition
   return $ TCase (infoFrom pos) t $ Map.fromList branches
   where branch = do
-          pos <- getPosition
           (caseName, varName) <- pattern
           reservedOp "->"
           context <- getState
@@ -262,16 +254,15 @@ fix = do
     pos <- getPosition
     return $ TFix (infoFrom pos) t
 
+keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = do
-  key <- identifier
-  devider
-  value <- val
-  return (key,value)
+  k <- identifier
+  _ <- devider
+  v <- val
+  return (k,v)
 
 termType :: LCTypeParser
-termType = do
-    colon
-    typeAnnotation
+termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = try arrowAnnotation

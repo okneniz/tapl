@@ -5,6 +5,7 @@ module Language.TAPL.FullSimpleSpec where
 import Test.Hspec
 import Language.TAPL.FullSimple.Evaluator (evalString)
 
+eval :: String -> String -> Either String String
 eval = evalString
 
 spec :: Spec

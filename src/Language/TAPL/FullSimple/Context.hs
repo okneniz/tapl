@@ -4,7 +4,6 @@
 module Language.TAPL.FullSimple.Context where
 
 import Language.TAPL.FullSimple.Types
-import Data.List (intercalate)
 import Data.Maybe (isJust)
 import Control.Monad (liftM)
 
@@ -24,7 +23,7 @@ pickFreshName c name | isBound c name = pickFreshName c (name ++ "'")
 pickFreshName c name = (name, c') where c' = addName c name
 
 pickVar :: LCNames -> VarName -> Maybe (String, Binding)
-pickVar [] varname = Nothing
+pickVar [] _ = Nothing
 pickVar names varname | length names > varname = Just $ names !! varname
 pickVar _ _ = Nothing
 
