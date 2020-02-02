@@ -1,5 +1,5 @@
-resolver: lts-12.21
+resolver: lts-14.22
 packages:
   - .
 extra-deps: []
-allow-newer: true
+allow-newer: false

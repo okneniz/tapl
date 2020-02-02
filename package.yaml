@@ -7,7 +7,7 @@ maintainer:          "example@example.com"
 copyright:           "2018 Author name here"
 
 extra-source-files:
-- README.md
+  - README.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -19,12 +19,12 @@ extra-source-files:
 description:         Please see the README on Github at <https://github.com/githubuser/tapl#readme>
 
 dependencies:
-  - base == 4.10.*
-  - parsec
-  - hspec == 2.*
-  - transformers == 0.5.6.*
-  - containers == 0.6.2.*
-  - prettyprinter == 1.6.0
+  - base >= 4.10
+  - parsec >= 3.1
+  - hspec >= 2.7
+  - transformers >= 0.5
+  - containers >= 0.6
+  - prettyprinter >= 1.2
 
 ghc-options:
   - -Wall
