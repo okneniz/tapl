@@ -1,9 +1,12 @@
 module Language.TAPL.Arith.Lexer (reserved, parens, semi) where
 
-import Text.Parsec (letter, alphaNum, lower, oneOf, (<|>))
-import Text.ParserCombinators.Parsec.Language (emptyDef)
+import Data.Functor.Identity (Identity)
+import Text.Parsec (alphaNum, lower, oneOf, (<|>), Parsec)
+import Text.ParserCombinators.Parsec.Language (LanguageDef, emptyDef)
 import qualified Text.ParserCombinators.Parsec.Token as Token
 
+
+languageDefinition :: LanguageDef st
 languageDefinition = emptyDef {
     Token.commentStart    = "/*",
     Token.commentEnd      = "*/",
@@ -23,8 +26,14 @@ languageDefinition = emptyDef {
     ]
 }
 
+lexer :: Token.GenTokenParser String u Identity
 lexer = Token.makeTokenParser languageDefinition
 
-reserved   = Token.reserved   lexer
-parens     = Token.parens     lexer
-semi       = Token.semi       lexer
+reserved :: String -> Parsec String u ()
+reserved = Token.reserved lexer
+
+parens :: Parsec String u a -> Parsec String u a
+parens = Token.parens lexer
+
+semi :: Parsec String u String
+semi = Token.semi lexer

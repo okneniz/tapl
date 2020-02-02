@@ -3,7 +3,6 @@ module Language.TAPL.Arith.Evaluator (eval) where
 import Language.TAPL.Arith.Types
 import Language.TAPL.Arith.Parser
 import Text.Parsec.Error
-import Debug.Trace (traceM, trace)
 
 eval :: String -> String -> Either ParseError String
 eval code path = do
@@ -42,4 +41,4 @@ normalize (TIsZero (TSucc t)) | isNumerical t = return TFalse
 
 normalize (TIsZero t) = do
   t' <- normalize t
-  return $ TIsZero t
+  return $ TIsZero t'

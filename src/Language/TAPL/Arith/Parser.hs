@@ -2,7 +2,7 @@ module Language.TAPL.Arith.Parser (parse) where
 
 import Language.TAPL.Arith.Types
 import Language.TAPL.Arith.Lexer
-import Text.Parsec.Error (ParseError(..))
+import Text.Parsec.Error (ParseError)
 import Text.Parsec hiding (parse)
 import Prelude hiding (succ, pred)
 
@@ -66,6 +66,5 @@ constant name t = do
 fun :: String -> (Term -> Term) -> LCParser
 fun name tm = do
   reserved name
-  p <- getPosition
   t <- term
   return $ tm t
