@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9a40754e5071d3119db162042a41d2416d7c53f7c1ce10cf4f9fe30d6f9a03df
+-- hash: 96ae572d6de8f5463ed0cb466066d30f32b4f1f9574ec73fe97728a521e66369
 
 name:           tapl
 version:        0.1.0.0
@@ -108,7 +108,6 @@ library
       Language.TAPL.Untyped.Lexer
       Language.TAPL.Untyped.Parser
       Language.TAPL.Untyped.Types
-      Lib
   other-modules:
       Paths_tapl
   default-language: Haskell2010
