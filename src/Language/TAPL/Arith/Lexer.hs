@@ -5,15 +5,14 @@ import Text.Parsec (alphaNum, lower, oneOf, (<|>), Parsec)
 import Text.ParserCombinators.Parsec.Language (LanguageDef, emptyDef)
 import qualified Text.ParserCombinators.Parsec.Token as Token
 
-
 languageDefinition :: LanguageDef st
 languageDefinition = emptyDef {
-    Token.commentStart    = "/*",
-    Token.commentEnd      = "*/",
-    Token.commentLine     = "//",
-    Token.identStart      = lower,
-    Token.identLetter     = (alphaNum <|> oneOf "?_"),
-    Token.reservedNames   = [
+    Token.commentStart  = "/*",
+    Token.commentEnd    = "*/",
+    Token.commentLine   = "//",
+    Token.identStart    = lower,
+    Token.identLetter   = (alphaNum <|> oneOf "?_"),
+    Token.reservedNames = [
         "true",
         "false",
         "zero?",

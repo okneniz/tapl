@@ -1,50 +1,28 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-
 module Language.TAPL.Untyped.Context where
 
 import Language.TAPL.Untyped.Types
-import Data.List (intercalate)
 import Data.Maybe (isJust)
 import Control.Monad (liftM)
 
-data UntypedContext t = UntypedContext LCNames t
+type LCNames = [(String,Binding)]
 
-class LCContext c where
-  bind :: c -> String -> Binding -> c
-  addName :: c -> String -> c
-  isBound :: c -> String -> Bool
-  pickFreshName :: c -> String -> (String, c)
-  pickVar :: c -> VarName -> Maybe (String, Binding)
-  nameFromContext :: c -> VarName -> Maybe String
-  names :: c -> LCNames
-  withTerm :: c -> Term -> c
+bind :: String -> Binding -> LCNames -> LCNames
+bind x b n = (x,b):n
 
-instance LCContext (UntypedContext Term) where
-  bind (UntypedContext n t) x b = UntypedContext ((x,b):n) t
-  addName c x = bind c x NameBind
-  isBound (UntypedContext n _) name = isJust $ Prelude.lookup name n
+addName :: LCNames -> String -> LCNames
+addName n x = bind x NameBind n
 
-  pickFreshName c name | isBound c name = pickFreshName c (name ++ "'")
-  pickFreshName c name = (name, c') where c' = addName c name
+isBound :: LCNames -> String -> Bool
+isBound n name = isJust $ Prelude.lookup name n
 
-  pickVar (UntypedContext [] _) varname = Nothing
-  pickVar (UntypedContext names _) varname | length names > varname = Just $ names !! varname
-  pickVar _ _ = Nothing
+pickFreshName :: LCNames -> String -> (String, LCNames)
+pickFreshName c name | isBound c name = pickFreshName c (name ++ "'")
+pickFreshName c name = (name, c') where c' = addName c name
 
-  nameFromContext c varname = liftM fst $ pickVar c varname
-  names (UntypedContext n _) = n
-  withTerm (UntypedContext ns _) t = UntypedContext ns t
+pickVar :: LCNames -> VarName -> Maybe (String, Binding)
+pickVar [] _ = Nothing
+pickVar names varname | length names > varname = Just $ names !! varname
+pickVar _ _ = Nothing
 
-instance Show (UntypedContext Term) where
-  show c@(UntypedContext _ v@(TVar _ varname depth)) =
-    case nameFromContext c varname of
-         Just name -> name
-         _ -> "[bad index in " ++ show v ++ " in context " ++ show c  ++ "]"
-
-  show c@(UntypedContext n (TAbs _ name t)) =
-      let (name', c') = pickFreshName (UntypedContext n t) name
-      in "(lambda " ++ name' ++ "." ++ show c'  ++ ")"
-
-  show c@(UntypedContext _ (TApp _ t1 t2)) =
-    (show $ c `withTerm` t1) ++ " " ++ (show $ c `withTerm` t2)
+nameFromContext :: LCNames -> VarName -> Maybe String
+nameFromContext n v = liftM fst $ pickVar n v

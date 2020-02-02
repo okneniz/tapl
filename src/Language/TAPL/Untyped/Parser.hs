@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.Untyped.Parser (parse) where
 
 import Language.TAPL.Untyped.Types
@@ -7,29 +5,21 @@ import Language.TAPL.Untyped.Context
 import Language.TAPL.Untyped.Lexer
 
 import Prelude hiding (abs, succ, pred)
-import Control.Monad
-import Control.Applicative hiding ((<|>), many, optional)
 import Text.Parsec hiding (parse)
-import Text.Parsec.String
 import Text.Parsec.Prim (try)
-import Data.List (findIndex, intercalate, all, nub, (\\))
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
+import Data.List (findIndex)
 
-type LCParser = Parsec String (UntypedContext Term) Term
+type LCParser = Parsec String LCNames Term
 
-parse :: String -> String -> Either ParseError (UntypedContext AST)
-parse = runParser untypedParser pureContext
-  where pureContext = UntypedContext withoutNames unit
-        withoutNames = []
-        unit = TVar Info { row = 0, column = 0 } (-1) (-1)
+parse :: String -> String -> Either ParseError (AST, LCNames)
+parse = runParser untypedParser []
 
-untypedParser :: Parsec String (UntypedContext Term) (UntypedContext AST)
+untypedParser :: Parsec String LCNames (AST, LCNames)
 untypedParser = do
     ast <- term `sepEndBy` semi
     eof
-    context <- getState
-    return (case context of UntypedContext names _ -> UntypedContext names ast)
+    names <- getState
+    return (ast, names)
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
@@ -55,7 +45,7 @@ abstraction = do
     pos <- getPosition
     reserved "lambda"
     varName <- identifier
-    dot
+    _ <- dot
     optional spaces
     context <- getState
     modifyState $ \c -> addName c varName
@@ -66,9 +56,8 @@ abstraction = do
 variable :: LCParser
 variable = do
     name <- identifier
-    context <- getState
-    let ns = names context
+    ns <- getState
     pos <- getPosition
     case findIndex ((== name) . fst) ns of
          Just n -> return $ TVar (infoFrom pos) n (length $ ns)
-         Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
+         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
