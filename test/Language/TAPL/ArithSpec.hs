@@ -32,6 +32,16 @@ spec = do
               ("pred succ zero", "zero"),
               ("succ pred pred zero", "succ zero"),
               ("zero? zero", "true"),
-              ("zero? succ zero", "false")
+              ("zero? succ zero", "false"),
+              ("zero? pred succ zero", "true")
              ]
         mapM_ test examples
+
+    describe "invalid terms" $ do
+       let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+           examples = [
+              ("zero? zero? zero", "zero? true"),
+              ("if succ zero then pred zero else false", "if succ zero then pred zero else false"),
+              ("zero? false", "zero? false")
+            ]
+       mapM_ test examples

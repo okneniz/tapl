@@ -1,5 +1,7 @@
 module Language.TAPL.Arith.Types where
 
+import Data.Text.Prettyprint.Doc
+
 data Term = TTrue
           | TFalse
           | TZero
@@ -8,22 +10,14 @@ data Term = TTrue
           | TPred Term
           | TIsZero Term
 
-instance Show Term where
-    show TTrue = "true"
-    show TFalse = "false"
-    show TZero = "zero"
-    show (TIf x y z) = "if " ++ (show x) ++ " then " ++ (show y) ++ " else " ++ (show z)
-    show (TSucc x) = "succ " ++ (show x)
-    show (TPred x) = "pred " ++ (show x)
-    show (TIsZero x) = "zero? " ++ (show x)
-
-isNumerical :: Term -> Bool
-isNumerical TZero = True
-isNumerical (TSucc x) = isNumerical x
-isNumerical _ = False
-
-isVal :: Term -> Bool
-isVal TTrue = True
-isVal TFalse = True
-isVal x | isNumerical x = True
-isVal _ = False
+instance Pretty Term where
+    pretty TTrue = pretty "true"
+    pretty TFalse = pretty "false"
+    pretty TZero = pretty "zero"
+    pretty (TSucc x) = pretty "succ" <+> pretty x
+    pretty (TPred x) = pretty "pred" <+> pretty x
+    pretty (TIsZero x) = pretty "zero?" <+> pretty x
+    pretty (TIf x y z) = align $ fillSep [ (pretty "if" <+> pretty x)
+                                         , (pretty "then" <+> pretty y)
+                                         , (pretty "else" <+> pretty z)
+                                         ]

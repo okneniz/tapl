@@ -59,9 +59,7 @@ condition = do
   return $ TIf x y z
 
 constant :: String -> Term -> LCParser
-constant name t = do
-  reserved name
-  return t
+constant name t = reserved name >> return t
 
 fun :: String -> (Term -> Term) -> LCParser
 fun name tm = do
