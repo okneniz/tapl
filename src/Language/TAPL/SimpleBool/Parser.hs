@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.SimpleBool.Parser (parse) where
 
 import Language.TAPL.SimpleBool.Types
@@ -7,30 +5,22 @@ import Language.TAPL.SimpleBool.Context
 import Language.TAPL.SimpleBool.Lexer
 
 import Prelude hiding (abs, succ, pred)
-import Control.Monad
-import Control.Applicative hiding ((<|>), many, optional)
 import Text.Parsec hiding (parse)
-import Text.Parsec.String
 import Text.Parsec.Prim (try)
-import Data.List (findIndex, intercalate, all, nub, (\\))
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
+import Data.List (findIndex)
 
-type LCParser = Parsec String (SimpleBoolContext Term) Term
-type LCTypeParser = Parsec String (SimpleBoolContext Term) Type
+type LCParser = Parsec String LCNames Term
+type LCTypeParser = Parsec String LCNames Type
 
-parse :: String -> String -> Either ParseError (SimpleBoolContext AST)
-parse = runParser simpleBoolParser pureContext
-  where pureContext = SimpleBoolContext withoutNames unit
-        withoutNames = []
-        unit = TTrue $ Info { row = 0, column = 0 }
+parse :: String -> String -> Either ParseError (AST, LCNames)
+parse = runParser simpleBoolParser []
 
-simpleBoolParser :: Parsec String (SimpleBoolContext Term) (SimpleBoolContext AST)
+simpleBoolParser :: Parsec String LCNames (AST, LCNames)
 simpleBoolParser = do
     ast <- term `sepEndBy` semi
     eof
-    context <- getState
-    return (case context of SimpleBoolContext names _ -> SimpleBoolContext names ast)
+    names <- getState
+    return (ast, names)
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
@@ -59,10 +49,10 @@ abstraction = do
     reserved "lambda"
     varName <- identifier
     varType <- termType
-    dot
+    _ <- dot
     optional spaces
     context <- getState
-    setState $ bind context varName $ (VarBind varType)
+    modifyState $ bind varName (VarBind varType)
     t <- term
     setState context
     return $ TAbs (infoFrom pos) varName varType t
@@ -70,24 +60,16 @@ abstraction = do
 variable :: LCParser
 variable = do
     name <- identifier
-    context <- getState
-    let ns = names context
+    ns <- getState
     pos <- getPosition
     case findIndex ((== name) . fst) ns of
          Just n -> return $ TVar (infoFrom pos) n (length $ ns)
-         Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
+         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 boolean :: LCParser
 boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
-
-fun :: String -> (Info -> Term -> Term) -> LCParser
-fun name tm = do
-    reserved name
-    p <- getPosition
-    t <- term
-    return $ tm (infoFrom p) t
 
 constant :: String -> (Info -> Term) -> LCParser
 constant name t = do
@@ -107,7 +89,7 @@ condition = do
     return $ TIf (infoFrom pos) x y z
 
 termType :: LCTypeParser
-termType = do { colon; typeAnnotation }
+termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = try arrowAnnotation <|> booleanAnnotation
@@ -120,9 +102,4 @@ arrowAnnotation = chainr1 (booleanAnnotation <|> parens arrowAnnotation) $ do
     return $ TyArrow
 
 booleanAnnotation :: LCTypeParser
-booleanAnnotation = primitiveType "Bool" TyBool
-
-primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = do
-    reserved name
-    return ty
+booleanAnnotation = reserved "Bool" >> return TyBool
