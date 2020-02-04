@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.TypedArith.Parser (parse) where
 
 import Language.TAPL.TypedArith.Types
@@ -7,30 +5,24 @@ import Language.TAPL.TypedArith.Context
 import Language.TAPL.TypedArith.Lexer
 
 import Prelude hiding (abs, succ, pred)
-import Control.Monad
-import Control.Applicative hiding ((<|>), many, optional)
+
 import Text.Parsec hiding (parse)
-import Text.Parsec.String
 import Text.Parsec.Prim (try)
-import Data.List (findIndex, intercalate, all, nub, (\\))
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
 
-type LCParser = Parsec String (TypedArithContext Term) Term
-type LCTypeParser = Parsec String (TypedArithContext Term) Type
+import Data.List (findIndex)
 
-parse :: String -> String -> Either ParseError (TypedArithContext AST)
-parse = runParser typedArithParser pureContext
-  where pureContext = TypedArithContext withoutNames unit
-        withoutNames = []
-        unit = TTrue $ Info { row = 0, column = 0 }
+type LCParser = Parsec String LCNames Term
+type LCTypeParser = Parsec String LCNames Type
 
-typedArithParser :: Parsec String (TypedArithContext Term) (TypedArithContext AST)
+parse :: String -> String -> Either ParseError (AST, LCNames)
+parse = runParser typedArithParser []
+
+typedArithParser :: Parsec String LCNames (AST, LCNames)
 typedArithParser = do
     ast <- term `sepEndBy` semi
     eof
-    context <- getState
-    return (case context of TypedArithContext names _ -> TypedArithContext names ast)
+    names <- getState
+    return (ast, names)
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
@@ -66,10 +58,10 @@ abstraction = do
     reserved "lambda"
     varName <- identifier
     varType <- termType
-    dot
+    _ <- dot
     optional spaces
     context <- getState
-    setState $ bind context varName $ (VarBind varType)
+    modifyState $ bind varName (VarBind varType)
     t <- term
     setState context
     return $ TAbs (infoFrom pos) varName varType t
@@ -77,8 +69,7 @@ abstraction = do
 variable :: LCParser
 variable = do
     name <- identifier
-    context <- getState
-    let ns = names context
+    ns <- getState
     pos <- getPosition
     case findIndex ((== name) . fst) ns of
          Just n -> return $ TVar (infoFrom pos) n (length $ ns)
@@ -88,9 +79,6 @@ boolean :: LCParser
 boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
-
-nat :: LCParser
-nat = zero <|> succ <|> pred
 
 fun :: String -> (Info -> Term -> Term) -> LCParser
 fun name tm = do
@@ -129,9 +117,7 @@ condition = do
     return $ TIf (infoFrom pos) x y z
 
 termType :: LCTypeParser
-termType = do
-    colon
-    typeAnnotation
+termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
@@ -153,6 +139,4 @@ natAnnotation :: LCTypeParser
 natAnnotation = primitiveType "Nat" TyNat
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = do
-    reserved name
-    return ty
+primitiveType name ty = reserved name >> return ty

@@ -1,85 +1,68 @@
-{-# LANGUAGE FlexibleContexts #-}
-
-module Language.TAPL.TypedArith.Evaluator (eval) where
+module Language.TAPL.TypedArith.Evaluator (evalString) where
 
 import Language.TAPL.TypedArith.Types
 import Language.TAPL.TypedArith.Parser
-import Language.TAPL.TypedArith.Context
 import Language.TAPL.TypedArith.TypeChecker
-import Data.List (findIndex, intercalate, all, nub, (\\), last)
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
+import Language.TAPL.TypedArith.Pretty
 
-eval :: String -> String -> Either EvaluationError String
-eval code path = do
-  case (parse path code) of
-    Left e -> Left $ ParsecError e
-    Right c@(TypedArithContext ns ast) ->
-      if correctAST c
-      then case last $ (\t -> fullNormalize $ TypedArithContext ns t) <$> ast of
-                result -> case typeOf result of
-                               Right ty -> return $ show result ++ ":" ++ show ty
-                               Left x -> Left $ TypeError $ show x
-      else Left $ TypeError $ show $ head $ typeErrors c
+import Data.List (last)
 
-correctAST :: TypedArithContext AST -> Bool
-correctAST (TypedArithContext _ []) = False
-correctAST c = all isRight $ allTypes c
+evalString :: String -> String -> Either String String
+evalString code source = do
+  case parse source code of
+    Left e -> Left $ show e
+    Right (ast, names) -> do
+      _ <- sequence $ typeOf names <$> ast
+      let result = last $ eval ast
+      ty <- typeOf names result
+      result' <- render names result
+      return $ result' ++ ":" ++ (show $ pretty ty)
 
-typeErrors :: TypedArithContext AST -> [TypeError]
-typeErrors (TypedArithContext _ []) = []
-typeErrors c = map fromLeft $ filter isLeft $ allTypes c
+eval :: AST -> AST
+eval ast = fullNormalize <$> ast
 
-allTypes :: TypedArithContext AST -> [Either TypeError Type]
-allTypes (TypedArithContext ns ast) = fmap f ast where f t = typeOf (TypedArithContext ns t)
+fullNormalize :: Term -> Term
+fullNormalize t = case normalize t of
+                       Just t' -> fullNormalize t'
+                       Nothing -> t
 
-fullNormalize :: TypedArithContext Term -> TypedArithContext Term
-fullNormalize c = case normalize c of
-                       Just c' -> fullNormalize c'
-                       Nothing -> c
+normalize :: Term -> Maybe Term
 
-normalize :: TypedArithContext Term -> Maybe (TypedArithContext Term)
-normalize c@(TypedArithContext _ (TIf _ (TTrue _) t _ )) = return $ c `withTerm` t
-normalize c@(TypedArithContext _ (TIf _ (TFalse _) _ t)) = return $ c `withTerm` t
+normalize (TIf _ (TTrue _) t _ ) = return t
+normalize (TIf _ (TFalse _) _ t) = return t
 
-normalize c@(TypedArithContext _ (TIf info t1 t2 t3)) = do
-  (TypedArithContext _ t1') <- normalize $ c `withTerm` t1
-  return $ c `withTerm` (TIf info t1' t2 t3)
+normalize (TIf info t1 t2 t3) = do
+  t1' <- normalize t1
+  return $ TIf info t1' t2 t3
 
-normalize c@(TypedArithContext ns (TApp _ (TAbs _ _ _ t) v)) | isVal v =
-    return $ TypedArithContext ns (substitutionTop v t)
+normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = do
+    return $ substitutionTop v t
 
-normalize c@(TypedArithContext ns (TApp info t1 t2)) | isVal t1  = do
-    (TypedArithContext ns t2') <- normalize $ c `withTerm` t2
-    return $ TypedArithContext ns (TApp info t1 t2')
+normalize (TApp info t1 t2) | isVal t1  = do
+    t2' <- normalize t2
+    return $ TApp info t1 t2'
 
-normalize c@(TypedArithContext ns (TApp info t1 t2)) = do
-    (TypedArithContext ns t1') <- normalize $ c `withTerm` t1
-    return $ TypedArithContext ns (TApp info t1' t2)
+normalize (TApp info t1 t2) = do
+    t1' <- normalize t1
+    return $ TApp info t1' t2
 
-normalize c@(TypedArithContext ns (TSucc info t)) = do
-    (TypedArithContext ns t') <- normalize $ c `withTerm` t
-    return $ TypedArithContext ns (TSucc info t')
+normalize (TSucc info t) = do
+    t' <- normalize t
+    return $ TSucc info t'
 
-normalize c@(TypedArithContext ns (TPred _ (TZero info))) =
-    return $ TypedArithContext ns (TZero info)
+normalize (TPred _ (TZero info)) = return $ TZero info
+normalize (TPred _ (TSucc _ t)) | isNumerical t = return t
 
-normalize c@(TypedArithContext ns (TPred _ (TSucc _ t))) | isNumerical t =
-    return $ TypedArithContext ns t
+normalize (TPred info t) = do
+    t' <- normalize t
+    return $ TPred info t'
 
-normalize c@(TypedArithContext ns (TPred info t)) = do
-    (TypedArithContext ns t') <- normalize $ c `withTerm` t
-    return $ TypedArithContext ns (TPred info t')
+normalize (TIsZero _ (TZero info)) = return $ TTrue info
+normalize (TIsZero _ (TSucc info t)) | isNumerical t = return $ TFalse info
 
-normalize c@(TypedArithContext ns (TIsZero _ (TZero info))) =
-    return $ TypedArithContext ns (TTrue info)
-
-normalize c@(TypedArithContext ns (TIsZero _ (TSucc info t))) | isNumerical t =
-    return $ TypedArithContext ns (TFalse info)
-
-normalize c@(TypedArithContext ns (TIsZero info t)) = do
-    (TypedArithContext ns t') <- normalize $ c `withTerm` t
-    return $ TypedArithContext ns (TIsZero info t')
+normalize (TIsZero info t) = do
+    t' <- normalize t
+    return $ TIsZero info t'
 
 normalize _ = Nothing
 
@@ -98,31 +81,28 @@ isNumerical _ = False
 tmmap :: (Int -> Info -> Depth -> VarName -> Term) -> Int -> Term -> Term
 tmmap onvar s t = walk s t
             where walk c (TVar info name depth) = onvar c info name depth
-                  walk c (TAbs info x ty t) = TAbs info x ty (walk (c+1) t)
+                  walk c (TAbs info x ty t1) = TAbs info x ty (walk (c+1) t1)
                   walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
                   walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
-                  walk c (TTrue info) = TTrue info
-                  walk c (TFalse info) = TFalse info
-                  walk c (TZero info) = TZero info
-                  walk c (TIsZero info t) = TIsZero info (walk c t)
-                  walk c (TPred info t) = TPred info (walk c t)
-                  walk c (TSucc info t) = TSucc info (walk c t)
+                  walk _ (TTrue info) = TTrue info
+                  walk _ (TFalse info) = TFalse info
+                  walk _ (TZero info) = TZero info
+                  walk c (TIsZero info t1) = TIsZero info (walk c t1)
+                  walk c (TPred info t1) = TPred info (walk c t1)
+                  walk c (TSucc info t1) = TSucc info (walk c t1)
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
-termShiftAbove d c t = tmmap onvar c t
+termShiftAbove d s t = tmmap onvar s t
                  where onvar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onvar c info name depth = TVar info name (depth + d)
+                       onvar _ info name depth = TVar info name (depth + d)
 
 shift :: VarName -> Term -> Term
 shift d t = termShiftAbove d 0 t
 
 substitution :: VarName -> Term -> Term -> Term
 substitution j s t = tmmap onvar 0 t
-               where onvar c info name depth | name == j + c = shift c s
-                     onvar c info name depth = TVar info name depth
+               where onvar c _ name _ | name == j + c = shift c s
+                     onvar _ info name depth = TVar info name depth
 
 substitutionTop :: Term -> Term -> Term
 substitutionTop s t = shift (-1) (substitution 0 (shift 1 s) t)
-
-fromLeft (Right x) = undefined
-fromLeft (Left x) = x
