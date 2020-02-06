@@ -1,52 +1,42 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.Equirec.Parser (parse) where
 
 import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Context
 import Language.TAPL.Equirec.Lexer
 
+import Prelude hiding (abs, succ, pred)
+
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 
-import Prelude hiding (succ, pred, lookup)
-import qualified Prelude (lookup)
-
 import Data.List (findIndex)
 
-type LCParser = Parsec String (EquirecContext Term) Term
-type LCTypeParser = Parsec String (EquirecContext Term) Type
+type LCParser = Parsec String LCNames Term
+type LCTypeParser = Parsec String LCNames Type
 
-parse :: String -> String -> Either ParseError (EquirecContext AST)
-parse code path = runParser equirecParser pureContext path code
-          where pureContext = EquirecContext withoutNames noop
-                withoutNames = []
-                noop = TVar Nothing (-1) (-1)
+parse :: String -> String -> Either ParseError (AST, LCNames)
+parse = runParser equirecParser []
 
-parseFile :: String -> IO (Either ParseError (EquirecContext AST))
-parseFile path = do
-    code <- readFile path
-    return $ parse code path
+infoFrom :: SourcePos -> Info
+infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
 
-equirecParser :: Parsec String (EquirecContext Term) (EquirecContext AST)
+equirecParser :: Parsec String LCNames (AST, LCNames)
 equirecParser = do
     ast <- term `sepEndBy` semi
     eof
-    context <- getState
-    return (case context of EquirecContext names _ -> EquirecContext names ast)
+    names <- getState
+    return (ast, names)
 
 term :: LCParser
 term = try apply
    <|> try notApply
    <|> parens term
 
-
 apply :: LCParser
 apply = chainl1 notApply $ do
             optional spaces
             pos <- getPosition
-            return $ TApp (Just pos)
+            return $ TApp (infoFrom pos)
 
 notApply :: LCParser
 notApply = (abstraction <?> "abstraction")
@@ -59,29 +49,26 @@ abstraction = do
     reserved "lambda"
     varName <- identifier
     varType <- termType
-    dot
+    _ <- dot
     optional spaces
     context <- getState
-    setState $ bind context varName $ (VarBind varType)
+    modifyState $ bind varName (VarBind varType)
     t <- term
     setState context
-    return $ TAbs (Just p) varName varType t
+    return $ TAbs (infoFrom p) varName varType t
 
 variable :: LCParser
 variable = do
     name <- identifier
-    context <- getState
-    let ns = names context
+    ns <- getState
     p <- getPosition
     case findIndex ((== name) . fst) ns of
-         Just n -> return $ TVar (Just p) n (length $ ns)
-         Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
-
--- Types annotations --
+         Just n -> return $ TVar (infoFrom p) n (length $ ns)
+         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
 
 termType :: LCTypeParser
 termType = do
-    colon
+    _ <- colon
     ty <- typeAnnotation
     return ty
 
@@ -101,24 +88,24 @@ arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
 recursiveType :: LCTypeParser
 recursiveType = do
     reserved "Rec"
-    spaces
+    _ <- spaces
     i <- try $ oneOf ['A'..'Z']
     d <- try $ many $ oneOf ['a'..'z']
-    dot
+    _ <- dot
     context <- getState
     setState $ addName context (i:d)
     ty <- typeAnnotation
     return $ TyRec (i:d) ty
 
 notArrowAnnotation :: LCTypeParser
-notArrowAnnotation = (varOrID <?> "ID type or type variable")
+notArrowAnnotation = varOrID <?> "ID type or type variable"
 
 varOrID:: LCTypeParser
 varOrID = do
     i <- try $ oneOf ['A'..'Z']
     d <- try $ many $ oneOf ['a'..'z']
-    context <- getState
+    names <- getState
     let name = (i:d)
-    return $ case varName context name of
-                  Just x -> TyVar x (length $ names context)
+    return $ case findIndex (\(x,_) -> x == name) names of
+                  Just x -> TyVar x (length names)
                   Nothing -> TyID name

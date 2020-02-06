@@ -1,89 +1,73 @@
-{-# LANGUAGE FlexibleContexts #-}
+module Language.TAPL.Equirec.Evaluator (evalString) where
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Class (lift)
 
-module Language.TAPL.Equirec.Evaluator (eval) where
 import Language.TAPL.Equirec.Types
-import Language.TAPL.Equirec.Parser
 import Language.TAPL.Equirec.Context
+import Language.TAPL.Equirec.Parser
 import Language.TAPL.Equirec.TypeChecker
+import Language.TAPL.Equirec.Pretty
 
-import Data.List (all)
-import Data.Either (isRight, isLeft)
+type Eval a = ReaderT LCNames Maybe a
 
-import Prelude hiding (succ, pred, lookup)
-import qualified Prelude (lookup)
+evalString :: String -> String -> Either String String
+evalString code source = do
+  case parse source code of
+    Left e -> Left $ show e
+    Right (ast, names) -> do
+      _ <- sequence $ typeOf names <$> ast
+      let result = last  $ eval names ast
+      ty <- typeOf names result
+      result' <- render names result
+      resultType <- renderType names ty
+      return $ result' ++ ":" ++ resultType
 
-eval :: String -> String -> Either EvaluationError String
-eval code path = do
-    ast <- (wrapErrors $ parse code path)
-    let result@(EquirecContext ns t) = f ast
-    if correctAST ast
-    then case typeOf result of
-              Right ty -> return $ show result ++ ":" ++ (show $ EquirecContext ns ty)
-              Left x -> Left $ TypeError $ show x
-    else Left $ TypeError $ show $ head $ typeErrors ast
-    where f c@(EquirecContext ns [t]) = fullNormalize $ EquirecContext ns t
-          f c@(EquirecContext ns (t:ts)) = f (EquirecContext ns' ts)
-            where (EquirecContext ns' _) = fullNormalize $ EquirecContext ns t
-          wrapErrors (Left e) = Left $ ParsecError e
-          wrapErrors (Right x) = Right x
+eval :: LCNames -> AST -> AST
+eval n ast = fullNormalize n <$> ast
 
-fromLeft (Left x) = x
-fromLeft (Right x) = undefined
+fullNormalize :: LCNames -> Term -> Term
+fullNormalize n t =
+    case runReaderT (normalize t) n of
+         Just t' -> fullNormalize n t'
+         Nothing -> t
 
-correctAST :: EquirecContext AST -> Bool
-correctAST (EquirecContext _ []) = False -- ?
-correctAST c = all isRight $ allTypes c -- use isCorrect ?
+normalize :: Term -> Eval Term
+normalize (TApp _ (TAbs _ _ _ t) v) | isVal v =
+    return $ substitutionTop v t
 
-typeErrors :: EquirecContext AST -> [TypeError]
-typeErrors (EquirecContext _ []) = []
-typeErrors c = map fromLeft $ filter isLeft $ allTypes c
+normalize (TApp info t1 t2) | isVal t1 = do
+    t2' <- normalize t2
+    return $ TApp info t1 t2'
 
-allTypes :: EquirecContext AST -> [Either TypeError Type]
-allTypes (EquirecContext ns ast) = fmap f ast where f t = typeOf (EquirecContext ns t)
+normalize (TApp info t1 t2) = do
+    t1' <- normalize t1
+    return $ TApp info t1' t2
 
-fullNormalize :: EquirecContext Term -> EquirecContext Term
-fullNormalize c = case normalize c of
-                       Just c' -> fullNormalize c'
-                       Nothing -> c
+normalize _ = lift Nothing
 
-normalize :: EquirecContext Term -> Maybe (EquirecContext Term)
-normalize c@(EquirecContext ns (TApp _ (TAbs _ _ _ t) v)) | isVal $ (EquirecContext ns v) =
-    return $ EquirecContext ns (substitutionTop v t)
-
-normalize c@(EquirecContext ns (TApp info t1 t2)) | isVal $ (EquirecContext ns t1)  = do
-    (EquirecContext ns' t2') <- normalize $ (EquirecContext ns t2)
-    return $ EquirecContext ns' (TApp info t1 t2')
-
-normalize c@(EquirecContext ns (TApp info t1 t2)) = do
-    (EquirecContext ns' t1') <- normalize $ (EquirecContext ns t1)
-    return $ EquirecContext ns' (TApp info t1' t2)
-
-normalize _ = Nothing
-
-isVal :: EquirecContext Term -> Bool
-isVal (EquirecContext _ (TAbs _ _ _ _)) = True
+isVal :: Term -> Bool
+isVal (TAbs _ _ _ _) = True
 isVal _ = False
 
 termMap :: (Int -> Info -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
 termMap onVar onType s t = walk s t
                      where walk c (TVar info name depth) = onVar c info name depth
-                           walk c (TAbs info x ty t) = TAbs info x (onType c ty) (walk (c+1) t)
+                           walk c (TAbs info x ty t1) = TAbs info x (onType c ty) (walk (c+1) t1)
                            walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
-                           walc _ x = error $ show x
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
-termShiftAbove d c t = termMap onVar (typeShiftAbove d) c t
+termShiftAbove d s t = termMap onVar (typeShiftAbove d) s t
                  where onVar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onVar c info name depth = TVar info name (depth + d)
+                       onVar _ info name depth = TVar info name (depth + d)
 
 termShift :: VarName -> Term -> Term
 termShift d t = termShiftAbove d 0 t
 
 termSubstitution :: VarName -> Term -> Term -> Term
 termSubstitution j s t = termMap onVar onType 0 t
-                   where onVar c info name depth | name == j + c = termShift c s
-                         onVar c info name depth = TVar info name depth
-                         onType j ty = ty
+                   where onVar c _ name _ | name == j + c = termShift c s
+                         onVar _ info name depth = TVar info name depth
+                         onType _ ty = ty
 
 substitutionTop :: Term -> Term -> Term
 substitutionTop s t = termShift (-1) (termSubstitution 0 (termShift 1 s) t)
