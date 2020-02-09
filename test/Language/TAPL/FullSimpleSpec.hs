@@ -49,7 +49,9 @@ spec = do
                   ("{a=true, b=false}.a", "true:Bool"),
                   ("{a=true, b=unit}.b", "unit:Unit"),
                   ("{a=1.1, b=\"foo\"}.b", "\"foo\":String"),
-                  ("{c=(lambda x:Unit.x), d=(lambda x:Unit.x)}.d", "(lambda x.x):(Unit -> Unit)")
+                  ("{c=(lambda x:Unit.x), d=(lambda x:Unit.x)}.d", "(lambda x.x):(Unit -> Unit)"),
+                  ("{c=(lambda x:Unit.x), d=((lambda x:Unit.x) unit)}.d", "unit:Unit"),
+                  ("{c=(lambda x:Unit.x), d=(lambda x:Unit.x)}.d unit", "unit:Unit")
                 ]
            mapM_ test examples
 

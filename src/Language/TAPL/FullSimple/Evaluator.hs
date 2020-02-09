@@ -72,19 +72,11 @@ normalize (TPair info t1 t2) = do
     return $ TPair info t1' t2
 
 normalize (TRecord _ fields) | (Map.size fields) == 0 = Nothing
-normalize t@(TRecord _ _) | isVal t = Nothing
-
-normalize (TRecord info fields) = do
-    fields' <- sequence $ evalField <$> Map.toList fields -- не то!
-    return $ TRecord info (Map.fromList fields')
-    where evalField (k, field) = do
-            field' <- normalize field
-            return (k, field')
 
 normalize (TLookup _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
 normalize (TLookup _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
+normalize (TLookup _ (TRecord _ fields) (TKeyword _ key)) = Map.lookup key fields
 
-normalize (TLookup _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = Map.lookup key fields
 normalize (TLookup info t k) = do
     t' <- normalize t
     return $ TLookup info t' k
