@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.FullSimple.Parser (parse) where
 
 import Language.TAPL.FullSimple.Types

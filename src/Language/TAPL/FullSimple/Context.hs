@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-
 module Language.TAPL.FullSimple.Context where
 
 import Language.TAPL.FullSimple.Types

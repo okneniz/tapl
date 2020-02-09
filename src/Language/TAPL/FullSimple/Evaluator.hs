@@ -1,44 +1,35 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.FullSimple.Evaluator (evalString) where
 
-import Data.List (findIndex, intercalate, all, nub, (\\), last)
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
+import Data.List (all, last)
 import qualified Data.Map.Strict as Map
 
-import Control.Monad.Trans.Reader
-import Control.Monad.Trans.Class (lift)
+import Control.Monad (liftM)
 
 import Language.TAPL.FullSimple.Types
-import Language.TAPL.FullSimple.Context
 import Language.TAPL.FullSimple.Parser
 import Language.TAPL.FullSimple.TypeChecker
 import Language.TAPL.FullSimple.Pretty
-
-type Eval a = ReaderT LCNames Maybe a
 
 evalString :: String -> String -> Either String String
 evalString code source = do
   case parse source code of
     Left e -> Left $ show e
     Right (ast, names) -> do
-      types <- sequence $ typeOf names <$> ast
-      let result = last  $ eval names ast
+      _ <- sequence $ typeOf names <$> ast
+      let result = last  $ eval ast
       ty <- typeOf names result
       result' <- render names result
       return $ result' ++ ":" ++ (show $ pretty ty)
 
-eval :: LCNames -> AST -> AST
-eval n ast = fullNormalize n <$> ast
+eval :: AST -> AST
+eval ast = fullNormalize <$> ast
 
-fullNormalize :: LCNames -> Term -> Term
-fullNormalize n t =
-    case runReaderT (normalize t) n of
-         Just t' -> fullNormalize n t'
-         Nothing -> t
+fullNormalize :: Term -> Term
+fullNormalize t = case normalize t of
+                       Just t' -> fullNormalize t'
+                       Nothing -> t
 
-normalize :: Term -> Eval Term
+normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
 
@@ -80,11 +71,11 @@ normalize (TPair info t1 t2) = do
     t1' <- normalize t1
     return $ TPair info t1' t2
 
-normalize (TRecord _ fields) | (Map.size fields) == 0 = lift Nothing
-normalize t@(TRecord _ fields) | isVal t = lift Nothing
+normalize (TRecord _ fields) | (Map.size fields) == 0 = Nothing
+normalize t@(TRecord _ _) | isVal t = Nothing
 
 normalize (TRecord info fields) = do
-    fields' <- sequence $ evalField <$> Map.toList fields
+    fields' <- sequence $ evalField <$> Map.toList fields -- не то!
     return $ TRecord info (Map.fromList fields')
     where evalField (k, field) = do
             field' <- normalize field
@@ -93,18 +84,18 @@ normalize (TRecord info fields) = do
 normalize (TLookup _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
 normalize (TLookup _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
 
-normalize (TLookup _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = lift $ Map.lookup key fields
+normalize (TLookup _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = Map.lookup key fields
 normalize (TLookup info t k) = do
     t' <- normalize t
     return $ TLookup info t' k
 
-normalize (TLet info v t1 t2) | isVal t1 = return $ substitutionTop t1 t2
+normalize (TLet _ _ t1 t2) | isVal t1 = return $ substitutionTop t1 t2
 
 normalize (TLet info v t1 t2) = do
     t1' <- normalize t1
     return $ TLet info v t1' t2
 
-normalize (TAscribe info t ty) = return t
+normalize (TAscribe _ t _) = return t
 
 normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = do
     return $ substitutionTop t1 t2
@@ -113,15 +104,15 @@ normalize (TFix info t) = do
     t' <- normalize t
     return $ TFix info t'
 
-normalize (TCase _ (TTag _ key v _) branches) | isVal v = do
-    case Map.lookup key branches of
-         Just (_, t) -> return $ substitutionTop v t
+normalize (TCase _ (TTag _ key v _) branches) | isVal v =
+    liftM (\(_, t) -> substitutionTop v t)
+          (Map.lookup key branches)
 
-normalize c@(TCase info t fields) = do
+normalize (TCase info t fields) = do
     t' <- normalize t
     return $ TCase info t' fields
 
-normalize _ = lift Nothing
+normalize _ = Nothing
 
 isVal :: Term -> Bool
 isVal (TTrue _) = True
@@ -145,42 +136,42 @@ isNumerical _ = False
 tmmap :: (Int -> Info -> Depth -> VarName -> Term) -> Int -> Term -> Term
 tmmap onvar s t = walk s t
             where walk c (TVar info name depth) = onvar c info name depth
-                  walk c (TAbs info x ty t) = TAbs info x ty (walk (c+1) t)
+                  walk c (TAbs info x ty t1) = TAbs info x ty (walk (c+1) t1)
                   walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
                   walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
-                  walk c (TTrue info) = TTrue info
-                  walk c (TFalse info) = TFalse info
-                  walk c (TString info s) = TString info s
-                  walk c (TUnit info) = TUnit info
-                  walk c (TZero info) = TZero info
-                  walk c (TIsZero info t) = TIsZero info (walk c t)
-                  walk c (TPred info t) = TPred info (walk c t)
-                  walk c (TSucc info t) = TSucc info (walk c t)
-                  walk c (TFloat info t) = TFloat info t
-                  walk c (TInt info t) = TInt info t
+                  walk _ (TTrue info) = TTrue info
+                  walk _ (TFalse info) = TFalse info
+                  walk _ (TString info x) = TString info x
+                  walk _ (TUnit info) = TUnit info
+                  walk _ (TZero info) = TZero info
+                  walk c (TIsZero info t1) = TIsZero info (walk c t1)
+                  walk c (TPred info t1) = TPred info (walk c t1)
+                  walk c (TSucc info t1) = TSucc info (walk c t1)
+                  walk _ (TFloat info t1) = TFloat info t1
+                  walk _ (TInt info t1) = TInt info t1
                   walk c (TPair info t1 t2) = TPair info (walk c t1) (walk c t2)
                   walk c (TRecord info fields) = TRecord info $ Map.map (walk c) fields
-                  walk c (TTag info k t ty) = TTag info k (walk c t) ty
+                  walk c (TTag info k t1 ty) = TTag info k (walk c t1) ty
                   walk c (TLookup info r k) = TLookup info (walk c r) k
                   walk c (TLet info x t1 t2) = TLet info x (walk c t1) (walk (c+1) t2)
-                  walk c (TAscribe info t ty) = TAscribe info (walk c t) ty
-                  walk c (TCase info t branches) = TCase info (walk c t) $ Map.map walkBranch branches
-                                             where walkBranch (x, y) = (x, walk (c + 1) y)
-                  walk c (TFix info t) = TFix info (walk c t)
-                  walk c t@(TKeyword _ _) = t
+                  walk c (TAscribe info t1 ty) = TAscribe info (walk c t1) ty
+                  walk c (TCase info t1 branches) = TCase info (walk c t1) $ Map.map walkBranch branches
+                                              where walkBranch (x, y) = (x, walk (c + 1) y)
+                  walk c (TFix info t1) = TFix info (walk c t1)
+                  walk _ t1@(TKeyword _ _) = t1
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
-termShiftAbove d c t = tmmap onvar c t
+termShiftAbove d s t = tmmap onvar s t
                  where onvar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onvar c info name depth = TVar info name (depth + d)
+                       onvar _ info name depth = TVar info name (depth + d)
 
 shift :: VarName -> Term -> Term
 shift d t = termShiftAbove d 0 t
 
 substitution :: VarName -> Term -> Term -> Term
 substitution j s t = tmmap onvar 0 t
-               where onvar c info name depth | name == j + c = shift c s
-                     onvar c info name depth = TVar info name depth
+               where onvar c _ name _ | name == j + c = shift c s
+                     onvar _ info name depth = TVar info name depth
 
 substitutionTop :: Term -> Term -> Term
 substitutionTop s t = shift (-1) (substitution 0 (shift 1 s) t)

@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-
 module Language.TAPL.FullSimple.TypeChecker (typeOf) where
 
 import Prelude hiding (abs, succ, pred)
@@ -166,6 +163,7 @@ infer (TCase info v@(TTag _ key _ _) branches) = do
                     lift $ modify $ bind varName (VarBind vty)
                     ty <- infer t
                     return (caseName, ty)
+         x -> (throwE $ TypeMissmatch info $ "Invalid context for case statement " ++ show x)
 
 infer (TTag info key t ty) = do
     ty' <- infer t
@@ -216,4 +214,4 @@ TyBot <: _ = True
     where f (ty1', ty2') = ty1' <: ty2'
 
 x <: y | x == y = True
-x <: y = False
+_ <: _ = False
