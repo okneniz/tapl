@@ -1,14 +1,9 @@
 module Language.TAPL.Equirec.Evaluator (evalString) where
-import Control.Monad.Trans.Reader
-import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Equirec.Types
-import Language.TAPL.Equirec.Context
 import Language.TAPL.Equirec.Parser
 import Language.TAPL.Equirec.TypeChecker
 import Language.TAPL.Equirec.Pretty
-
-type Eval a = ReaderT LCNames Maybe a
 
 evalString :: String -> String -> Either String String
 evalString code source = do
@@ -16,24 +11,23 @@ evalString code source = do
     Left e -> Left $ show e
     Right (ast, names) -> do
       _ <- sequence $ typeOf names <$> ast
-      let result = last  $ eval names ast
+      let result = last $ eval ast
       ty <- typeOf names result
       result' <- render names result
       resultType <- renderType names ty
       return $ result' ++ ":" ++ resultType
 
-eval :: LCNames -> AST -> AST
-eval n ast = fullNormalize n <$> ast
+eval :: AST -> AST
+eval ast = fullNormalize <$> ast
 
-fullNormalize :: LCNames -> Term -> Term
-fullNormalize n t =
-    case runReaderT (normalize t) n of
-         Just t' -> fullNormalize n t'
+fullNormalize :: Term -> Term
+fullNormalize t =
+    case normalize t of
+         Just t' -> fullNormalize t'
          Nothing -> t
 
-normalize :: Term -> Eval Term
-normalize (TApp _ (TAbs _ _ _ t) v) | isVal v =
-    return $ substitutionTop v t
+normalize :: Term -> Maybe Term
+normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ substitutionTop v t
 
 normalize (TApp info t1 t2) | isVal t1 = do
     t2' <- normalize t2
@@ -43,7 +37,7 @@ normalize (TApp info t1 t2) = do
     t1' <- normalize t1
     return $ TApp info t1' t2
 
-normalize _ = lift Nothing
+normalize _ = Nothing
 
 isVal :: Term -> Bool
 isVal (TAbs _ _ _ _) = True
