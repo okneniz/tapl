@@ -1,15 +1,7 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module Language.TAPL.FullRef.Types where
 
-import Prelude
-import qualified Prelude (lookup)
-
-import Text.Parsec (SourcePos)
-import Text.Parsec.Error (ParseError(..))
-import Text.Parsec.Pos (sourceLine, sourceColumn, sourceName)
-import Data.Function (on)
-import Data.List (intercalate, all, sortBy)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 
 data Term = TTrue Info
           | TFalse Info
@@ -33,22 +25,12 @@ data Term = TTrue Info
           | TAscribe Info Term Type
           | TPair Info Term Term
           | TLookup Info Term Term
-          | TRecord Info [(String, Term)]
+          | TRecord Info (Map String Term)
           | TKeyword Info String
           | TFix Info Term
           | TTag Info String Term Type
-          | TCase Info Term [(String, String, Term)]
+          | TCase Info Term (Map String (String, Term))
           deriving (Show)
-
-type VarName = Int
-type Depth = Int
-type Info = Maybe SourcePos
-type Location = Int
-type AST = [Term]
-
-data Binding = NameBind | VarBind Type deriving (Show)
-type LCNames = [(String,Binding)]
-data LCMemory = LCMemory [Term]
 
 data Type = TyBool
           | TyString
@@ -62,46 +44,16 @@ data Type = TyBool
           | TyTop
           | TyBot
           | TyProduct Type Type
-          | TyRecord [(String, Type)]
+          | TyRecord (Map String Type)
           | TyKeyword
-          | TyVariant [(String, Type)]
+          | TyVariant (Map String Type)
+          deriving (Show)
 
-instance Show Type where
-    show TyBool = "Bool"
-    show TyString = "String"
-    show TyTop = "Top"
-    show TyBot = "Bot"
-    show TyUnit = "Unit"
-    show TyNat = "Nat"
-    show TyInt = "Int"
-    show TyFloat = "Float"
-    show TyKeyword = "Keyword"
-    show (TyArrow ty1 ty2) = show ty1 ++ " -> " ++ show ty2
-    show (TyRef t) = "Ref " ++ show t
-    show (TyID s) = s
-    show (TyProduct t1 t2) = "{" ++ show t1 ++ "*" ++ show t2 ++ "}"
-    show (TyRecord ts) =  "{" ++ (intercalate ", " $ (\(k,ty) -> k ++ "=" ++ show ty) <$> ts) ++ "}"
-    show (TyVariant ts) = "<" ++ (intercalate ", " $ map field ts) ++ ">"
-                    where field (k,t) = k ++ ":" ++ show t
+type VarName = Int
+type Depth = Int
+type AST = [Term]
 
-data EvaluationError = ParsecError ParseError
-                     | TypeError String
-                     deriving (Eq)
-
-instance Show EvaluationError where
-    show (ParsecError e) = show e
-    show (TypeError s) = show s
-
-data TypeError = TypeMissmatch Info String
-
-instance Show TypeError where
-    show (TypeMissmatch (Just info) message) =
-        let line = sourceLine info
-            column = sourceColumn info
-            name = sourceName info
-         in case name of
-                 "" -> message ++ " in " ++ show line ++ ":" ++ show column
-                 _ -> message ++ " in " ++ name ++ show line ++ ":" ++ show column
+data Info = Info { row :: Int, column :: Int } deriving (Show)
 
 instance Eq Type where
   TyBool == TyBool = True
@@ -113,13 +65,11 @@ instance Eq Type where
   (TyID x) == (TyID y) = x == y
   TyTop == TyTop = True
   TyBot == TyBot = True
-  (TyArrow tys1 tys2) == (TyArrow tyt1 tyt2) = (tys1 == tyt1) && (tys2 == tyt2)
   (TyRef tyT1) == (TyRef tyT2) = tyT1 == tyT2
+  (TyArrow tys1 tys2) == (TyArrow tyt1 tyt2) = (tys1 == tyt1) && (tys2 == tyt2)
   (TyProduct tyT1 tyT2) == (TyProduct tyT1' tyT2') = (tyT1 == tyT2) && (tyT1' == tyT2')
-  (TyRecord tys1) == (TyRecord tys2) = ((length tys1) == (length tys2)) && (all eqPair $ zip (sortBy ordPair tys1) (sortBy ordPair tys2))
-               where eqPair ((x, ty1), (y, ty2)) = (x == y) && (ty1 == ty2)
-  (TyVariant tys1) == (TyVariant tys2) = ((length tys1) == (length tys2)) && (all eqPair $ zip (sortBy ordPair tys1) (sortBy ordPair tys2))
-                where eqPair ((x, ty1), (y, ty2)) = (x == y) && (ty1 == ty2)
+  (TyRecord tys1) == (TyRecord tys2) = tys1 == tys2
+  (TyVariant tys1) == (TyVariant tys2) = tys1 == tys2
   _ == _ = False
 
 (<:) :: Type -> Type -> Bool
@@ -128,34 +78,33 @@ TyBot <: _ = True
 (TyArrow tys1 tys2) <: (TyArrow tyt1 tyt2) = (tyt1 <: tys1) && (tys2 <: tyt2)
 (TyRef tyT1) <: (TyRef tyT2) = (tyT1 <: tyT2) && (tyT2 <: tyT1)
 (TyProduct tyS1 tyS2) <: (TyProduct tyT1 tyT2) = (tyS1 <: tyT1) && (tyS2 <: tyT2)
-(TyRecord ty1) <: (TyRecord ty2) = all f ty2
-                             where f (k,ty) = case Prelude.lookup k ty1 of
-                                                   (Just x) -> x <: ty
-                                                   Nothing -> False
-(TyVariant ty1) <: (TyVariant ty2) = all f ty2
-                               where f (k,ty) = case Prelude.lookup k ty1 of
-                                                     (Just x) -> x <: ty
-                                                     Nothing -> False
+
+(TyRecord ty1) <: (TyRecord ty2) =
+    all f $ Map.elems $ Map.intersectionWith (,) ty1 $ Map.filterWithKey (\k _ -> Map.member k ty1) ty2
+    where f (ty1', ty2') = ty1' <: ty2'
+
+(TyVariant ty1) <: (TyVariant ty2) =
+    all f $ Map.elems $ Map.intersectionWith (,) ty1 $ Map.filterWithKey (\k _ -> Map.member k ty1) ty2
+    where f (ty1', ty2') = ty1' <: ty2'
+
 x <: y | x == y = True
-x <: y = False
+_ <: _ = False
 
-ordPair = compare `on` fst
+type LCMemory = [Term]
+type Location = Int
 
-class Memory m where
-    extend :: m -> Term -> (Int, m)
-    lookup :: m -> Location -> Term
-    update :: m -> Location -> Term -> m
-    size :: m -> Int
+extend :: LCMemory -> Term -> (Location, LCMemory)
+extend s t = (size s, (s ++ [t]))
 
-instance Memory LCMemory where
-    extend (LCMemory s) t = (length s, LCMemory (s ++ [t]))
-    lookup (LCMemory s) l = s !! l
-    update (LCMemory s) l t =
-        let f 0 (_:rest) = t:rest
-            f location (t':rest) = t':(f (location - 1) rest)
-            f _ _ = error "invalid location"
-        in LCMemory $ f l s
-    size (LCMemory s) = length s
+lookup :: LCMemory -> Location -> Term
+lookup s l = s !! l
 
-instance Show LCMemory where
-    show (LCMemory x) = "<memory: " ++ show x ++ " >"
+update :: LCMemory -> Location -> Term -> LCMemory
+update s l t =
+    let f 0 (_:rest) = t:rest
+        f location (t':rest) = t':(f (location - 1) rest)
+        f _ _ = error "invalid location"
+    in f l s
+
+size :: LCMemory -> Int
+size = length

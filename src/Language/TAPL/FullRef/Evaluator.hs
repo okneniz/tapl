@@ -1,255 +1,234 @@
-{-# LANGUAGE FlexibleContexts #-}
+module Language.TAPL.FullRef.Evaluator (evalString) where
 
-module Language.TAPL.FullRef.Evaluator (eval) where
+import Data.List (last)
+import qualified Data.Map.Strict as Map
+
+import Control.Monad.Trans.State
+import Control.Monad.Trans.Class (lift)
+
 import Language.TAPL.FullRef.Types
 import Language.TAPL.FullRef.Parser
-import Language.TAPL.FullRef.Context
 import Language.TAPL.FullRef.TypeChecker
+import Language.TAPL.FullRef.Pretty
 
-import Data.List (all)
-import Data.Either (isRight, isLeft)
+type Eval a = StateT LCMemory Maybe a
 
-import Prelude hiding (succ, pred, lookup)
-import qualified Prelude (lookup)
+evalString :: String -> String -> Either String String
+evalString code source = do
+  case parse source code of
+    Left e -> Left $ show e
+    Right ([], _) -> return ""
+    Right (ast, names) -> do
+        let mem = [] :: LCMemory
+        _ <- sequence $ typeOf names mem <$> ast
+        let (ast', mem') = eval mem ast
+            result = last $ ast'
+        ty <- typeOf names mem' result
+        result' <- render names result
+        return $ result' ++ ":" ++ (show $ pretty ty)
 
-eval :: String -> String -> Either EvaluationError String
-eval code path = do
-    ast <- (wrapErrors $ parse code path)
-    let result@(FullRefContext ns mem t) = f ast
-    if correctAST ast
-    then case typeOf result of
-              Right ty -> return $ show result ++ ":" ++ show ty
-              Left x -> Left $ TypeError $ show x
-    else Left $ TypeError $ show $ head $ typeErrors ast
-    where f c@(FullRefContext ns mem [t]) = fullNormalize $ FullRefContext ns mem t
-          f c@(FullRefContext ns mem (t:ts)) = f (FullRefContext ns' mem' ts)
-            where (FullRefContext ns' mem' _) = fullNormalize $ FullRefContext ns mem t
-          wrapErrors (Left e) = Left $ ParsecError e
-          wrapErrors (Right x) = Right x
+eval :: LCMemory -> AST -> (AST, LCMemory)
+eval mem ast = f [] mem ast
+    where f acc m [] = (reverse acc, m)
+          f acc m (t:ts) = f (t':acc) m' ts where (t', m') = fullNormalize m t
 
-fromLeft (Left x) = x
-fromLeft (Right x) = undefined
+fullNormalize :: LCMemory -> Term -> (Term, LCMemory)
+fullNormalize m t =
+    case runStateT (normalize t) m of
+         Just (t', m') -> fullNormalize m' t'
+         Nothing -> (t, m)
 
-correctAST :: FullRefContext AST -> Bool
-correctAST (FullRefContext _ _ []) = False -- ?
-correctAST c = all isRight $ allTypes c -- use isCorrect ?
+normalize :: Term -> Eval Term
+normalize (TIf _ (TTrue _) t _) = return t
+normalize (TIf _ (TFalse _) _ t) = return t
 
-typeErrors :: FullRefContext AST -> [TypeError]
-typeErrors (FullRefContext _ _ []) = []
-typeErrors c = map fromLeft $ filter isLeft $ allTypes c
+normalize (TIf info t1 t2 t3) = do
+    t1' <- normalize t1
+    return $ TIf info t1' t2 t3
 
-allTypes :: FullRefContext AST -> [Either TypeError Type]
-allTypes (FullRefContext ns mem ast) = fmap f ast where f t = typeOf (FullRefContext ns mem t)
+normalize (TSucc info t1) = do
+    t' <- normalize t1
+    return $ TSucc info t'
 
-fullNormalize :: FullRefContext Term -> FullRefContext Term
-fullNormalize c = case normalize c of
-                       Just c' -> fullNormalize c'
-                       Nothing -> c
+normalize (TPred _ (TZero info)) = return $ TZero info
+normalize (TPred _ (TSucc _ t)) | isNumerical  t = return t
 
-normalize :: FullRefContext Term -> Maybe (FullRefContext Term)
-normalize (FullRefContext ns mem (TIf _ (TTrue _) t _)) =
-    return $ FullRefContext ns mem t
+normalize (TPred info t) = do
+    t' <- normalize t
+    return $ TPred info t'
 
-normalize (FullRefContext ns mem (TIf _ (TFalse _) _ t)) =
-    return $ FullRefContext ns mem t
+normalize (TIsZero _ (TZero info)) = return $ TTrue info
+normalize (TIsZero _ (TSucc info t)) | isNumerical t = return $ TFalse info
 
-normalize c@(FullRefContext ns mem (TIf info t1 t2 t3)) = do
-    (FullRefContext ns mem' t1') <- normalize $ c `withTerm` t1
-    return $ FullRefContext ns mem' (TIf info t1' t2 t3)
+normalize (TIsZero info t) = do
+    t' <- normalize t
+    return $ TIsZero info t'
 
-normalize c@(FullRefContext ns mem (TSucc info t)) = do
-    (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
-    return $ FullRefContext ns mem' (TSucc info t')
+normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ substitutionTop v t
 
-normalize c@(FullRefContext ns mem (TPred _ (TZero info))) =
-    return $ FullRefContext ns mem (TZero info)
+normalize (TApp info t1 t2) | isVal t1  = do
+    t2' <- normalize t2
+    return $ TApp info t1 t2'
 
-normalize c@(FullRefContext ns mem (TPred _ (TSucc _ t))) | isNumerical $ c `withTerm` t =
-    return $ FullRefContext ns mem t
+normalize (TApp info t1 t2) = do
+    t1' <- normalize t1
+    return $ TApp info t1' t2
 
-normalize c@(FullRefContext ns mem (TPred info t)) = do
-    (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
-    return $ FullRefContext ns mem' (TPred info t')
+normalize (TRef info t) | isVal t = do
+    mem <- get
+    let (location, mem') = Language.TAPL.FullRef.Types.extend mem t
+    put mem'
+    return $ TLoc info location
 
-normalize c@(FullRefContext ns mem(TIsZero _ (TZero info))) =
-    return $ FullRefContext ns mem (TTrue info)
+normalize (TRef info t) = do
+    t' <- normalize t
+    return $ TRef info t'
 
-normalize c@(FullRefContext ns mem(TIsZero _ (TSucc info t))) | isNumerical $ c `withTerm` t =
-    return $ FullRefContext ns mem (TFalse info)
+normalize (TDeref _ (TLoc _ location)) = do
+    mem <- get
+    return $ Language.TAPL.FullRef.Types.lookup mem location
 
-normalize c@(FullRefContext ns mem(TIsZero info t)) = do
-    (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
-    return $ FullRefContext ns mem' (TIsZero info t')
+normalize (TDeref info t) = do
+    t' <- normalize t
+    return $ TDeref info t'
 
-normalize c@(FullRefContext ns mem (TApp _ (TAbs _ _ _ t) v)) | isVal $ c `withTerm` v =
-    return $ FullRefContext ns mem (substitutionTop v t)
+normalize (TAssign info t1 t2) | not (isVal t1) = do
+    t1' <- normalize t1
+    return $ TAssign info t1' t2
 
-normalize c@(FullRefContext ns mem (TApp info t1 t2)) | isVal $ c `withTerm` t1  = do
-    (FullRefContext ns mem' t2') <- normalize $ c `withTerm` t2
-    return $ FullRefContext ns mem' (TApp info t1 t2')
+normalize (TAssign info t1 t2) | not $ isVal t2 = do
+    t2' <- normalize t2
+    return $ TAssign info t1 t2'
 
-normalize c@(FullRefContext ns mem (TApp info t1 t2)) = do
-    (FullRefContext ns mem' t1') <- normalize $ c `withTerm` t1
-    return $ FullRefContext ns mem' (TApp info t1' t2)
+normalize (TAssign info (TLoc _ location) t2) = do
+    mem <- get
+    put $ update mem location t2
+    return $ TUnit info
 
-normalize c@(FullRefContext ns mem (TRef info t)) | isVal $ c `withTerm` t = do
-    let (location, mem') = extend mem t
-    return $ FullRefContext ns mem' (TLoc Nothing location)
+normalize (TLet _ _ t1 t2) | isVal t1 =
+    return $ substitutionTop t1 t2
 
-normalize c@(FullRefContext ns mem (TRef info t)) = do
-    (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
-    return $ FullRefContext ns mem' (TRef info t')
+normalize (TLet info v t1 t2) = do
+    t1' <- normalize t1
+    return $ TLet info v t1' t2
 
-normalize c@(FullRefContext ns mem (TDeref info (TLoc _ location))) = do
-    return $ c `withTerm` (lookup mem location)
+normalize (TAscribe _ t _) | isVal t = return t
+normalize (TAscribe _ t _) = normalize t
 
-normalize c@(FullRefContext ns mem (TDeref info t)) = do
-    (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
-    return $ FullRefContext ns mem' (TDeref info t')
+normalize (TPair info t1 t2) | isVal t1  = do
+    t2' <- normalize t2
+    return $ TPair info t1 t2'
 
-normalize c@(FullRefContext ns mem (TAssign info t1 t2)) | not $ isVal (c `withTerm` t1) = do
-    (FullRefContext ns mem' t1') <- normalize $ c `withTerm` t1
-    return $ FullRefContext ns mem' (TAssign info t1' t2)
+normalize (TPair info t1 t2) = do
+    t1' <- normalize t1
+    return $ TPair info t1' t2
 
-normalize c@(FullRefContext ns mem (TAssign info t1 t2)) | not $ isVal (c `withTerm` t2) = do
-    (FullRefContext ns mem' t2') <- normalize $ c `withTerm` t2
-    return $ FullRefContext ns mem' (TAssign info t1 t2')
+normalize (TRecord _ fields) | (Map.size fields) == 0 = lift Nothing
+normalize t@(TRecord _ _) | isVal t = lift Nothing
 
-normalize c@(FullRefContext ns mem (TAssign info (TLoc _ location) t2)) = do
-    let mem' = update mem location t2
-    return $ FullRefContext ns mem' (TUnit info)
+normalize (TRecord info fields) = do
+    fields' <- sequence $ evalField <$> Map.toList fields -- не то!
+    return $ TRecord info (Map.fromList fields')
+    where evalField (k, field) | isVal field = return (k, field)
+          evalField (k, field) = do
+            field' <- normalize field
+            return (k, field')
 
-normalize c@(FullRefContext ns mem (TLet info v t1 t2)) | isVal $ c `withTerm` t1 =
-    return $ c `withTerm` (substitutionTop t1 t2)
+normalize (TLookup _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = lift $ Map.lookup key fields
 
-normalize c@(FullRefContext ns mem (TLet info v t1 t2)) = do
-    (FullRefContext ns mem' t1') <- normalize $ c `withTerm` t1
-    return $ FullRefContext ns mem' (TLet info v t1' t2)
+normalize (TLookup _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
+normalize (TLookup _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
 
-normalize c@(FullRefContext ns mem (TAscribe info t ty)) | isVal (c `withTerm` t) = do
-    return $ FullRefContext ns mem t
+normalize (TLookup _ (TRecord _ fields) (TKeyword _ key)) = lift $ Map.lookup key fields
 
-normalize c@(FullRefContext ns mem (TAscribe info t ty)) = do
-    (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
-    return $ FullRefContext ns mem' t'
+normalize (TLookup info t k) = do
+    t' <- normalize t
+    return $ TLookup info t' k
 
-normalize c@(FullRefContext ns mem (TPair info t1 t2)) | isVal (c `withTerm` t1)  = do
-    (FullRefContext ns mem' t2') <- normalize $ c `withTerm` t2
-    return $ FullRefContext ns mem' (TPair info t1 t2')
+normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = do
+    return $ substitutionTop t1 t2
 
-normalize c@(FullRefContext ns mem (TPair info t1 t2)) = do
-    (FullRefContext ns mem' t1') <- normalize $ c `withTerm` t1
-    return $ FullRefContext ns mem' (TPair info t1' t2)
+normalize (TFix info t) = do
+    t' <- normalize t
+    return $ TFix info t'
 
-normalize c@(FullRefContext ns mem (TRecord _ [])) = Nothing
-normalize c@(FullRefContext ns mem t@(TRecord _ fields)) | isVal c = Nothing
+normalize (TCase _ (TTag _ key v _) branches) | isVal v = do
+    case Map.lookup key branches of
+         Just (_, t) -> return $ substitutionTop v t
+         Nothing -> lift Nothing
 
-normalize c@(FullRefContext ns mem (TRecord info fields)) = do
-    return $ FullRefContext ns mem' (TRecord info fields')
-     where (mem', fields') = foldl evalField (mem, []) fields
-           evalField (m, fs) (k, t) = case normalize $ FullRefContext ns m t of
-                                           (Just (FullRefContext ns m' t')) -> evalField (m', fs) (k, t')
-                                           _ -> (m, fs ++ [(k, t)])
+normalize (TCase info t fields) = do
+    t' <- normalize t
+    return $ TCase info t' fields
 
-normalize c@(FullRefContext ns mem (TLookup _ (TPair _ t _) (TInt _ 0))) | isVal $ c `withTerm` t =
-    return $ c `withTerm` t
+normalize _ = lift Nothing
 
-normalize c@(FullRefContext ns mem (TLookup _ (TPair _ _ t) (TInt _ 1))) | isVal $ c `withTerm` t =
-    return $ c `withTerm` t
-
-normalize c@(FullRefContext ns mem (TLookup _ t@(TRecord _ fields) (TKeyword _ key))) | isVal $ c `withTerm` t = do
-    case Prelude.lookup key fields of
-         Just t -> return $ FullRefContext ns mem t
-         Nothing -> error $ "Lookup invalid key : " ++ show key ++ " for record " ++ (show $ c `withTerm` t)
-
-normalize c@(FullRefContext ns mem (TLookup info t k)) = do
-    (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
-    return $ FullRefContext ns mem' (TLookup info t' k)
-
-normalize c@(FullRefContext ns mem t1@(TFix _ a@(TAbs _ _ _ t2))) | isVal $ c `withTerm` a = do
-    return $ withTerm c $ substitutionTop t1 t2
-
-normalize c@(FullRefContext ns mem (TFix info t)) = do
-    (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
-    return $ FullRefContext ns mem' (TFix info t')
-
-normalize c@(FullRefContext ns mem (TCase _ (TTag _ key v _) branches)) | isVal $ c `withTerm` v = do
-  (_, t) <- Prelude.lookup key $ (\(key, varName, t) -> (key, (varName, t))) <$> branches
-  return $ FullRefContext ns mem $ substitutionTop v t
-
-normalize c@(FullRefContext ns mem (TCase info t fields)) = do
-  (FullRefContext ns mem' t') <- normalize $ c `withTerm` t
-  return $ FullRefContext ns mem' (TCase info t' fields)
-
-normalize _ = Nothing
-
-isVal :: FullRefContext Term -> Bool
-isVal (FullRefContext _ _ (TTrue _)) = True
-isVal (FullRefContext _ _ (TFalse _)) = True
-isVal (FullRefContext _ _ (TString _ _)) = True
-isVal (FullRefContext _ _ (TFloat _ _)) = True
-isVal (FullRefContext _ _ (TInt _ _)) = True
-isVal (FullRefContext _ _ (TUnit _)) = True
-isVal (FullRefContext _ _ (TZero _)) = True
-isVal c@(FullRefContext _ _ (TAscribe _ t _)) = isVal $ c `withTerm` t
+isVal :: Term -> Bool
+isVal (TTrue _) = True
+isVal (TFalse _) = True
+isVal (TString _ _) = True
+isVal (TFloat _ _) = True
+isVal (TInt _ _) = True
+isVal (TUnit _) = True
+isVal (TZero _) = True
+isVal (TAscribe _ t _) = isVal t
 isVal t | isNumerical t = True
-isVal (FullRefContext _ _ (TAbs _ _ _ _)) = True
-isVal (FullRefContext _ _ (TLoc _ _)) = True
-isVal c@(FullRefContext _ _ (TPair _ t1 t2)) = (isVal $ c `withTerm` t1) && (isVal $ c `withTerm` t2)
-isVal c@(FullRefContext ns mem' (TRecord _ fields)) = all (\(_, t) -> isVal $ c `withTerm` t) fields
-isVal c@(FullRefContext _ _ (TFix _ t)) = isVal $ c `withTerm` t
-isVal c@(FullRefContext _ _ (TTag _ _ t _)) = isVal $ c `withTerm` t
+isVal (TAbs _ _ _ _) = True
+isVal (TLoc _ _) = True
+isVal (TPair _ t1 t2) = (isVal t1) && (isVal t2)
+isVal (TRecord _ ts) = all isVal $ Map.elems ts
+isVal (TFix _ t) = isVal t
+isVal (TTag _ _ t _) = isVal t
 isVal _ = False
 
-isNumerical :: FullRefContext Term -> Bool
-isNumerical (FullRefContext _ _ (TZero _)) = True
-isNumerical (FullRefContext n s (TSucc _ x)) = isNumerical $ FullRefContext n s x
+isNumerical :: Term -> Bool
+isNumerical (TZero _) = True
+isNumerical (TSucc _ t) = isNumerical t
 isNumerical _ = False
 
 termMap :: (Int -> Info -> Depth -> VarName -> Term) -> Int -> Term -> Term
 termMap onvar s t = walk s t
               where walk c (TVar info name depth) = onvar c info name depth
-                    walk c (TAbs info x ty t) = TAbs info x ty (walk (c+1) t)
+                    walk c (TAbs info x ty t1) = TAbs info x ty (walk (c+1) t1)
                     walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
                     walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
-                    walk c (TTrue info) = TTrue info
-                    walk c (TFalse info) = TFalse info
-                    walk c (TString info s) = TString info s
-                    walk c (TUnit info) = TUnit info
-                    walk c (TZero info) = TZero info
-                    walk c (TIsZero info t) = TIsZero info (walk c t)
-                    walk c (TPred info t) = TPred info (walk c t)
-                    walk c (TSucc info t) = TSucc info (walk c t)
-                    walk c (TFloat info t) = TFloat info t
-                    walk c (TInt info t) = TInt info t
+                    walk _ (TTrue info) = TTrue info
+                    walk _ (TFalse info) = TFalse info
+                    walk _ (TString info x) = TString info x
+                    walk _ (TUnit info) = TUnit info
+                    walk _ (TZero info) = TZero info
+                    walk c (TIsZero info t1) = TIsZero info (walk c t1)
+                    walk c (TPred info t1) = TPred info (walk c t1)
+                    walk c (TSucc info t1) = TSucc info (walk c t1)
+                    walk _ (TFloat info t1) = TFloat info t1
+                    walk _ (TInt info t1) = TInt info t1
                     walk c (TAssign info t1 t2) = TAssign info (walk c t1) (walk c t2)
-                    walk c (TRef info t) = TRef info (walk c t)
-                    walk c (TDeref info t) = TDeref info (walk c t)
+                    walk c (TRef info t1) = TRef info (walk c t1)
+                    walk c (TDeref info t1) = TDeref info (walk c t1)
                     walk c (TLet info v t1 t2) = TLet info v (walk c t1) (walk (c + 1) t2)
-                    walk c (TAscribe info t ty) = TAscribe info (walk c t) ty
+                    walk c (TAscribe info t1 ty) = TAscribe info (walk c t1) ty
                     walk c (TPair info t1 t2) = TPair info (walk c t1) (walk c t2)
-                    walk c (TRecord info ts) = TRecord info $ (\(k, t) -> (k, walk c t)) <$> ts
+                    walk c (TRecord info fields) = TRecord info $ Map.map (walk c) fields
                     walk c (TLookup info t1 t2) = TLookup info (walk c t1) (walk c t2)
-                    walk c (TTag info k t ty) = TTag info k (walk c t) ty
-                    walk c (TCase info t branches) = TCase info (walk c t) $ walkBranch <$> branches
-                                               where walkBranch (k, v, x) = (k, v, walk (c + 1) x)
-                    walk c t@(TKeyword _ _) = t
-                    walk c (TFix info t) = TFix info (walk c t)
-                    walk c t@(TLoc _ l) = t
-                    walc _ x = error $ show x
+                    walk c (TTag info k t1 ty) = TTag info k (walk c t1) ty
+                    walk c (TCase info t1 branches) = TCase info (walk c t1) $ Map.map walkBranch branches
+                                                where walkBranch (x, y) = (x, walk (c + 1) y)
+                    walk _ t1@(TKeyword _ _) = t1
+                    walk c (TFix info t1) = TFix info (walk c t1)
+                    walk _ t1@(TLoc _ _) = t1
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
-termShiftAbove d c t = termMap onvar c t
+termShiftAbove d s t = termMap onvar s t
                  where onvar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onvar c info name depth = TVar info name (depth + d)
+                       onvar _ info name depth = TVar info name (depth + d)
 
 shift :: VarName -> Term -> Term
 shift d t = termShiftAbove d 0 t
 
 substitution :: VarName -> Term -> Term -> Term
 substitution j s t = termMap onvar 0 t
-               where onvar c info name depth | name == j + c = shift c s
-                     onvar c info name depth = TVar info name depth
+               where onvar c _ name _ | name == j + c = shift c s
+                     onvar _ info name depth = TVar info name depth
 
 substitutionTop :: Term -> Term -> Term
 substitutionTop s t = shift (-1) (substitution 0 (shift 1 s) t)

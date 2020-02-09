@@ -1,16 +1,14 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.FullRefSpec where
 
 import Test.Hspec
-import Language.TAPL.FullRef.Evaluator (eval)
+import Language.TAPL.FullRef.Evaluator (evalString)
 
 spec :: Spec
 spec = do
   describe "eval" $ do
     describe "values" $ do
         describe "primitive values" $ do
-           let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+           let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                examples = [
                   ("true", "true:Bool"),
                   ("false", "false:Bool"),
@@ -22,7 +20,7 @@ spec = do
            mapM_ test examples
 
         describe "pairs" $ do
-           let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+           let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                examples = [
                   ("{true, false}", "{true,false}:{Bool*Bool}"),
                   ("{true, unit}", "{true,unit}:{Bool*Unit}"),
@@ -39,7 +37,7 @@ spec = do
            mapM_ test examples
 
         describe "records" $ do
-           let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+           let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                examples = [
                   ("{a=true, b=false}", "{a=true, b=false}:{a=Bool, b=Bool}"),
                   ("{a=true, b=unit}", "{a=true, b=unit}:{a=Bool, b=Unit}"),
@@ -50,13 +48,13 @@ spec = do
                   ("{a=true, b=unit}.b", "unit:Unit"),
                   ("{a=1.1, b=\"foo\"}.b", "\"foo\":String"),
                   ("{c=(lambda x:Unit.x), d=(lambda x:Unit.x)}.d", "(lambda x.x):Unit -> Unit"),
-                  ("{key1=ref (lambda x:Unit.x), key2=ref ref ref unit}.key2", "<3>:Ref Ref Ref Unit"),
-                  ("!{key1=ref (lambda x:Unit.x), key2=ref ref ref unit}.key2", "<2>:Ref Ref Unit")
+                  ("{key1=ref (lambda x:Unit.x), key2=ref ref ref unit}.key2", "<2>:Ref Ref Ref Unit"),
+                  ("!{key1=ref (lambda x:Unit.x), key2=ref ref ref unit}.key2", "<1>:Ref Ref Unit")
                 ]
            mapM_ test examples
 
         describe "variants" $ do
-          let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+          let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
               examples = [
                 ("<a=unit> as <a:Unit,b:Unit,c:Nat>", "<a=unit>:<a:Unit, b:Unit, c:Nat>"),
                 ("(lambda x:<a:Unit,b:Unit,c:Nat>.x)", "(lambda x.x):<a:Unit, b:Unit, c:Nat> -> <a:Unit, b:Unit, c:Nat>"),
@@ -68,7 +66,7 @@ spec = do
           mapM_ test examples
 
         describe "ascribe" $ do
-           let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+           let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                examples = [
                   ("\"foo\" as String", "\"foo\":String"),
                   ("false as Bool", "false:Bool"),
@@ -80,7 +78,7 @@ spec = do
            mapM_ test examples
 
         describe "references" $ do
-           let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+           let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                examples = [
                   ("ref true", "<0>:Ref Bool"),
                   ("ref false", "<0>:Ref Bool"),
@@ -94,7 +92,7 @@ spec = do
            mapM_ test examples
 
         describe "abstractions" $ do
-            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                 examples = [
                     ("(lambda x:Bool.x)", "(lambda x.x):Bool -> Bool"),
                     ("(lambda x:String.x)", "(lambda x.x):String -> String"),
@@ -118,7 +116,7 @@ spec = do
 
     describe "operations" $ do
         describe "condition" $ do
-           let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+           let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                examples = [
                   ("if true then unit else unit", "unit:Unit"),
                   ("if false then \"foo\" else \"bar\"", "\"bar\":String"),
@@ -127,7 +125,7 @@ spec = do
            mapM_ test examples
 
         describe "predefined functions" $ do
-            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                 examples = [
                   ("succ zero", "succ zero:Nat"),
                   ("pred zero", "zero:Nat"),
@@ -139,7 +137,7 @@ spec = do
             mapM_ test examples
 
         describe "deref references" $ do
-            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                 examples = [
                   ("!(ref zero)", "zero:Nat"),
                   ("!(ref true)", "true:Bool"),
@@ -149,7 +147,7 @@ spec = do
             mapM_ test examples
 
         describe "apply" $ do
-            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                 examples = [
                   ("(lambda x:Bool. if x then false else true) true", "false:Bool"),
                   ("(lambda x:Nat. succ x) zero", "succ zero:Nat"),
@@ -177,7 +175,7 @@ spec = do
             mapM_ test examples
 
         describe "assignment and let" $ do
-            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                 examples = [
                   ("(ref true) := false", "unit:Unit"),
                   ("(lambda x:Ref Bool. x := (if (!x) then false else true)) (ref false)", "unit:Unit"),
@@ -189,18 +187,18 @@ spec = do
             mapM_ test examples
 
         describe "fix" $ do
-            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                 examples = [
                   ("let diverge = (lambda u:Unit.fix (lambda x:T.x)) in diverge", "(lambda u.(lambda x.x)):Unit -> T"),
                   (
                     "let ff = (lambda ie:Nat -> Bool.lambda x:Nat.if zero? x then true else (if zero? (pred x) then false else ie (pred pred x))) in let iseven = fix ff in iseven",
-                    "(lambda x.if zero? x then true else if zero? pred x then false else (lambda ie.(lambda x'.if zero? x' then true else if zero? pred x' then false else ie pred pred x')) pred pred x):Nat -> Bool"
+                    "(lambda x.if zero? x then true else if zero? pred x then false\n                                    else (lambda ie.(lambda x'.if zero? x'\n                                                               then true\n                                                               else if zero? pred x'\n                                                                    then false\n                                                                    else ie pred pred x')) pred pred x):Nat -> Bool"
                   )
                  ]
             mapM_ test examples
 
         describe "oop" $ do
-            let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
+            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                 examples = [
                   (
                     "let state = ref zero in \

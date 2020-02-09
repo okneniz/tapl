@@ -120,6 +120,7 @@ infer (TLet _ v t1 t2) = do
     ty1 <- infer t1
     lift $ modify $ bind v (VarBind ty1)
     ty2 <- infer t2
+    -- TODO : recover state
     return ty2
 
 infer (TAscribe info t ty) = do
