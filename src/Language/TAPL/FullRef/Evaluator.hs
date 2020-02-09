@@ -136,10 +136,13 @@ normalize (TRecord info fields) = do
 
 normalize (TLookup _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = lift $ Map.lookup key fields
 
+normalize (TLookup info t@(TRecord _ _) (TKeyword x key)) = do
+    t' <- normalize t
+    return $ (TLookup info t' (TKeyword x key))
+
 normalize (TLookup _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
 normalize (TLookup _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
 
-normalize (TLookup _ (TRecord _ fields) (TKeyword _ key)) = lift $ Map.lookup key fields
 
 normalize (TLookup info t k) = do
     t' <- normalize t

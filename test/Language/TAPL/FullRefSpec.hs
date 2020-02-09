@@ -48,8 +48,8 @@ spec = do
                   ("{a=true, b=unit}.b", "unit:Unit"),
                   ("{a=1.1, b=\"foo\"}.b", "\"foo\":String"),
                   ("{c=(lambda x:Unit.x), d=(lambda x:Unit.x)}.d", "(lambda x.x):Unit -> Unit"),
-                  ("{key1=ref (lambda x:Unit.x), key2=ref ref ref unit}.key2", "<2>:Ref Ref Ref Unit"),
-                  ("!{key1=ref (lambda x:Unit.x), key2=ref ref ref unit}.key2", "<1>:Ref Ref Unit")
+                  ("{key1=ref (lambda x:Unit.x), key2=ref ref ref unit}.key2", "<3>:Ref Ref Ref Unit"),
+                  ("!{key1=ref (lambda x:Unit.x), key2=ref ref ref unit}.key2", "<2>:Ref Ref Unit")
                 ]
            mapM_ test examples
 
