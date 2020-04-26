@@ -1,54 +1,74 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE InstanceSigs #-}
+module Language.TAPL.Recon.TypeReconstructor (reconstruct) where
 
-module Language.TAPL.Recon.TypeReconstructor where
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Class (lift)
+
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Context
 
-class (LCNames n) => LCTypeReconstructor n where
-    reconstruct :: n -> UVarGen -> Term -> Either EvaluationError (Type, UVarGen, [Constraint])
+reconstruct :: Term -> Eval Type
+reconstruct = recover
 
-instance LCTypeReconstructor Names where
-    reconstruct :: Names -> UVarGen -> Term -> Either EvaluationError (Type, UVarGen, [Constraint])
+recover :: Term -> Eval Type
+recover (TTrue _) = return TyBool
+recover (TFalse _) = return TyBool
+recover (TZero _) = return TyNat
 
-    reconstruct names uvar (TVar info varName _) =
-        case varType names varName of
-            Just tyT -> Right (tyT, uvar, [])
-            Nothing -> Left $ WrongKindOfBinding info varName
+recover (TSucc _ t1) = do
+    tyT1 <- recover t1
+    prependConstraint (tyT1,TyNat)
+    return TyNat
 
-    reconstruct names uvar (TAbs _ x tyT1 t2) = do
-        let names' = bind names x (VarBind(tyT1))
-        (tyT2, uvar2, constr2) <- reconstruct names' uvar t2
-        return ((TyArrow tyT1 tyT2), uvar2, constr2)
+recover (TPred _ t1) = do
+    tyT1 <- recover t1
+    prependConstraint (tyT1,TyNat)
+    return TyNat
 
-    reconstruct names uvar (TApp _ t1 t2) = do
-        (tyT1, uvar1, constraints1) <- reconstruct names uvar t1
-        (tyT2, uvar2, constraints2) <- reconstruct names uvar1 t2
-        let (UVar tyX uvar') = uvar2 ()
-        let newConstraints = [(tyT1, TyArrow tyT2 (TyID tyX))]
-        return $ (TyID tyX, uvar', constraints1 ++ constraints2 ++ newConstraints)
+recover (TIsZero _ t1) = do
+    tyT1 <- recover t1
+    prependConstraint (tyT1,TyNat)
+    return TyBool
 
-    reconstruct names uvar (TZero _) = return (TyNat, uvar, [])
+recover (TIf _ t1 t2 t3) = do
+    tyT1 <- recover t1
+    tyT2 <- recover t2
+    tyT3 <- recover t3
+    prependConstraint (tyT2,tyT3)
+    prependConstraint (tyT1,TyBool)
+    return tyT3
 
-    reconstruct names uvar (TSucc _ t1) = do
-        (tyT1,uvar1,constr1) <- reconstruct names uvar t1
-        return (TyNat, uvar1, (tyT1,TyNat):constr1)
+recover (TVar info varName _) = do
+    names <- ask
+    case pickVar names varName of
+         Just (_, VarBind ty) -> return ty
+         _ -> lift $ throwE $ show $ TypeMissmatch info "Wrong type of binding"
 
-    reconstruct names uvar (TPred _ t1) = do
-        (tyT1,uvar1,constr1) <- reconstruct names uvar t1
-        return (TyNat, uvar1, (tyT1,TyNat):constr1)
+recover (TAbs _ x tyT1 t2) =
+    local (bind x (VarBind(tyT1))) $ do
+        tyT2 <- recover t2
+        return $ TyArrow tyT1 tyT2
 
-    reconstruct names uvar (TIsZero _ t1) = do
-        (tyT1,uvar1,constr1) <- reconstruct names uvar t1
-        return (TyBool, uvar1, (tyT1,TyNat):constr1)
+recover (TApp _ t1 t2) = do
+    tyT1 <- recover t1
+    tyT2 <- recover t2
+    tyX <- newVar
+    appendConstraint (tyT1, TyArrow tyT2 (TyID tyX))
+    return $ TyID tyX
 
-    reconstruct names uvar (TTrue _) = return (TyBool, uvar, [])
-    reconstruct names uvar (TFalse _) = return (TyBool, uvar, [])
+newVar :: Eval String
+newVar = do
+    (varIndex, constraints) <- lift.lift $ get
+    lift.lift $ put (varIndex + 1, constraints)
+    return $ "x" ++ show varIndex
 
-    reconstruct names uvar (TIf _ t1 t2 t3) = do
-        (tyT1,uvar1,constr1) <- reconstruct names uvar t1
-        (tyT2,uvar2,constr2) <- reconstruct names uvar1 t2
-        (tyT3,uvar3,constr3) <- reconstruct names uvar2 t3
-        let newconstr = [(tyT1,TyBool), (tyT2,tyT3)]
-        return (tyT3, uvar3, (newconstr ++ constr1 ++ constr2 ++ constr3))
+prependConstraint :: (Type, Type) -> Eval ()
+prependConstraint c = do
+    (varIndex, constraints) <- lift.lift $ get
+    lift.lift $ put (varIndex , [c] ++ constraints)
+
+appendConstraint :: (Type, Type) -> Eval ()
+appendConstraint c = do
+    (varIndex, constraints) <- lift.lift $ get
+    lift.lift $ put (varIndex , constraints ++ [c])
