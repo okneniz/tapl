@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.FullRecon.Parser (parse) where
 
 import Language.TAPL.FullRecon.Types
@@ -7,34 +5,50 @@ import Language.TAPL.FullRecon.Context
 import Language.TAPL.FullRecon.Lexer
 
 import Prelude hiding (abs, succ, pred)
-import Control.Monad
-import Control.Applicative hiding ((<|>), many, optional)
+
 import Text.Parsec hiding (parse)
-import Text.Parsec.String
 import Text.Parsec.Prim (try)
-import Data.List (findIndex, foldl1, intercalate, all, nub, (\\), partition)
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
 
-type LCParser = Parsec String Names Term
-type LCTypeParser = Parsec String Names Type
+import Data.List (findIndex)
 
-parse :: String -> String -> Either ParseError (Names, [Term])
-parse = runParser parser []
+type LCCommandParser = Parsec String LCNames Command
+type LCParser = Parsec String LCNames Term
+type LCTypeParser = Parsec String LCNames Type
 
-parser :: Parsec String Names (Names, [Term])
-parser = do
-    ast <- term `sepEndBy` semi
+parse :: String -> String -> Either ParseError ([Command], LCNames)
+parse = runParser reconParser []
+
+reconParser :: Parsec String LCNames ([Command], LCNames)
+reconParser = do
+    commands <- command `sepEndBy` semi
     eof
     names <- getState
-    return $ (names, ast)
+    return $ (commands, names)
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
 
+command :: Parsec String LCNames Command
+command = (try evalCommand) <|> bindCommand
+
+bindCommand :: LCCommandParser
+bindCommand = do
+    pos <- getPosition
+    i <- try $ oneOf ['A'..'Z']
+    d <- try $ many $ oneOf ['a'..'z']
+    _ <- spaces
+    reserved "="
+    modifyState $ \c -> addName c (i:d)
+    ty <- typeAnnotation
+    return $ Bind (infoFrom pos) (i:d) $ VarBind ty
+
+evalCommand :: LCCommandParser
+evalCommand = do
+    ast <- term `sepEndBy` semi
+    return $ Eval ast
+
 term :: LCParser
-term = try typeBinding
-   <|> try apply
+term = try apply
    <|> try notApply
    <|> parens term
 
@@ -47,27 +61,31 @@ apply = chainl1 notApply $ do
 notApply :: LCParser
 notApply = try value
        <|> try (condition <?> "condition")
-       <|> try (abstraction <?> "abstraction")
        <|> try (let' <?> "let")
+       <|> try (abstraction <?> "abstraction")
        <|> try (variable <?> "variable")
        <|> try (parens notApply)
        <|> try (parens apply)
-
-typeBinding :: LCParser
-typeBinding = do
-    pos <- getPosition
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
-    spaces
-    reserved "="
-    modifyState $ \c -> addName c (i:d)
-    ty <- typeAnnotation
-    return $ TBind (infoFrom pos) (i:d) $ VarBind ty
 
 notTypeBind :: LCParser
 notTypeBind = try apply
           <|> try notApply
           <|> try (parens notTypeBind)
+
+let' :: LCParser
+let' = do
+    reserved "let"
+    p <- getPosition
+    v <- identifier
+    reservedOp "="
+    t1 <- term
+    optional spaces
+    reserved "in"
+    optional spaces
+    context <- getState
+    modifyState $ \c -> addName c v
+    t2 <- term
+    return $ TLet (infoFrom p) v t1 t2
 
 value :: LCParser
 value = (boolean <?> "boolean")
@@ -90,37 +108,19 @@ abstraction = do
     setState names
     return $ TAbs (infoFrom pos) name ty t
 
-let' :: LCParser
-let' = do
-    reserved "let"
-    p <- getPosition
-    v <- identifier
-    reservedOp "="
-    t1 <- term
-    optional spaces
-    reserved "in"
-    optional spaces
-    context <- getState
-    modifyState $ \c -> addName c v
-    t2 <- term
-    return $ TLet (infoFrom p) v t1 t2
-
 variable :: LCParser
 variable = do
     name <- identifier
-    names <- getState
+    ns <- getState
     pos <- getPosition
-    case findVarName names name of
-         Just n -> return $ TVar (infoFrom pos) n (depth names)
-         Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
+    case findIndex ((== name) . fst) ns of
+         Just n -> return $ TVar (infoFrom pos) n (length ns)
+         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 boolean :: LCParser
 boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
-
-nat :: LCParser
-nat = zero <|> succ <|> pred
 
 fun :: String -> (Info -> Term -> Term) -> LCParser
 fun name tm = do
@@ -159,13 +159,10 @@ condition = do
     return $ TIf (infoFrom pos) x y z
 
 termType :: LCTypeParser
-termType = do
-    colon
-    typeAnnotation
+termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
-typeAnnotation = try arrowAnnotation
-             <|> notArrowAnnotation
+typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
@@ -194,8 +191,8 @@ typeVarOrID:: LCTypeParser
 typeVarOrID = do
     i <- try $ oneOf ['A'..'Z']
     d <- try $ many $ oneOf ['a'..'z']
-    names <- getState
+    ns <- getState
     let name = (i:d)
-    return $ case findVarName names name of
-                  Just varName -> TyVar varName (depth names)
+    return $ case  findIndex ((== name) . fst) ns of
+                  Just varName -> TyVar varName (length ns)
                   Nothing -> TyID name

@@ -1,67 +1,89 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE InstanceSigs #-}
+module Language.TAPL.FullRecon.TypeReconstructor (reconstruct) where
 
-module Language.TAPL.FullRecon.TypeReconstructor where
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Class (lift)
+
 import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Context
 
-class (LCNames n) => LCTypeReconstructor n where
-    reconstruct :: n -> UVarGen -> Term -> Either EvaluationError (Type, UVarGen, [Constraint])
+reconstruct :: Term -> Eval Type
+reconstruct = recover
 
-instance LCTypeReconstructor Names where
-    reconstruct names uvar (TVar info varName _) =
-        case varType names varName of
-            Just tyT -> Right (tyT, uvar, [])
-            Nothing -> Left $ WrongKindOfBinding info varName
+recover :: Term -> Eval Type
+recover (TTrue _) = return TyBool
+recover (TFalse _) = return TyBool
+recover (TZero _) = return TyNat
 
-    reconstruct names uvar (TAbs _ x (Just tyT1) t2) = do
-        let names' = addVar names x tyT1
-        (tyT2, uvar2, constr2) <- reconstruct names' uvar t2
-        return ((TyArrow tyT1 tyT2), uvar2, constr2)
+recover (TSucc _ t1) = do
+    tyT1 <- recover t1
+    prependConstraint (tyT1,TyNat)
+    return TyNat
 
-    reconstruct names uvar (TAbs _ x Nothing t2) = do
-      let (UVar u uvar') = uvar ()
-          tyX = (TyID u)
-          names' = addVar names x tyX
-      (tyT2,uvar'',constraints) <- reconstruct names' uvar' t2
-      return $ (TyArrow tyX tyT2, uvar'', constraints)
+recover (TPred _ t1) = do
+    tyT1 <- recover t1
+    prependConstraint (tyT1,TyNat)
+    return TyNat
 
-    reconstruct names uvar (TApp _ t1 t2) = do
-        (tyT1, uvar1, constraints1) <- reconstruct names uvar t1
-        (tyT2, uvar2, constraints2) <- reconstruct names uvar1 t2
-        let (UVar tyX uvar') = uvar2 ()
-        let newConstraints = [(tyT1, TyArrow tyT2 (TyID tyX))]
-        return $ (TyID tyX, uvar', newConstraints ++ constraints1 ++ constraints2)
+recover (TIsZero _ t1) = do
+    tyT1 <- recover t1
+    prependConstraint (tyT1,TyNat)
+    return TyBool
 
-    reconstruct names uvar (TLet _ x t1 t2) | isVal t1 =
-        reconstruct names uvar $ termSubstitutionTop t1 t2
+recover (TIf _ t1 t2 t3) = do
+    tyT1 <- recover t1
+    tyT2 <- recover t2
+    tyT3 <- recover t3
+    prependConstraint (tyT2,tyT3)
+    prependConstraint (tyT1,TyBool)
+    return tyT3
 
-    reconstruct names uvar (TLet _ x t1 t2) = do
-        (ty1, uvar', constraints') <- reconstruct names uvar t1
-        (ty2, uvar'', constraints'') <- reconstruct (addVar names x ty1) uvar' t2
-        return $ (ty2, uvar'', constraints' ++ constraints'')
+recover (TVar info varName _) = do
+    names <- ask
+    case pickVar names varName of
+         Just (_, VarBind ty) -> return ty
+         _ -> lift $ throwE $ show $ TypeMissmatch info "Wrong type of binding"
 
-    reconstruct names uvar (TZero _) = return (TyNat, uvar, [])
+recover (TAbs _ x (Just tyT1) t2) =
+    local (bind x (VarBind(tyT1))) $ do
+        tyT2 <- recover t2
+        return $ TyArrow tyT1 tyT2
 
-    reconstruct names uvar (TSucc _ t1) = do
-        (tyT1,uvar1,constr1) <- reconstruct names uvar t1
-        return (TyNat, uvar1, (tyT1,TyNat):constr1)
+recover (TAbs _ x Nothing t2) = do
+    u <- newVar
+    let tyX = TyID u
+    local (bind x (VarBind tyX)) $ do
+        tyT2 <- recover t2
+        return $ TyArrow tyX tyT2
 
-    reconstruct names uvar (TPred _ t1) = do
-        (tyT1,uvar1,constr1) <- reconstruct names uvar t1
-        return (TyNat, uvar1, (tyT1,TyNat):constr1)
+recover (TApp _ t1 t2) = do
+    tyT1 <- recover t1
+    tyT2 <- recover t2
+    tyX <- newVar
+    appendConstraint (tyT1, TyArrow tyT2 (TyID tyX))
+    return $ TyID tyX
 
-    reconstruct names uvar (TIsZero _ t1) = do
-        (tyT1,uvar1,constr1) <- reconstruct names uvar t1
-        return (TyBool, uvar1, (tyT1,TyNat):constr1)
+recover (TLet _ x t1 t2) | isVal t1 = recover $ termSubstitutionTop t1 t2
 
-    reconstruct names uvar (TTrue _) = return (TyBool, uvar, [])
-    reconstruct names uvar (TFalse _) = return (TyBool, uvar, [])
+recover (TLet _ x t1 t2) = do
+    tyT1 <- recover t1
+    local (bind x (VarBind tyT1)) $ do
+        tyT2 <- recover t2
+        return tyT2
 
-    reconstruct names uvar (TIf _ t1 t2 t3) = do
-        (tyT1,uvar1,constr1) <- reconstruct names uvar t1
-        (tyT2,uvar2,constr2) <- reconstruct names uvar1 t2
-        (tyT3,uvar3,constr3) <- reconstruct names uvar2 t3
-        let newconstr = [(tyT1,TyBool), (tyT2,tyT3)]
-        return (tyT3, uvar3, (newconstr ++ constr1 ++ constr2 ++ constr3))
+newVar :: Eval String
+newVar = do
+    (varIndex, constraints) <- lift.lift $ get
+    lift.lift $ put (varIndex + 1, constraints)
+    return $ "x" ++ show varIndex
+
+prependConstraint :: (Type, Type) -> Eval ()
+prependConstraint c = do
+    (varIndex, constraints) <- lift.lift $ get
+    lift.lift $ put (varIndex , [c] ++ constraints)
+
+appendConstraint :: (Type, Type) -> Eval ()
+appendConstraint c = do
+    (varIndex, constraints) <- lift.lift $ get
+    lift.lift $ put (varIndex , constraints ++ [c])

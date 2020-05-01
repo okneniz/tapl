@@ -1,63 +1,77 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-
 module Language.TAPL.FullRecon.Context where
 
-import Language.TAPL.FullRecon.Types
-import Data.List (findIndex)
 import Data.Maybe
 import Control.Monad (liftM)
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.State.Lazy
 
-data UVar = UVar String UVarGen
-type UVarGen = () -> UVar
-type Constraint = (Type, Type)
-type Names = [(String,Binding)]
+import Language.TAPL.FullRecon.Types
 
-data Context t = Context Names UVarGen [Constraint] t
+type LCNames = [(String,Binding)]
 
-data EvaluationError = WrongKindOfBinding Info VarName
-                     | CircularConstrains [Constraint]
-                     | UnresolvedConstraints [Constraint]
-                     | AttemptToEvaluateEmptyAST
+type Eval a = ReaderT LCNames (ExceptT String (State (VarIndex, [Constraint]))) a
 
-newUVarGen :: UVarGen
-newUVarGen = f 0 where f n _ = UVar ("x" ++ show n) (f (n+1))
+bind :: String -> Binding -> LCNames -> LCNames
+bind x b n = (x,b):n
 
-class LCNames c where
-    bind :: c -> String -> Binding -> Names
-    addName :: c -> String -> Names
-    addVar :: c -> String -> Type -> Names
-    pickFreshName :: c -> String -> (String, c)
-    pickVar :: c -> VarName -> Maybe (String, Binding)
-    findVarName :: c -> String -> Maybe VarName
-    findName :: c -> VarName -> Maybe String
-    bindingType :: c -> VarName -> Maybe Binding
-    varType :: c -> VarName -> Maybe Type
-    isBound :: c -> String -> Bool
-    depth :: c -> Depth
+addName :: LCNames -> String -> LCNames
+addName n x = bind x NameBind n
 
-instance LCNames Names where
-    pickFreshName names name | isBound names name = pickFreshName names (name ++ "'")
-    pickFreshName names name = (name, addName names name)
-    bind names name binding = (name,binding):names
+isBound :: LCNames -> String -> Bool
+isBound n name = isJust $ Prelude.lookup name n
 
-    pickVar [] varName = Nothing
-    pickVar names varName | length names > varName = Just $ names !! varName
-    pickVar _ _ = Nothing
+pickFreshName :: LCNames -> String -> (String, LCNames)
+pickFreshName c name | isBound c name = pickFreshName c (name ++ "'")
+pickFreshName c name = (name, c') where c' = addName c name
 
-    findName names varName = liftM fst $ pickVar names varName
-    findVarName names name = findIndex ((== name) . fst) names
+pickVar :: LCNames -> VarName -> Maybe (String, Binding)
+pickVar [] _ = Nothing
+pickVar names varname | length names > varname = Just $ names !! varname
+pickVar _ _ = Nothing
 
-    bindingType names varName = liftM snd $ pickVar names varName
+nameFromContext :: LCNames -> VarName -> Maybe String
+nameFromContext n v = liftM fst $ pickVar n v
 
-    addName  names name    = bind names name NameBind
-    addVar   names name ty = bind names name (VarBind ty)
+isVal :: Term -> Bool
+isVal (TTrue _) = True
+isVal (TFalse _) = True
+isVal (TAbs _ _ _ _) = True
+isVal x | isNumerical x = True
+isVal _ = False
 
-    isBound names name = isJust $ Prelude.lookup name names
-    depth = length
+isNumerical :: Term -> Bool
+isNumerical (TZero _) = True
+isNumerical (TSucc _ x) = isNumerical x
+isNumerical _ = False
 
-    varType names varName = case bindingType names varName of
-                                 Just (VarBind ty) -> Just ty
-                                 _ -> Nothing
+termMap :: (Int -> Info -> VarName -> Depth -> Term) -> Int -> Term -> Term
+termMap onVar s t = walk s t
+              where walk c (TVar info name depth) = onVar c info name depth
+                    walk c (TAbs info x ty t) = TAbs info x ty (walk (c+1) t)
+                    walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
+                    walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
+                    walk c (TTrue info) = TTrue info
+                    walk c (TFalse info) = TFalse info
+                    walk c (TZero info) = TZero info
+                    walk c (TIsZero info t) = TIsZero info (walk c t)
+                    walk c (TPred info t) = TPred info (walk c t)
+                    walk c (TSucc info t) = TSucc info (walk c t)
+                    walk c (TLet info x t1 t2) = TLet info x (walk c t1) (walk (c+1) t2)
+                    walk c x = error $ show x
 
+termShiftAbove :: Depth -> VarName -> Term -> Term
+termShiftAbove d c t = termMap onVar c t
+                 where onVar c info name depth | name >= c = TVar info (name + d) (depth + d)
+                       onVar c info name depth = TVar info name (depth + d)
+
+termShift :: VarName -> Term -> Term
+termShift d t = termShiftAbove d 0 t
+
+termSubstitution :: VarName -> Term -> Term -> Term
+termSubstitution j s t = termMap onvar 0 t
+                   where onvar c info name depth | name == j = termShift c s
+                         onvar c info name depth = TVar info name depth
+
+termSubstitutionTop :: Term -> Term -> Term
+termSubstitutionTop s t = termShift (-1) (termSubstitution 0 (termShift 1 s) t)

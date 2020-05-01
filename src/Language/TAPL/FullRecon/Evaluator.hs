@@ -1,199 +1,90 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-
 module Language.TAPL.FullRecon.Evaluator (evalString) where
+
+import Data.List (last)
+
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.State.Lazy
 
 import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Parser
 import Language.TAPL.FullRecon.Context
 import Language.TAPL.FullRecon.TypeChecker
-
-import Data.List (findIndex, intercalate, all, nub, (\\), last, foldl1)
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
-import Text.Parsec (ParseError)
+import Language.TAPL.FullRecon.Pretty
 
 evalString :: String -> String -> Either String String
-evalString code path =
-    case parse path code of
-        (Left e) -> Left $ "Parse error : " ++ show e
-        (Right (names, ast)) ->
-            case check $ Context names newUVarGen [] ast of
-                Right (Context names' vars' constraints' tys) ->
-                    case eval $ Context names' vars' constraints' ast of
-                        (Right (Context names'' vars'' constraints'' ast')) ->
-                            let c = Context names'' vars'' constraints'' $ last ast'
-                            in case typeOf c of
-                                    Right ty -> Right $ show c ++ ":" ++ show ty
-                                    Left e -> Left $ show e
-                        (Left e) -> Left $ show e
-                (Left e) -> Left $ show e
+evalString code source = do
+    case parse source code of
+        Left e -> Left $ show e
+        Right (commands, names) -> evalState (runExceptT (runReaderT (f commands) names)) (0, [])
+    where
+        f cs = do
+            cs' <- evalCommands cs
+            let t = last cs'
+            ty <- typeOf t
+            t' <- render t
+            return $ t' ++ ":" ++ (show $ pretty ty)
 
-class (Normalizeable (c t), LCTypeChecker c) => TypedEvaluator c t where
-    eval :: c t -> Either (c EvaluationError) (c t)
-    check :: c t -> Either (c EvaluationError) (c t)
+evalCommands :: [Command] -> Eval AST
+evalCommands [] = return []
+evalCommands ((Bind _ name binding):cs) = local (bind name binding) (evalCommands cs)
+evalCommands ((Eval []):cs) = evalCommands cs
+evalCommands ((Eval ts):cs) = do
+    _ <- typeCheck ts
+    let ts' = fullNormalize <$> ts
+    cs' <- evalCommands cs
+    return $ ts' ++ cs'
 
-class Normalizeable a where
-    normalize :: a ->  Maybe a
+typeCheck :: AST -> Eval Type
+typeCheck [t] = typeOf t
+typeCheck (t:ts) = typeOf t >> typeCheck ts
 
-instance TypedEvaluator Context [Term] where
-    check (Context names vars constraints []) =
-        Left $ Context names vars constraints AttemptToEvaluateEmptyAST
+fullNormalize :: Term -> Term
+fullNormalize t = case normalize t of
+                       Just t' -> fullNormalize t'
+                       Nothing -> t
 
-    check (Context names vars constraints ast) = do
-        let c = Context names vars constraints ast
-            types = scanl f (typeOf $ Context names vars constraints (head ast)) (tail ast)
-            f (Right (Context ns' vs' cs' _)) x = typeOf $ Context ns' vs' cs' x
-            f (Left x) _ = Left x
-            errors = filter isLeft types
-        case errors of
-             [] -> case last types of
-                        (Right (Context names' vars' constraints' tys')) ->
-                            return $ Context names' vars' constraints' ast
-             ((Left e):_) -> Left e
+normalize :: Term -> Maybe Term
+normalize (TIf _ (TTrue _) t _) = return t
+normalize (TIf _ (TFalse _) _ t) = return t
 
-    eval c@(Context names vars constraints []) = do
-        Left $ Context names vars constraints AttemptToEvaluateEmptyAST
+normalize (TIf info t1 t2 t3) = do
+    t1' <- normalize t1
+    return $ TIf info t1' t2 t3
 
-    eval (Context names vars constraints (t@(TBind _ _ _):ast)) = do
-        (Context names' vars' constraints' _) <- eval $ Context names vars constraints t
-        c <- check $ Context names' vars' constraints' ast
-        return c
+normalize (TSucc info t1) = do
+    t' <- normalize t1
+    return $ TSucc info t'
 
-    eval c@(Context names vars constraints [x]) = do
-        (Context names vars constraints x') <- eval $ Context names vars constraints x
-        return $ Context names vars constraints [x']
+normalize (TPred _ (TZero info)) = return $ TZero info
+normalize (TPred _ (TSucc _ t)) | isNumerical  t = return t
 
-    eval (Context names vars constraints (x:xs)) = do
-        (Context names' vars' constraints' x') <- eval $ Context names vars constraints x
-        return $ Context names' vars' constraints' (x':xs)
+normalize (TPred info t) = do
+    t' <- normalize t
+    return $ TPred info t'
 
-instance Show (Context [Term]) where
-    show (Context ns vs cs ts) = intercalate "; " $ (\t -> show $ Context ns vs cs t) <$> ts
+normalize (TIsZero _ (TZero info)) = return $ TTrue info
+normalize (TIsZero _ (TSucc info t)) | isNumerical t = return $ TFalse info
 
-instance TypedEvaluator Context Term where
-    check c@(Context names vars constraints t) =
-        case typeOf c of
-            Right (Context names' vars' constraints' _) ->
-                return $ Context names' vars' constraints' t
-            Left e -> Left e
+normalize (TIsZero info t) = do
+    t' <- normalize t
+    return $ TIsZero info t'
 
-    eval c@(Context names vars constraints t) =
-        case normalize c of
-             Just c' -> eval c'
-             Nothing -> Right c
+normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t
 
-instance Normalizeable (Context [Term]) where
-    normalize (Context names vars constraints (x:xs)) =
-        case normalize $ Context names vars constraints x of
-             (Just (Context names' vars' constraints' x')) -> Just $ Context names' vars' constraints' (x':xs)
-             Nothing -> Just $ Context names vars constraints xs
+normalize (TApp info t1 t2) | isVal t1 = do
+    t2' <- normalize t2
+    return $ TApp info t1 t2'
 
-    normalize (Context names vars constraints []) = Nothing
+normalize (TApp info t1 t2) = do
+    t1' <- normalize t1
+    return $ TApp info t1' t2
 
-instance Normalizeable (Context Term) where
-    normalize (Context ns vs cs (TIf _ (TTrue _) t _ )) = return $ Context ns vs cs t
-    normalize (Context ns vs cs (TIf _ (TFalse _) _ t)) = return $ Context ns vs cs t
+normalize (TLet info v t1 t2) | isVal t1 =
+    return $ termSubstitutionTop t1 t2
 
-    normalize (Context ns vs cs (TIf info t1 t2 t3)) = do
-      (Context ns vs cs t1') <- normalize $ Context ns vs cs t1
-      return $ Context ns vs cs (TIf info t1' t2 t3)
+normalize (TLet info v t1 t2) = do
+    t1' <- normalize t1
+    return $ TLet info v t1' t2
 
-    normalize (Context ns vs cs (TApp _ (TAbs _ _ _ t) v)) | isVal v =
-        return $ Context ns vs cs (termSubstitutionTop v t)
-
-    normalize (Context ns vs cs (TApp info t1 t2)) | isVal t1  = do
-        (Context ns vs cs t2') <- normalize $ Context ns vs cs t2
-        return $ Context ns vs cs (TApp info t1 t2')
-
-    normalize (Context ns vs cs (TApp info t1 t2)) = do
-        (Context ns vs cs t1') <- normalize $ Context ns vs cs t1
-        return $ Context ns vs cs (TApp info t1' t2)
-
-    normalize (Context ns vs cs (TSucc info t)) = do
-        (Context ns vs cs t') <- normalize $ Context ns vs cs t
-        return $ Context ns vs cs (TSucc info t')
-
-    normalize (Context ns vs cs (TPred _ (TZero info))) =
-        return $ Context ns vs cs (TZero info)
-
-    normalize (Context ns vs cs (TPred _ (TSucc _ t))) | isNumerical t =
-        return $ Context ns vs cs t
-
-    normalize (Context ns vs cs (TPred info t)) = do
-        (Context ns vs cs t') <- normalize $ Context ns vs cs t
-        return $ Context ns vs cs (TPred info t')
-
-    normalize (Context ns vs cs (TIsZero _ (TZero info))) =
-        return $ Context ns vs cs (TTrue info)
-
-    normalize (Context ns vs cs (TIsZero _ (TSucc info t))) | isNumerical t =
-        return $ Context ns vs cs (TFalse info)
-
-    normalize (Context ns vs cs (TIsZero info t)) = do
-        (Context ns vs cs t') <- normalize $ Context ns vs cs t
-        return $ Context ns vs cs (TIsZero info t')
-
-    normalize (Context ns vs cs (TLet info v t1 t2)) | isVal t1 =
-        return $ Context ns vs cs (termSubstitutionTop t1 t2)
-
-    normalize (Context ns vs cs (TLet info v t1 t2)) = do
-        (Context ns vs cs t1') <- normalize $ Context ns vs cs t1
-        return $ Context ns vs cs (TLet info v t1' t2)
-
-    normalize _ = Nothing
-
-instance Show (Context Term) where
-    show (Context _ _ _ (TTrue _)) = "true"
-    show (Context _ _ _ (TFalse _)) = "false"
-    show (Context _ _ _ (TZero _)) = "zero"
-    show (Context n v c (TSucc _ t)) = "succ " ++ (show $ Context n v c t)
-    show (Context n v c (TPred _ t)) = "pred " ++ (show $ Context n v c t)
-    show (Context n v c (TIsZero _ t)) = "zero? " ++ (show $ Context n v c t)
-    show (Context n v c (TBind _ x (VarBind ty))) = x ++ " = " ++ (show $ Context n v c ty)
-
-    show (Context n v c (TIf _ t1 t2 t3)) =
-        "if " ++ (show $ Context n v c t1) ++
-        " then " ++ (show $ Context n v c t2) ++
-        " else " ++ (show $ Context n v c t3)
-
-    show (Context n _ _ (TVar _ varName _)) =
-        case findName n varName of
-             Just x -> x
-             Nothing -> "[wtf?] " ++ show n ++ " "
-
-    show (Context n v c (TAbs _ name _ t)) =
-        let (name', n') = pickFreshName n name
-        in "(lambda " ++ name' ++ "." ++ (show $ Context n' v c t)  ++ ")"
-
-    show (Context n v c (TApp _ t1 t2)) =
-        (show $ Context n v c t1) ++ " " ++ (show $ Context n v c t2)
-
-    show (Context n v c (TLet _ x t1 t2)) =
-        "let " ++ x ++ " = " ++ show (Context n v c t1) ++ " in " ++ show (Context n v c t2)
-
-instance Show (Context Type) where
-    show (Context _ _ _ TyBool) = "Bool"
-    show (Context _ _ _ TyNat) = "Nat"
-    show (Context _ _ _ (TyID s)) = s
-
-    show (Context n v c x@(TyArrow ty1 ty2)) =
-        "(" ++ (show $ Context n v c ty1) ++ " -> " ++ (show $ Context n v c ty2) ++ ")"
-
-    show (Context n v c (TyVar varName ty)) =
-        case findName n varName of
-             Just x -> x
-             Nothing -> "[wtf?] " ++ show varName ++ " in " ++ show n ++ " ? "
-
-instance Show (Context EvaluationError) where
-    show (Context _ _ _ (WrongKindOfBinding info varname)) = "Wrong type of binding"
-
-    show (Context ns vs _ (CircularConstrains cs)) =
-        let f (ty1, ty2) = (show $ Context ns vs cs ty1) ++ " and " ++ (show $ Context ns vs cs ty2)
-        in "Circular constrains " ++ (intercalate ", " $ f <$> cs)
-
-    show (Context ns vs cs (UnresolvedConstraints ((ty1, ty2):_))) =
-        "Type missmatch " ++ (show $ Context ns vs cs ty1) ++ " and " ++ (show $ Context ns vs cs ty2)
-
-    show (Context _ _ _ AttemptToEvaluateEmptyAST) = "Attempt to evaluate empty AST"
+normalize _ = Nothing
