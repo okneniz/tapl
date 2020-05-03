@@ -176,7 +176,8 @@ spec = do
                   ("let diverge = (lambda u:Unit.fix (lambda x:T.x)) in diverge", "(lambda u.(lambda x.x)):(Unit -> T)"),
                   (
                     "let ff = (lambda ie:Nat -> Bool.lambda x:Nat.if zero? x then true else (if zero? (pred x) then false else ie (pred pred x))) in let iseven = fix ff in iseven",
-                    "(lambda x.if zero? x then true else if zero? pred x then false else (lambda ie.(lambda x'.if zero? x' then true else if zero? pred x' then false else ie pred pred x')) pred pred x):(Nat -> Bool)"
+                    "(lambda x.if zero? x then true else if zero? pred x then false\n                                    else (lambda ie.(lambda x'.if zero? x'\n                                                               then true\n                                                               else if zero? pred x'\n                                                                    then false\n                                                                    else ie pred pred x')) pred pred x):(Nat -> Bool)"
+
                   )
                  ]
             mapM_ test examples
@@ -190,7 +191,7 @@ spec = do
                     ),
                     (
                       "T = Nat->Nat",
-                      "unit:Unit"
+                      ""
                     ),
                     (
                       "T = Nat->Nat; \

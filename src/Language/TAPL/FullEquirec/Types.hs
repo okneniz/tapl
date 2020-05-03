@@ -1,17 +1,12 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.FullEquirec.Types where
 
-import Prelude hiding (abs, succ, pred)
-import Control.Monad
-import Control.Applicative hiding ((<|>), many, optional)
-import Text.Parsec
-import Text.Parsec.String
-import Text.Parsec.Prim (try)
-import Data.List (findIndex, intercalate, all, nub, (\\), sortBy)
-import Data.Function (on)
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
+import Data.List (all)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+
+data Command = Eval [Term]
+             | Bind Info String Binding
+             deriving (Show)
 
 data Term = TTrue Info
           | TFalse Info
@@ -28,18 +23,18 @@ data Term = TTrue Info
           | TPred Info Term
           | TIsZero Info Term
           | TPair Info Term Term
-          | TRecord Info [(String, Term)]
+          | TRecord Info (Map String Term)
           | TLookup Info Term Term
           | TLet Info String Term Term
           | TAscribe Info Term Type
-          | TCase Info Term [(String, String, Term)]
+          | TCase Info Term (Map String (String, Term))
           | TTag Info String Term Type
           | TKeyword Info String
           | TFix Info Term
-          | TBind Info String Binding
           | TTimesFloat Info Term Term
            deriving (Show)
 
+type AST = [Term]
 type VarName = Int
 type Depth = Int
 
@@ -57,7 +52,7 @@ isVal (TUnit _) = True
 isVal (TFloat _ _) = True
 isVal (TPair _ t1 t2) = (isVal t1) && (isVal t2)
 isVal x | isNumerical x = True
-isVal (TRecord _ ts) = all (\(_,y) -> isVal y) ts
+isVal (TRecord _ ts) = all isVal $ Map.elems ts
 isVal (TAscribe _ t _) = isVal t
 isVal (TTag _ _ t _) = isVal t
 isVal _ = False
@@ -86,14 +81,14 @@ termMap onVar onType s t = walk s t
                            walk c (TFloat info t) = TFloat info t
                            walk c (TFix info t) = TFix info (walk c t)
                            walk c (TPair info t1 t2) = TPair info (walk c t1) (walk c t2)
-                           walk c (TRecord info fields) = TRecord info $ (\(k,v) -> (k, walk c v)) <$> fields
+                           walk c (TRecord info fields) = TRecord info $ Map.map (walk c) fields
                            walk c (TTag info k t ty) = TTag info k (walk c t) (onType c ty)
                            walk c (TLookup info r k) = TLookup info (walk c r) k
                            walk c (TLet info x t1 t2) = TLet info x (walk c t1) (walk (c+1) t2)
                            walk c (TAscribe info t ty) = TAscribe info (walk c t) (onType c ty)
                            walk c (TTimesFloat info t1 t2) = TTimesFloat info (walk c t1) (walk c t2)
-                           walk c (TCase info t branches) = TCase info (walk c t) $ walkBranch <$> branches
-                                                      where walkBranch (k, v, x) = (k, v, walk (c + 1) x)
+                           walk c (TCase info t1 branches) = TCase info (walk c t1) $ Map.map walkBranch branches
+                                                       where walkBranch (x, y) = (x, walk (c + 1) y)
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d c t = termMap onVar (typeShiftAbove d) c t
@@ -120,9 +115,9 @@ data Type = TyBool
           | TyFloat
           | TyInt
           | TyProduct Type Type
-          | TyRecord [(String, Type)]
+          | TyRecord (Map String Type)
           | TyID String
-          | TyVariant [(String, Type)]
+          | TyVariant (Map String Type)
           | TyKeyword
           | TyTop
           | TyBot
@@ -131,23 +126,23 @@ data Type = TyBool
           deriving (Show, Eq)
 
 typeMap :: (Int -> Depth -> VarName -> Type) -> Int -> Type -> Type
-typeMap onVar c ty = walk c ty
-               where walk c TyString = TyString
-                     walk c TyBool = TyBool
-                     walk c TyUnit = TyUnit
-                     walk c TyNat = TyNat
-                     walk c TyFloat = TyFloat
-                     walk c TyInt = TyInt
-                     walk c TyTop = TyTop
-                     walk c TyBot = TyBot
-                     walk c TyKeyword = TyKeyword
+typeMap onVar s ty = walk s ty
+               where walk _ TyString = TyString
+                     walk _ TyBool = TyBool
+                     walk _ TyUnit = TyUnit
+                     walk _ TyNat = TyNat
+                     walk _ TyFloat = TyFloat
+                     walk _ TyInt = TyInt
+                     walk _ TyTop = TyTop
+                     walk _ TyBot = TyBot
+                     walk _ TyKeyword = TyKeyword
                      walk c (TyVar x n) = onVar c x n
                      walk c (TyRec x ty1) = TyRec x (walk (c+1) ty1)
-                     walk c (TyID x) = TyID x
+                     walk _ (TyID x) = TyID x
                      walk c (TyArrow ty1 ty2) = TyArrow (walk c ty1) (walk c ty2)
                      walk c (TyProduct ty1 ty2) = TyProduct (walk c ty1) (walk c ty2)
-                     walk c (TyRecord fs) = TyRecord $ (\(x, ty) -> (x, walk c ty)) <$> fs
-                     walk c (TyVariant fs) = TyVariant $ (\(x, ty) -> (x, walk c ty)) <$> fs
+                     walk c (TyRecord fs) = TyRecord $ Map.map (walk c) fs
+                     walk c (TyVariant fs) = TyVariant $ Map.map (walk c) fs
 
 typeShiftAbove :: Depth -> VarName -> Type -> Type
 typeShiftAbove d c ty = typeMap onVar c ty
@@ -170,9 +165,3 @@ data Binding = NameBind
              | TypeVarBind
              | TypeAddBind Type
              deriving (Show)
-
-bindingShift :: VarName -> Binding -> Binding
-bindingShift d NameBind = NameBind
-bindingShift d (VarBind ty) = VarBind (typeShift d ty)
-bindingShift d TypeVarBind = TypeVarBind
-bindingShift d (TypeAddBind ty) = TypeAddBind (typeShift d ty)

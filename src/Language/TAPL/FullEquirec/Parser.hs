@@ -1,40 +1,53 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Language.TAPL.FullEquirec.Parser (parse) where
 
 import Language.TAPL.FullEquirec.Types
-import Language.TAPL.FullEquirec.Names
+import Language.TAPL.FullEquirec.Context
 import Language.TAPL.FullEquirec.Lexer
 
 import Prelude hiding (abs, succ, pred)
-import Control.Monad
-import Control.Applicative hiding ((<|>), many, optional)
+import qualified Data.Map.Strict as Map
+
 import Text.Parsec hiding (parse)
-import Text.Parsec.String
 import Text.Parsec.Prim (try)
-import Data.List (findIndex, foldl1, intercalate, all, nub, (\\), partition)
-import Data.Either (isLeft, isRight)
-import Data.Maybe (isJust)
 
-type LCParser = Parsec String Names Term
-type LCTypeParser = Parsec String Names Type
+type LCCommandParser = Parsec String LCNames Command
+type LCParser = Parsec String LCNames Term
+type LCTypeParser = Parsec String LCNames Type
 
-parse :: String -> String -> Either ParseError (Names, [Term])
-parse = runParser parser []
+parse :: String -> String -> Either ParseError ([Command], LCNames)
+parse = runParser reconParser []
 
-parser :: Parsec String Names (Names, [Term])
-parser = do
-    ast <- term `sepEndBy` semi
+reconParser :: Parsec String LCNames ([Command], LCNames)
+reconParser = do
+    commands <- command `sepEndBy` semi
     eof
     names <- getState
-    return $ (names, ast)
+    return $ (commands, names)
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
 
+command :: Parsec String LCNames Command
+command =  (try bindCommand) <|> (try evalCommand)
+
+bindCommand :: LCCommandParser
+bindCommand = do
+    pos <- getPosition
+    i <- try $ oneOf ['A'..'Z']
+    d <- try $ many $ oneOf ['a'..'z']
+    _ <- spaces
+    reserved "="
+    modifyState $ addName (i:d)
+    ty <- typeAnnotation
+    return $ Bind (infoFrom pos) (i:d) $ TypeAddBind ty
+
+evalCommand :: LCCommandParser
+evalCommand = try $ do
+    ast <- term `sepEndBy` semi
+    return $ Eval ast
+
 term :: LCParser
-term = try typeBinding
-   <|> try apply
+term = try apply
    <|> try notApply
    <|> parens term
 
@@ -46,7 +59,7 @@ apply = chainl1 notApply $ do
 
 notApply :: LCParser
 notApply = try value
-       <|> try (timesFloat <?> "times float")
+       <|> try (timesFloat <?> "timesfloat")
        <|> try ((variant value) <?> "variant")
        <|> try (condition <?> "condition")
        <|> try (let' <?> "let")
@@ -57,21 +70,10 @@ notApply = try value
        <|> try (parens notApply)
        <|> try (parens apply)
 
-typeBinding :: LCParser
-typeBinding = do
-    pos <- getPosition
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
-    spaces
-    reserved "="
-    modifyState $ \c -> addName c (i:d)
-    ty <- typeAnnotation
-    return $ TBind (infoFrom pos) (i:d) $ TypeAddBind ty
-
 notTypeBind :: LCParser
 notTypeBind = try apply
-           <|> try notApply
-           <|> try (parens notTypeBind)
+          <|> try notApply
+          <|> try (parens notTypeBind)
 
 value :: LCParser
 value = optionalAscribed $ (boolean <?> "boolean")
@@ -95,7 +97,7 @@ abstraction = do
     dot
     optional spaces
     names <- getState
-    setState $ addVar names name ty
+    modifyState $ addVar name ty
     t <- notTypeBind
     setState names
     return $ TAbs (infoFrom pos) name ty t
@@ -106,7 +108,7 @@ variable = optionalAscribed $ lookup' (integer <|> keyword) $ do
     names <- getState
     pos <- getPosition
     case findVarName names name of
-         Just n -> return $ TVar (infoFrom pos) n (depth names)
+         Just n -> return $ TVar (infoFrom pos) n (length names)
          Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 string' :: LCParser
@@ -211,7 +213,7 @@ record :: LCParser
 record = lookup' keyword $ braces $ do
     ts <- (keyValue (reservedOp "=") term) `sepBy` comma
     pos <- getPosition
-    return $ TRecord (infoFrom pos) ts
+    return $ TRecord (infoFrom pos) $ Map.fromList ts
 
 keyword :: LCParser
 keyword = do
@@ -230,7 +232,7 @@ let' = do
     reserved "in"
     optional spaces
     names <- getState
-    modifyState $ \c -> addName names name
+    modifyState $ addName name
     t2 <- notTypeBind
     return $ TLet (infoFrom p) name t1 t2
 
@@ -243,20 +245,21 @@ case' = do
   optional spaces
   branches <- branch `sepBy` (reservedOp "|")
   pos <- getPosition
-  return $ TCase (infoFrom pos) t branches
+  return $ TCase (infoFrom pos) t $ Map.fromList branches
   where branch = do
-          (caseName, name) <- pattern
+          (caseName, varName) <- pattern
           reservedOp "->"
           names <- getState
-          modifyState $ \c -> addName names name
+          modifyState $ addName varName
           t2 <- notTypeBind
           setState names
-          return (caseName, name, t2)
+          return (caseName, (varName, t2))
         pattern = angles $ do
           caseName <- identifier
           reservedOp "="
           name <- identifier
           return (caseName, name)
+
 
 variant :: LCParser -> LCParser
 variant x = do
@@ -294,8 +297,8 @@ keyValue devider val = do
 
 termType :: LCTypeParser
 termType = do
-    colon
-    typeAnnotation
+  colon
+  typeAnnotation
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = try recursiveType
@@ -310,7 +313,7 @@ recursiveType = do
     d <- try $ many $ oneOf ['a'..'z']
     dot
     names <- getState
-    modifyState $ \c -> addName c (i:d)
+    modifyState $ addName (i:d)
     ty <- typeAnnotation
     setState names
     return $ TyRec (i:d) ty
@@ -358,12 +361,12 @@ floatAnnotation = primitiveType "Float" TyFloat
 recordAnnotation :: LCTypeParser
 recordAnnotation = braces $ do
     tys <- (keyValue colon typeAnnotation) `sepBy` comma
-    return $ TyRecord tys
+    return $ TyRecord $ Map.fromList tys
 
 variantAnnotation :: LCTypeParser
 variantAnnotation = angles $ do
     ts <- (keyValue colon typeAnnotation) `sepBy` comma
-    return $ TyVariant ts
+    return $ TyVariant $ Map.fromList ts
 
 topAnnotation :: LCTypeParser
 topAnnotation = primitiveType "Top" TyTop
@@ -383,5 +386,5 @@ typeVarOrID = do
     names <- getState
     let name = (i:d)
     return $ case findVarName names name of
-                  Just varName -> TyVar varName (depth names)
+                  Just varName -> TyVar varName (length names)
                   Nothing -> TyID name
