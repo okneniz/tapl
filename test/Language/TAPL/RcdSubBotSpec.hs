@@ -3,7 +3,9 @@
 module Language.TAPL.RcdSubBotSpec where
 
 import Test.Hspec
-import Language.TAPL.RcdSubBot.Evaluator (eval)
+import Language.TAPL.RcdSubBot.Evaluator (evalString)
+
+eval = evalString
 
 spec :: Spec
 spec = do
