@@ -10,6 +10,11 @@ data Term = TTrue
           | TPred Term
           | TIsZero Term
 
+isNumerical :: Term -> Bool
+isNumerical TZero = True
+isNumerical (TSucc x) = isNumerical x
+isNumerical _ = False
+
 instance Pretty Term where
     pretty TTrue = pretty "true"
     pretty TFalse = pretty "false"
