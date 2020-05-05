@@ -12,10 +12,7 @@ parse :: String -> String -> Either ParseError [Term]
 parse code path = runParser arithParser () path code
 
 arithParser :: Parsec String () [Term]
-arithParser = do
-    ast <- term `sepEndBy` semi
-    eof
-    return ast
+arithParser = (term `sepEndBy` semi) <* eof
 
 term :: LCParser
 term = condition
@@ -49,20 +46,12 @@ zero :: LCParser
 zero = constant "zero" TZero
 
 condition :: LCParser
-condition = do
-  reserved "if"
-  x <- term
-  reserved "then"
-  y <- term
-  reserved "else"
-  z <- term
-  return $ TIf x y z
+condition = TIf <$> (reserved "if"   *> term)
+                <*> (reserved "then" *> term)
+                <*> (reserved "else" *> term)
 
 constant :: String -> Term -> LCParser
 constant name t = reserved name >> return t
 
 fun :: String -> (Term -> Term) -> LCParser
-fun name tm = do
-  reserved name
-  t <- term
-  return $ tm t
+fun name tm = pure tm <*> (reserved name >> term)
