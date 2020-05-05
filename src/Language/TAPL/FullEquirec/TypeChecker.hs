@@ -12,35 +12,32 @@ import Language.TAPL.FullEquirec.Types
 import Language.TAPL.FullEquirec.Context
 
 typeOf :: Term -> Eval Type
-typeOf = infer
+typeOf (TString _ _) = return TyString
+typeOf (TFloat _ _) = return TyFloat
+typeOf (TTrue _) = return TyBool
+typeOf (TFalse _) = return TyBool
 
-infer :: Term -> Eval Type
-infer (TString _ _) = return TyString
-infer (TFloat _ _) = return TyFloat
-infer (TTrue _) = return TyBool
-infer (TFalse _) = return TyBool
-
-infer (TVar info v _) = do
+typeOf (TVar info v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
          (Just x) -> typeError info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
          Nothing -> typeError info "var type error"
 
-infer (TAscribe info t1 ty) = do
-    ty1 <- infer t1
+typeOf (TAscribe info t1 ty) = do
+    ty1 <- typeOf t1
     unlessM (typeEq ty ty1) (typeError info "body of as-term does not have the expected type")
     return ty
 
-infer (TRecord _ fields) = do
+typeOf (TRecord _ fields) = do
     tys <- sequence $ fmap tyField $ Map.toList fields
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = do
-            tyf <- infer v
+            tyf <- typeOf v
             return (k, tyf)
 
-infer (TLookup _ t (TInt info i)) = do
-    ty <- infer t
+typeOf (TLookup _ t (TInt info i)) = do
+    ty <- typeOf t
     ty' <- simplifyType ty
     case (ty', i) of
          ((TyProduct x _), 0) -> return x
@@ -48,8 +45,8 @@ infer (TLookup _ t (TInt info i)) = do
          ((TyProduct _ _), _) -> typeError info "invalid index for pair"
          (_, _)               -> typeError info "invalid lookup operation"
 
-infer (TLookup _ t (TKeyword info key)) = do
-    ty <- infer t
+typeOf (TLookup _ t (TKeyword info key)) = do
+    ty <- typeOf t
     ty' <- simplifyType ty
     case ty' of
          (TyRecord fields) ->
@@ -58,16 +55,16 @@ infer (TLookup _ t (TKeyword info key)) = do
                  _ -> typeError info $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
          _ -> typeError info "invalid lookup operation"
 
-infer (TLookup info _ _) = typeError info "invalid lookup operation"
+typeOf (TLookup info _ _) = typeError info "invalid lookup operation"
 
-infer (TAbs _ x tyT1 t2) = do
+typeOf (TAbs _ x tyT1 t2) = do
     withTmpStateT (addVar x tyT1) $ do
-        tyT2 <- infer t2
+        tyT2 <- typeOf t2
         return $ TyArrow tyT1 (typeShift (-1) tyT2)
 
-infer (TApp info t1 t2) = do
-    tyT1 <- infer t1
-    tyT2 <- infer t2
+typeOf (TApp info t1 t2) = do
+    tyT1 <- typeOf t1
+    tyT2 <- typeOf t2
     tyT1' <- simplifyType tyT1
     case tyT1' of
          (TyArrow tyT11 tyT12) -> do
@@ -77,42 +74,42 @@ infer (TApp info t1 t2) = do
             else typeError info $ "incorrect application of abstraction " ++ show tyT2 ++ " to " ++ show tyT11
          _ -> typeError info $ "incorrect application " ++ show tyT1 ++ " and " ++ show tyT2
 
-infer (TIf info t1 t2 t3) = do
-    ty1 <- infer t1
+typeOf (TIf info t1 t2 t3) = do
+    ty1 <- typeOf t1
     unlessM (typeEq ty1 TyBool)
             (typeError info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")")
-    ty2 <- infer t2
-    ty3 <- infer t3
+    ty2 <- typeOf t2
+    ty3 <- typeOf t3
     unlessM (typeEq ty2 ty3)
            (typeError info $ "branches of condition have different types (" ++ show ty2 ++ " and " ++ show ty3 ++ ")")
     return ty2
 
-infer (TZero _) = return TyNat
+typeOf (TZero _) = return TyNat
 
-infer (TSucc info t) = do
-    ty <- infer t
+typeOf (TSucc info t) = do
+    ty <- typeOf t
     unlessM (typeEq ty TyNat) (argumentError info TyNat ty)
     return TyNat
 
-infer (TPred info t) = do
-    ty <- infer t
+typeOf (TPred info t) = do
+    ty <- typeOf t
     unlessM (typeEq ty TyNat) (argumentError info TyNat ty)
     return TyNat
 
-infer (TIsZero info t) = do
-    ty <- infer t
+typeOf (TIsZero info t) = do
+    ty <- typeOf t
     unlessM (typeEq ty TyNat) (argumentError info TyNat ty)
     return TyBool
 
-infer (TTimesFloat info t1 t2) = do
-    ty1 <- infer t1
-    ty2 <- infer t2
+typeOf (TTimesFloat info t1 t2) = do
+    ty1 <- typeOf t1
+    ty2 <- typeOf t2
     unlessM (typeEq ty1 TyFloat) (argumentError info TyFloat ty1)
     unlessM (typeEq ty2 TyFloat) (argumentError info TyFloat ty2)
     return TyFloat
 
-infer (TCase info v branches) = do
-    v' <- infer v
+typeOf (TCase info v branches) = do
+    v' <- typeOf v
     ty' <- simplifyType v'
     case ty' of
          TyVariant fields -> do
@@ -136,13 +133,13 @@ infer (TCase info v branches) = do
                   absentCaseBranches = variantKeys \\ branchesKeys
                   caseType (caseName, ((varName, t), vty)) =
                     withTmpStateT (addVar varName vty) $ do
-                        ty <- infer t
+                        ty <- typeOf t
                         return (caseName, ty)
 
          x -> (typeError info $ "Invalid context for case statement " ++ show x)
 
-infer (TTag info key t1 ty) = do
-    ty1 <- infer t1
+typeOf (TTag info key t1 ty) = do
+    ty1 <- typeOf t1
     ty' <- simplifyType ty
     case ty' of
          TyVariant tys ->
@@ -153,21 +150,21 @@ infer (TTag info key t1 ty) = do
                  _ -> typeError info $ "label " ++ key ++ " not found"
          _ -> typeError info $ "Annotation is not a variant type : " ++ show ty1
 
-infer (TLet _ x t1 t2) = do
-    ty1 <- infer t1
+typeOf (TLet _ x t1 t2) = do
+    ty1 <- typeOf t1
     withTmpStateT (addVar x ty1) $ do
-        ty2 <- infer t2
+        ty2 <- typeOf t2
         return $ typeShift (-1) ty2
 
-infer (TUnit _) = return TyUnit
+typeOf (TUnit _) = return TyUnit
 
-infer (TPair _ t1 t2) = do
-    ty1 <- infer t1
-    ty2 <- infer t2
+typeOf (TPair _ t1 t2) = do
+    ty1 <- typeOf t1
+    ty2 <- typeOf t2
     return $ TyProduct ty1 ty2
 
-infer (TFix info t1) = do
-    tyT1 <- infer t1
+typeOf (TFix info t1) = do
+    tyT1 <- typeOf t1
     tyT1' <- simplifyType tyT1
     case tyT1' of
         (TyArrow tyT11 tyT12) -> do
