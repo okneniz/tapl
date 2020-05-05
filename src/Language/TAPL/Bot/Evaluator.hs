@@ -1,25 +1,51 @@
 module Language.TAPL.Bot.Evaluator (evalString) where
 
+import Data.List (last)
+
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class (lift)
+
 import Language.TAPL.Bot.Types
 import Language.TAPL.Bot.Parser
+import Language.TAPL.Bot.Context
 import Language.TAPL.Bot.TypeChecker
 import Language.TAPL.Bot.Pretty
 
-import Data.List (last)
-
 evalString :: String -> String -> Either String String
 evalString code source = do
-  case parse source code of
-    Left e -> Left $ show e
-    Right (ast, names) -> do
-      _ <- sequence $ typeOf names <$> ast
-      let result = last $ eval ast
-      ty <- typeOf names result
-      result' <- render names result
-      return $ result' ++ ":" ++ (show $ pretty ty)
+    case parse source code of
+        Left e -> Left $ show e
+        Right ([], _) -> return ""
+        Right (commands, names) -> runExcept (evalStateT (f commands) names)
+    where
+        f cs = do
+            cs' <- evalCommands cs
+            if null cs'
+            then return ""
+            else do let t = last cs'
+                    ty <- typeOf t
+                    t' <- prettify t
+                    ty' <- prettifyType ty
+                    return $ show t' ++ ":" ++ show ty'
 
-eval :: AST -> AST
-eval ast = fullNormalize <$> ast
+evalCommands :: [Command] -> Eval AST
+evalCommands [] = return []
+evalCommands ((Bind _ name binding):cs) = do
+   modify $ bind name binding
+   evalCommands cs
+
+evalCommands ((Eval []):cs) = evalCommands cs
+evalCommands ((Eval ts):cs) = do
+    _ <- typeCheck ts
+    let ts' = fullNormalize <$> ts
+    cs' <- evalCommands cs
+    return $ ts' ++ cs'
+
+typeCheck :: AST -> Eval Type
+typeCheck [] = lift $ throwE "attempt to check empty AST"
+typeCheck [t] = typeOf t
+typeCheck (t:ts) = typeOf t >> typeCheck ts
 
 fullNormalize :: Term -> Term
 fullNormalize t = case normalize t of
@@ -39,30 +65,3 @@ normalize (TApp info t1 t2) = do
     return $ TApp info t1' t2
 
 normalize _ = Nothing
-
-
-isVal :: Term -> Bool
-isVal (TAbs _ _ _ _) = True
-isVal _ = False
-
-tmmap :: (Int -> Info -> Depth -> VarName -> Term) -> Int -> Term -> Term
-tmmap onvar s t = walk s t
-            where walk c (TVar info name depth) = onvar c info name depth
-                  walk c (TAbs info x ty t1) = TAbs info x ty (walk (c+1) t1)
-                  walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
-
-termShiftAbove :: Depth -> VarName -> Term -> Term
-termShiftAbove d s t = tmmap onvar s t
-                 where onvar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onvar _ info name depth = TVar info name (depth + d)
-
-shift :: VarName -> Term -> Term
-shift d t = termShiftAbove d 0 t
-
-substitution :: VarName -> Term -> Term -> Term
-substitution j s t = tmmap onvar 0 t
-               where onvar c _ name _ | name == j + c = shift c s
-                     onvar _ info name depth = TVar info name depth
-
-substitutionTop :: Term -> Term -> Term
-substitutionTop s t = shift (-1) (substitution 0 (shift 1 s) t)

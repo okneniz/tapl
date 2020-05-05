@@ -9,23 +9,41 @@ import Prelude hiding (abs, succ, pred)
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 
-import Data.List (findIndex)
-
+type LCCommandParser = Parsec String LCNames Command
 type LCParser = Parsec String LCNames Term
 type LCTypeParser = Parsec String LCNames Type
 
-parse :: String -> String -> Either ParseError (AST, LCNames)
+parse :: String -> String -> Either ParseError ([Command], LCNames)
 parse = runParser botParser []
 
-botParser :: Parsec String LCNames (AST, LCNames)
+botParser :: Parsec String LCNames ([Command], LCNames)
 botParser = do
-    ast <- term `sepEndBy` semi
+    commands <- command `sepEndBy` semi
     eof
     names <- getState
-    return (ast, names)
+    return $ (commands, names)
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
+
+command :: Parsec String LCNames Command
+command =  (try bindCommand) <|> (try evalCommand)
+
+bindCommand :: LCCommandParser
+bindCommand = do
+    pos <- getPosition
+    i <- try $ oneOf ['A'..'Z']
+    d <- try $ many $ oneOf ['a'..'z']
+    _ <- spaces
+    reservedOp "="
+    modifyState $ addName (i:d)
+    ty <- typeAnnotation
+    return $ Bind (infoFrom pos) (i:d) $ TypeAddBind ty
+
+evalCommand :: LCCommandParser
+evalCommand = try $ do
+    ast <- term `sepEndBy` semi
+    return $ Eval ast
 
 term :: LCParser
 term = (try apply <?> "apply")
@@ -62,7 +80,7 @@ variable = do
     name <- identifier
     p <- getPosition
     ns <- getState
-    case findIndex ((== name) . fst) ns of
+    case findVarName ns name of
         Just n -> return $ TVar (infoFrom p) n (length $ ns)
         Nothing -> unexpected $ "variable " ++ name ++ " has't been bound in context " ++ (show p)
 
@@ -79,7 +97,7 @@ typeAnnotation = try arrowAnnotation
 
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-                    reserved "->"
+                    reservedOp "->"
                     return TyArrow
 
 notArrowAnnotation :: LCTypeParser

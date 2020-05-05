@@ -19,6 +19,7 @@ spec = do
         describe "apply" $ do
             let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
                 examples = [
+                  ("(lambda x:Top. x) (lambda x:Top. x)", "(lambda x.x):Top -> Top"),
                   ("(lambda x:Bot.x x)", "(lambda x.x x):Bot -> Bot"),
                   ("(lambda x:Top -> Top. x) (lambda x:Top. x)", "(lambda x.x):Top -> Top")
                  ]

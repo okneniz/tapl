@@ -14,6 +14,10 @@ languageDefinition = emptyDef {
     Token.identLetter     = (alphaNum <|> oneOf "?_"),
     Token.reservedNames   = [
         "lambda",
+        "Top",
+        "Bot"
+    ],
+    Token.reservedOpNames = [
         "->"
     ]
 }
@@ -26,6 +30,9 @@ identifier = Token.identifier lexer
 
 reserved :: String -> Parsec String u ()
 reserved = Token.reserved lexer
+
+reservedOp :: String -> Parsec String u ()
+reservedOp = Token.reservedOp lexer
 
 parens :: Parsec String u a -> Parsec String u a
 parens = Token.parens lexer
