@@ -4,20 +4,24 @@ import Language.TAPL.FullSimple.Types
 import Data.Maybe (isJust)
 import Control.Monad (liftM)
 
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Except
+
 type LCNames = [(String,Binding)]
+type Eval a = StateT LCNames (Except String) a
 
 bind :: String -> Binding -> LCNames -> LCNames
 bind x b n = (x,b):n
 
-addName :: LCNames -> String -> LCNames
-addName n x = bind x NameBind n
+addName :: String -> LCNames -> LCNames
+addName x = bind x NameBind
 
-isBound :: LCNames -> String -> Bool
-isBound n name = isJust $ Prelude.lookup name n
+isBound :: String -> LCNames -> Bool
+isBound k n = isJust $ Prelude.lookup k n
 
 pickFreshName :: LCNames -> String -> (String, LCNames)
-pickFreshName c name | isBound c name = pickFreshName c (name ++ "'")
-pickFreshName c name = (name, c') where c' = addName c name
+pickFreshName c name | isBound name c = pickFreshName c (name ++ "'")
+pickFreshName c name = (name, c') where c' = addName name c
 
 pickVar :: LCNames -> VarName -> Maybe (String, Binding)
 pickVar [] _ = Nothing

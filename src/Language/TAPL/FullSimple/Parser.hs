@@ -5,28 +5,47 @@ import Language.TAPL.FullSimple.Context
 import Language.TAPL.FullSimple.Lexer
 
 import Prelude hiding (abs, succ, pred)
+import qualified Data.Map.Strict as Map
+import Data.List (findIndex)
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 
-import Data.List (findIndex)
-import qualified Data.Map.Strict as Map
-
+type LCCommandParser = Parsec String LCNames Command
 type LCParser = Parsec String LCNames Term
 type LCTypeParser = Parsec String LCNames Type
 
-parse :: String -> String -> Either ParseError (AST, LCNames)
-parse = runParser fullSimpleParser []
+parse :: String -> String -> Either ParseError ([Command], LCNames)
+parse = runParser reconParser []
 
-fullSimpleParser :: Parsec String LCNames (AST, LCNames)
-fullSimpleParser = do
-    ast <- term `sepEndBy` semi
+reconParser :: Parsec String LCNames ([Command], LCNames)
+reconParser = do
+    commands <- command `sepEndBy` semi
     eof
     names <- getState
-    return (ast, names)
+    return $ (commands, names)
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
+
+command :: Parsec String LCNames Command
+command =  (try bindCommand) <|> (try evalCommand)
+
+bindCommand :: LCCommandParser
+bindCommand = do
+    pos <- getPosition
+    i <- try $ oneOf ['A'..'Z']
+    d <- try $ many $ oneOf ['a'..'z']
+    _ <- spaces
+    reserved "="
+    modifyState $ addName (i:d)
+    ty <- typeAnnotation
+    return $ Bind (infoFrom pos) (i:d) $ TypeAddBind ty
+
+evalCommand :: LCCommandParser
+evalCommand = try $ do
+    ast <- term `sepEndBy` semi
+    return $ Eval ast
 
 term :: LCParser
 term = try apply
@@ -204,7 +223,7 @@ let' = do
     reserved "in"
     optional spaces
     context <- getState
-    modifyState $ \c -> addName c v
+    modifyState $ addName v
     t2 <- term
     setState context
     return $ TLet (infoFrom p) v t1 t2
@@ -223,7 +242,7 @@ case' = do
           (caseName, varName) <- pattern
           reservedOp "->"
           context <- getState
-          modifyState $ \c -> addName c varName
+          modifyState $ addName varName
           t2 <- term
           setState context
           return (caseName, (varName, t2))

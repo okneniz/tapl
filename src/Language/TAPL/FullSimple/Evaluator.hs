@@ -9,20 +9,46 @@ import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Parser
 import Language.TAPL.FullSimple.TypeChecker
 import Language.TAPL.FullSimple.Pretty
+import Language.TAPL.FullSimple.Context
+
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Except
 
 evalString :: String -> String -> Either String String
 evalString code source = do
-  case parse source code of
-    Left e -> Left $ show e
-    Right (ast, names) -> do
-      _ <- sequence $ typeOf names <$> ast
-      let result = last  $ eval ast
-      ty <- typeOf names result
-      result' <- render names result
-      return $ result' ++ ":" ++ (show $ pretty ty)
+    case parse source code of
+        Left e -> Left $ show e
+        Right ([], _) -> return ""
+        Right (commands, names) -> runExcept (evalStateT (f commands) names)
+    where
+        f cs = do
+            cs' <- evalCommands cs
+            if null cs'
+            then return ""
+            else do let t = last cs'
+                    ty <- typeOf t
+                    t' <- prettify t
+                    ty' <- prettifyType ty
+                    return $ show t' ++ ":" ++ show ty'
 
-eval :: AST -> AST
-eval ast = fullNormalize <$> ast
+evalCommands :: [Command] -> Eval AST
+evalCommands [] = return []
+evalCommands ((Bind _ name binding):cs) = do
+   modify $ bind name binding
+   evalCommands cs
+
+evalCommands ((Eval []):cs) = evalCommands cs
+evalCommands ((Eval ts):cs) = do
+    _ <- typeCheck ts
+    let ts' = fullNormalize <$> ts
+    cs' <- evalCommands cs
+    return $ ts' ++ cs'
+
+typeCheck :: AST -> Eval Type
+typeCheck [] = lift $ throwE "attempt to check empty AST"
+typeCheck [t] = typeOf t
+typeCheck (t:ts) = typeOf t >> typeCheck ts
 
 fullNormalize :: Term -> Term
 fullNormalize t = case normalize t of

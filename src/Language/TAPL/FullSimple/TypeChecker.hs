@@ -7,178 +7,175 @@ import qualified Data.Map.Strict as Map
 
 import Control.Monad (liftM, when)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Context
 
-type Inferred a = ExceptT TypeError (State LCNames) a
-
 data TypeError = TypeMissmatch Info String
 
-typeOf :: LCNames -> Term -> Either String Type
-typeOf names term =
-    case evalState (runExceptT (infer term)) names of
-         Left x -> Left $ show x
-         Right x -> return x
+typeOf :: Term -> Eval Type
+typeOf (TTrue _) = return TyBool
+typeOf (TFalse _) = return TyBool
+typeOf (TString _ _) = return TyString
+typeOf (TUnit _) = return TyUnit
+typeOf (TZero _) = return TyNat
+typeOf (TInt _ _) = return TyInt
 
-infer :: Term -> Inferred Type
-infer (TTrue _) = return TyBool
-infer (TFalse _) = return TyBool
-infer (TString _ _) = return TyString
-infer (TUnit _) = return TyUnit
-infer (TZero _) = return TyNat
-infer (TInt _ _) = return TyInt
-
-infer (TSucc info t) = do
-  ty <- infer t
+typeOf (TSucc info t) = do
+  ty <- typeOf t
   case ty of
       TyNat -> return TyNat
       _ -> argumentError info TyNat ty
 
-infer (TPred info t) = do
-  ty <- infer t
+typeOf (TPred info t) = do
+  ty <- typeOf t
   case ty of
      TyNat -> return TyNat
      _ -> argumentError info TyNat ty
 
-infer (TIsZero info t) = do
-  ty <- infer t
+typeOf (TIsZero info t) = do
+  ty <- typeOf t
   case ty of
     TyNat -> return TyBool
     _ -> argumentError info TyNat ty
 
-infer (TIf info t1 t2 t3) = do
-  ty1 <- infer t1
+typeOf (TIf info t1 t2 t3) = do
+  ty1 <- typeOf t1
   case ty1 of
        TyBool -> do
-          ty2 <- infer t2
-          ty3 <- infer t3
+          ty2 <- typeOf t2
+          ty3 <- typeOf t3
           if ty2 == ty3
           then return ty2
-          else throwE $ TypeMissmatch info $ "branches of condition have different types (" ++ show t2 ++ " and " ++ show t3 ++ ")"
-       _ -> throwE $ TypeMissmatch info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")"
+          else typeError info $ "branches of condition have different types (" ++ show t2 ++ " and " ++ show t3 ++ ")"
+       _ -> typeError info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")"
 
-infer v@(TVar info varname _) = do
-  names <- lift $ get
+typeOf v@(TVar info varname _) = do
+  names <- get
   case liftM snd $ pickVar names varname of
        Just (VarBind ty') -> return ty'
-       Just x -> throwE $ TypeMissmatch info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
-       Nothing -> throwE $ TypeMissmatch info $ "var type error"
+       Just x -> typeError info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
+       Nothing -> typeError info $ "var type error"
 
-infer (TApp info t1 t2) = do
-    ty1 <- infer t1
-    ty2 <- infer t2
+typeOf (TApp info t1 t2) = do
+    ty1 <- typeOf t1
+    ty2 <- typeOf t2
     case ty1 of
          (TyArrow ty1' ty2') | ty2 <: ty1' -> return ty2'
-         (TyArrow ty1' _) -> throwE $ TypeMissmatch info $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
+         (TyArrow ty1' _) -> typeError info $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
          TyBot -> return TyBot
-         _ -> throwE $ TypeMissmatch info $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
+         _ -> typeError info $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
 
-infer (TAbs _ name ty t) = do
-  names <- lift $ get
-  lift $ modify $ bind name (VarBind ty)
-  ty' <- infer t
-  lift $ put names
+typeOf (TAbs _ name ty t) = do
+  names <- get
+  modify $ bind name (VarBind ty)
+  ty' <- typeOf t
+  put names
   return $ TyArrow ty ty'
 
-infer (TFloat _ _) = return TyFloat
+typeOf (TFloat _ _) = return TyFloat
 
-infer (TPair _ t1 t2) = do
-    ty1 <- infer t1
-    ty2 <- infer t2
+typeOf (TPair _ t1 t2) = do
+    ty1 <- typeOf t1
+    ty2 <- typeOf t2
     return $ TyProduct ty1 ty2
 
-infer (TRecord _ fields) = do
+typeOf (TRecord _ fields) = do
     tys <- sequence $ fmap tyField $ Map.toList fields
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = do
-            tyf <- infer v
+            tyf <- typeOf v
             return (k, tyf)
 
-infer (TLookup _ t (TInt info i)) = do
-    ty <- infer t
+typeOf (TLookup _ t (TInt info i)) = do
+    ty <- typeOf t
     case (ty, i) of
          ((TyProduct x _), 0) -> return x
          ((TyProduct _ x), 1) -> return x
-         ((TyProduct _ _), _) -> throwE $ TypeMissmatch info "invalid index for pair"
-         (_, _)               -> throwE $ TypeMissmatch info "invalid lookup operation"
+         ((TyProduct _ _), _) -> typeError info "invalid index for pair"
+         (_, _)               -> typeError info "invalid lookup operation"
 
-infer (TLookup _ t (TKeyword info key)) = do
-    ty <- infer t
+typeOf (TLookup _ t (TKeyword info key)) = do
+    ty <- typeOf t
     case ty of
          (TyRecord fields) ->
             case Map.lookup key fields of
                  Just x -> return x
-                 _ -> throwE $ TypeMissmatch info $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
-         _ -> throwE $ TypeMissmatch info "invalid lookup operation"
+                 _ -> typeError info $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
+         _ -> typeError info "invalid lookup operation"
 
-infer (TLookup info _ _) = throwE $ TypeMissmatch info "invalid lookup operation"
+typeOf (TLookup info _ _) = typeError info "invalid lookup operation"
 
-infer (TLet _ v t1 t2) = do
-    ty1 <- infer t1
-    lift $ modify $ bind v (VarBind ty1)
-    ty2 <- infer t2
+typeOf (TLet _ v t1 t2) = do
+    ty1 <- typeOf t1
+    modify $ bind v (VarBind ty1)
+    ty2 <- typeOf t2
     -- TODO : recover state
     return ty2
 
-infer (TAscribe info t ty) = do
-    ty' <- infer t
+typeOf (TAscribe info t ty) = do
+    ty' <- typeOf t
     if ty' <: ty
     then return ty
-    else throwE $ TypeMissmatch info "body of as-term does not have the expected type"
+    else typeError info "body of as-term does not have the expected type"
 
-infer (TFix info t1) = do
-    tyT1 <- infer t1
+typeOf (TFix info t1) = do
+    tyT1 <- typeOf t1
     case tyT1 of
          (TyArrow tyT11 tyT12) | tyT12 <: tyT11 -> return tyT12
-         (TyArrow _ _) -> throwE $ TypeMissmatch info  "result of body not compatible with domain"
-         _ -> throwE $ TypeMissmatch info  "arrow type expected"
+         (TyArrow _ _) -> typeError info  "result of body not compatible with domain"
+         _ -> typeError info  "arrow type expected"
 
-infer (TCase info v@(TTag _ key _ _) branches) = do
-    ty' <- infer v
+typeOf (TCase info v@(TTag _ key _ _) branches) = do
+    ty' <- typeOf v
     case ty' of
          TyVariant fields -> do
             when (not $ null invalidCaseBranches)
-                 (throwE $ TypeMissmatch info $ "Invalid case branches : " ++ intercalate ", " invalidCaseBranches)
+                 (typeError info $ "Invalid case branches : " ++ intercalate ", " invalidCaseBranches)
 
             when (not $ null absentCaseBranches)
-                 (throwE $ TypeMissmatch info $ "Absent case branches : " ++ intercalate ", " absentCaseBranches)
+                 (typeError info $ "Absent case branches : " ++ intercalate ", " absentCaseBranches)
 
             cases <- sequence $ fmap caseType $ Map.toList $ Map.intersectionWith (,) branches fields
 
             let casesTypes' = nub $ snd <$> cases
             when (length casesTypes' /= 1)
-                 (throwE $ TypeMissmatch info $ "Case branches have different types : " ++ intercalate ", " (show <$> casesTypes'))
+                 (typeError info $ "Case branches have different types : " ++ intercalate ", " (show <$> casesTypes'))
 
             case (Map.lookup key $ Map.fromList cases) of
                  Just vty' -> return vty'
-                 _ -> throwE $ TypeMissmatch info $ "Variant with key " ++ show key ++ " not found."
+                 _ -> typeError info $ "Variant with key " ++ show key ++ " not found."
 
             where variantKeys = Map.keys fields
                   branchesKeys = Map.keys branches
                   invalidCaseBranches = branchesKeys \\ variantKeys
                   absentCaseBranches = variantKeys \\ branchesKeys
                   caseType (caseName, ((varName, t), vty)) = do
-                    lift $ modify $ bind varName (VarBind vty)
-                    ty <- infer t
+                    names <- get
+                    modify $ bind varName (VarBind vty)
+                    ty <- typeOf t
+                    put names
                     return (caseName, ty)
-         x -> (throwE $ TypeMissmatch info $ "Invalid context for case statement " ++ show x)
+         x -> (typeError info $ "Invalid context for case statement " ++ show x)
 
-infer (TTag info key t ty) = do
-    ty' <- infer t
+typeOf (TTag info key t ty) = do
+    ty' <- typeOf t
     case ty of
          TyVariant tys ->
             case Map.lookup key tys of
                  Just x -> if x == ty'
                            then return ty
-                           else throwE $ TypeMissmatch info $ "field does not have expected type"
-                 _ -> throwE $ TypeMissmatch info $ "label " ++ key ++ " not found"
-         _ -> throwE $ TypeMissmatch info $ "Annotation is not a variant type"
+                           else typeError info $ "field does not have expected type"
+                 _ -> typeError info $ "label " ++ key ++ " not found"
+         _ -> typeError info $ "Annotation is not a variant type"
 
-argumentError :: Info -> Type -> Type -> Inferred Type
-argumentError info expected actual = throwE $ TypeMissmatch info message
+typeError :: Info -> String -> Eval a
+typeError info message = lift $ throwE $ show info ++ ":" ++ message
+
+argumentError :: Info -> Type -> Type -> Eval Type
+argumentError info expected actual = typeError info message
     where message = "Argument error, expected " ++ show expected  ++ ". Got " ++ show actual ++ "."
 
 instance Show TypeError where

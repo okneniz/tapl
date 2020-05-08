@@ -3,6 +3,10 @@ module Language.TAPL.FullSimple.Types where
 import Data.Map (Map)
 import qualified Data.Map.Strict as Map
 
+data Command = Eval [Term]
+             | Bind Info String Binding
+             deriving (Show)
+
 data Term = TTrue Info
           | TFalse Info
           | TIf Info Term Term Term
@@ -51,7 +55,11 @@ type AST = [Term]
 
 data Info = Info { row :: Int, column :: Int } deriving (Show)
 
-data Binding = NameBind | VarBind Type deriving (Show)
+data Binding = NameBind
+             | VarBind Type
+             | TypeVarBind
+             | TypeAddBind Type
+             deriving (Show)
 
 isVal :: Term -> Bool
 isVal (TTrue _) = True

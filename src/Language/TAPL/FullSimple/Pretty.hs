@@ -1,26 +1,17 @@
-module Language.TAPL.FullSimple.Pretty (render, pretty) where
+module Language.TAPL.FullSimple.Pretty (prettify, prettifyType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
+import qualified Data.Map.Strict as Map
 
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
-
-import qualified Data.Map.Strict as Map
 
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Context
 
-type Printed a = ExceptT String (State LCNames) a
-
-render :: LCNames -> Term -> Either String String
-render names term =
-    case evalState (runExceptT (prettify term)) names of
-         Left x -> Left x
-         Right x -> return $ show x
-
-prettify :: Term -> Printed (Doc a)
+prettify :: Term -> Eval (Doc a)
 prettify (TTrue _) = return $ pretty "true"
 prettify (TFalse _) = return $ pretty "false"
 prettify (TString _ s) = return $ dquotes $ pretty s
@@ -53,17 +44,17 @@ prettify (TIf _ t1 t2 t3) = do
                      ]
 
 prettify (TVar _ varname _) = do
-    c <- lift $ get
+    c <- get
     case nameFromContext c varname of
          Just name -> return $ pretty name
-         Nothing -> throwE $ "[bad index " ++ show varname ++ " in context " ++ show c  ++ "]"
+         Nothing -> lift $ throwE $ "[bad index " ++ show varname ++ " in context " ++ show c  ++ "]"
 
 prettify (TAbs _ name _ t) = do
-  names <- lift $ get
+  names <- get
   let (newName, names') = pickFreshName names name
-  lift $ put names'
+  put names'
   doc <- prettify t
-  lift $ put names
+  put names
   return $ parens $ pretty "lambda" <+> pretty newName <> dot <> doc
 
 prettify (TApp _ t1 t2) = do
@@ -99,7 +90,8 @@ prettify (TTag _ key t _) = do
 
 prettify (TAscribe _ t ty) = do
     doc <- prettify t
-    return $ doc <> colon <> pretty ty
+    docTy <- prettifyType ty
+    return $ doc <> colon <> docTy
 
 prettify (TCase _ t cs) = do
     doc <- prettify t
@@ -112,22 +104,38 @@ prettify (TCase _ t cs) = do
 
 prettify (TFix _ t) = prettify t
 
-instance Pretty Type where
-    pretty TyTop = pretty "Top"
-    pretty TyBot = pretty "Bot"
-    pretty TyBool = pretty "Bool"
-    pretty TyInt = pretty "Int"
-    pretty TyString = pretty "String"
-    pretty TyUnit = pretty "Unit"
-    pretty TyNat = pretty "Nat"
-    pretty TyFloat = pretty "Float"
-    pretty TyKeyword = pretty "Keyword"
-    pretty (TyID s) = pretty s
-    pretty (TyArrow ty1 ty2) = parens (pretty ty1 <+> pretty "->" <+> pretty ty2)
-    pretty (TyProduct ty1 ty2) = braces (pretty ty1 <> pretty "*" <> pretty ty2)
+prettifyType :: Type -> Eval (Doc a)
+prettifyType TyTop = return $ pretty "Top"
+prettifyType TyBot = return $ pretty "Bot"
+prettifyType TyBool = return $ pretty "Bool"
+prettifyType TyInt = return $ pretty "Int"
+prettifyType TyString = return $ pretty "String"
+prettifyType TyUnit = return $ pretty "Unit"
+prettifyType TyNat = return $ pretty "Nat"
+prettifyType TyFloat = return $ pretty "Float"
+prettifyType TyKeyword = return $ pretty "Keyword"
+prettifyType (TyID s) = return $ pretty s
 
-    pretty (TyRecord ts) = braces $ foldl1 (\x y -> x <> comma <+> y) $ field <$> Map.toList ts
-      where field (k,t) = pretty k <> equals <> pretty t
+prettifyType (TyArrow ty1 ty2) = do
+    doc1 <- prettifyType ty1
+    doc2 <- prettifyType ty2
+    return $ parens (doc1 <+> pretty "->" <+> doc2)
 
-    pretty (TyVariant ts) = angles $ foldl1 (\x y -> x <> comma <+> y) $ field <$> Map.toList ts
-      where field (k,t) = pretty k <> colon <> pretty t
+prettifyType (TyProduct ty1 ty2) = do
+    doc1 <- prettifyType ty1
+    doc2 <- prettifyType ty2
+    return $ braces (doc1 <> pretty "*" <> doc2)
+
+prettifyType (TyRecord ts) = do
+    ts' <- sequence $ (f <$> Map.toList ts)
+    return $ braces $ foldl1 (\x y -> x <> comma <+> y) ts'
+    where f (k, ty) = do
+            doc <- prettifyType ty
+            return $ pretty k <> equals <> doc
+
+prettifyType (TyVariant ts) = do
+    ts' <- sequence $ (f <$> Map.toList ts)
+    return $ angles $ foldl1 (\x y -> x <> comma <+> y) ts'
+    where f (k, ty) = do
+            doc <- prettifyType ty
+            return $ pretty k <> colon <> doc
