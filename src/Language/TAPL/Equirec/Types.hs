@@ -25,3 +25,4 @@ instance Eq Type where
 (TyArrow tys1 tys2) <: (TyArrow tyt1 tyt2) = (tyt1 <: tys1) && (tys2 <: tyt2)
 x <: y | x == y = True
 _ <: _ = False
+
