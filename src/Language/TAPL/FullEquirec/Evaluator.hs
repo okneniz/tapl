@@ -57,44 +57,34 @@ fullNormalize t = case normalize t of
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-
 normalize (TIf info t1 t2 t3) = do
-  t1' <- normalize t1
-  return $ TIf info t1' t2 t3
+    t1' <- normalize t1
+    return $ TIf info t1' t2 t3
 
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v =
     return $ termSubstitutionTop v t
 
-normalize (TApp info t1 t2) | isVal t1  = do
-    t2' <- normalize t2
-    return $ TApp info t1 t2'
+normalize (TApp info t1 t2) | isVal t1 =
+    TApp info t1 <$> normalize t2
 
 normalize (TApp info t1 t2) = do
     t1' <- normalize t1
     return $ TApp info t1' t2
 
-normalize (TSucc info t) = do
-    t' <- normalize t
-    return $ TSucc info t'
+normalize (TSucc info t) = TSucc info <$> normalize t
 
 normalize (TPred _ (TZero info)) = return $ TZero info
 normalize (TPred _ (TSucc _ t)) | isNumerical t = return t
-
-normalize (TPred info t) = do
-    t' <- normalize t
-    return $ TPred info t'
+normalize (TPred info t) = TPred info <$> normalize t
 
 normalize (TIsZero _ (TZero info)) = return $ TTrue info
 normalize (TIsZero _ (TSucc info t)) | isNumerical t =
     return $ TFalse info
 
-normalize (TIsZero info t) = do
-    t' <- normalize t
-    return $ TIsZero info t'
+normalize (TIsZero info t) = TIsZero info <$> normalize t
 
-normalize (TPair info t1 t2) | isVal t1  = do
-    t2' <- normalize t2
-    return $ TPair info t1 t2'
+normalize (TPair info t1 t2) | isVal t1 =
+    TPair info t1 <$> normalize t2
 
 normalize (TPair info t1 t2) = do
     t1' <- normalize t1
@@ -103,19 +93,20 @@ normalize (TPair info t1 t2) = do
 normalize (TRecord _ fields) | (Map.size fields) == 0 = Nothing
 normalize t@(TRecord _ _) | isVal t = Nothing
 
-normalize (TRecord info fields) = do
-    fields' <- sequence $ evalField <$> Map.toList fields -- не то!
-    return $ TRecord info (Map.fromList fields')
-    where evalField (k, field) | isVal field = return (k, field)
-          evalField (k, field) = do
-            field' <- normalize field
-            return (k, field')
+normalize (TRecord info fs) = do
+    fs' <- sequence $ evalField <$> Map.toList fs
+    return $ TRecord info (Map.fromList fs')
+    where evalField (k, v) | isVal v = return (k, v)
+          evalField (k, v) = do
+            v' <- normalize v
+            return (k, v')
 
-normalize (TLookup _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = Map.lookup key fields
+normalize (TLookup _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t =
+    Map.lookup k fs
 
-normalize (TLookup info t@(TRecord _ _) (TKeyword x key)) = do
+normalize (TLookup info t@(TRecord _ _) (TKeyword x k)) = do
     t' <- normalize t
-    return $ (TLookup info t' (TKeyword x key))
+    return $ (TLookup info t' (TKeyword x k))
 
 normalize (TLookup _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
 normalize (TLookup _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
@@ -134,30 +125,27 @@ normalize (TLet info v t1 t2) = do
 normalize (TAscribe _ t _) | isVal t = return t
 normalize (TAscribe _ t _) = normalize t
 
-normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = do
+normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a =
     return $ termSubstitutionTop t1 t2
 
-normalize (TFix info t) = do
-    t' <- normalize t
-    return $ TFix info t'
+normalize (TFix info t) = TFix info <$> normalize t
 
-normalize (TTimesFloat info (TFloat _ t1) (TFloat _ t2)) = do
+normalize (TTimesFloat info (TFloat _ t1) (TFloat _ t2)) =
     return $ TFloat info (t1 * t2)
 
-normalize (TTimesFloat info t1@(TFloat _ _) t2) = do
-    t2' <- normalize t2
-    return $ TTimesFloat info t1 t2'
+normalize (TTimesFloat info t1@(TFloat _ _) t2) =
+    TTimesFloat info t1 <$> normalize t2
 
 normalize (TTimesFloat info t1 t2@(TFloat _ _)) = do
     t1' <- normalize t1
     return $ TTimesFloat info t1' t2
 
-normalize (TCase _ (TTag _ key v _) branches) | isVal v =
+normalize (TCase _ (TTag _ k v _) bs) | isVal v =
     liftM (\(_, t) -> termSubstitutionTop v t)
-          (Map.lookup key branches)
+          (Map.lookup k bs)
 
-normalize (TCase info t fields) = do
+normalize (TCase info t fs) = do
     t' <- normalize t
-    return $ TCase info t' fields
+    return $ TCase info t' fs
 
 normalize _ = Nothing
