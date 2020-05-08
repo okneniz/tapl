@@ -54,16 +54,9 @@ fullNormalize t = case normalize t of
                        Nothing -> t
 
 normalize :: Term -> Maybe Term
-normalize (TApp _ (TAbs _ _ _ t) v) | isVal v =
-    return $ termSubstitutionTop v t
-
-normalize (TApp info t1 t2) | isVal t1  = do
-    t2' <- normalize t2
-    return $ TApp info t1 t2'
-
-normalize (TApp info t1 t2) = do
-    t1' <- normalize t1
-    return $ TApp info t1' t2
+normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t
+normalize (TApp info t1 t2) | isVal t1 = TApp info t1 <$> normalize t2
+normalize (TApp info t1 t2) = normalize t1 >>= \t1' -> return $ TApp info t1' t2
 
 normalize (TRecord _ fields) | (Map.size fields) == 0 = Nothing
 normalize t@(TRecord _ _) | isVal t = Nothing
