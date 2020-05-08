@@ -58,22 +58,10 @@ normalize :: Term -> Maybe Term
 normalize (TIf _ t@(TError _) _ _) = return t
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-
-normalize (TIf info t1 t2 t3) = do
-  t1' <- normalize t1
-  return $ TIf info t1' t2 t3
-
+normalize (TIf info t1 t2 t3) = normalize t1 >>= \t1' -> return $ TIf info t1' t2 t3
 normalize (TApp _ t@(TError _) _) = return t
 normalize (TApp _ v t@(TError _)) | isVal v = return t
-normalize (TApp _ (TAbs _ _ _ t) v) | isVal v =
-    return $ termSubstitutionTop v t
-
-normalize (TApp info t1 t2) | isVal t1  = do
-    t2' <- normalize t2
-    return $ TApp info t1 t2'
-
-normalize (TApp info t1 t2) = do
-    t1' <- normalize t1
-    return $ TApp info t1' t2
-
+normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t
+normalize (TApp info t1 t2) | isVal t1 = TApp info t1 <$> normalize t2
+normalize (TApp info t1 t2) = normalize t1 >>= \t1' -> return $ TApp info t1' t2
 normalize _ = Nothing
