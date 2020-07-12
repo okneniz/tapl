@@ -23,9 +23,6 @@ reconParser = do
     names <- getState
     return $ (commands, names)
 
-infoFrom :: SourcePos -> Info
-infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
-
 command :: Parsec String LCNames Command
 command =  (try bindCommand) <|> (try evalCommand)
 
@@ -38,7 +35,7 @@ bindCommand = do
     reserved "="
     modifyState $ addName (i:d)
     ty <- typeAnnotation
-    return $ Bind (infoFrom pos) (i:d) $ TypeAddBind ty
+    return $ Bind pos (i:d) $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
 evalCommand = try $ do
@@ -54,7 +51,7 @@ apply :: LCParser
 apply = chainl1 notApply $ do
             optional spaces
             pos <- getPosition
-            return $ TApp (infoFrom pos)
+            return $ TApp pos
 
 notApply :: LCParser
 notApply = try (boolean <?> "boolean")
@@ -83,7 +80,7 @@ abstraction = do
     modifyState $ addVar name ty
     t <- notTypeBind
     setState names
-    return $ TAbs (infoFrom pos) name ty t
+    return $ TAbs pos name ty t
 
 try' :: LCParser
 try' = do
@@ -92,7 +89,7 @@ try' = do
     t1 <- term
     reserved "with"
     t2 <- term
-    return $ TTry (infoFrom pos) t1 t2
+    return $ TTry pos t1 t2
 
 variable :: LCParser
 variable = do
@@ -100,7 +97,7 @@ variable = do
     names <- getState
     pos <- getPosition
     case findVarName names name of
-         Just n -> return $ TVar (infoFrom pos) n (length names)
+         Just n -> return $ TVar pos n (length names)
          Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 boolean :: LCParser
@@ -111,11 +108,11 @@ boolean = true <|> false
 error' :: LCParser
 error' = constant "error" TError
 
-constant :: String -> (Info -> Term) -> LCParser
+constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = do
     p <- getPosition
     reserved name
-    return $ t (infoFrom p)
+    return $ t p
 
 condition :: LCParser
 condition = do
@@ -126,7 +123,7 @@ condition = do
     y <- notTypeBind
     reserved "else"
     z <- notTypeBind
-    return $ TIf (infoFrom pos) x y z
+    return $ TIf pos x y z
 
 termType :: LCTypeParser
 termType = colon >> typeAnnotation

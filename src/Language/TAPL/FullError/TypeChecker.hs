@@ -7,6 +7,8 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 
+import Text.Parsec (SourcePos)
+
 import Language.TAPL.FullError.Types
 import Language.TAPL.FullError.Context
 
@@ -61,7 +63,7 @@ unlessM p s = do
     x <- p
     unless x s
 
-typeError :: Info -> String -> Eval a
+typeError :: SourcePos -> String -> Eval a
 typeError info message = lift $ throwE $ show info ++ ":" ++ message
 
 typeEq :: Type -> Type -> Eval Bool

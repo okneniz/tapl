@@ -1,22 +1,23 @@
 module Language.TAPL.FullError.Types where
 
+import Text.Parsec (SourcePos)
+
 data Command = Eval [Term]
-             | Bind Info String Binding
+             | Bind SourcePos String Binding
              deriving (Show)
 
-data Term = TVar Info VarName Depth
-          | TAbs Info String Type Term
-          | TApp Info Term Term
-          | TTrue Info
-          | TFalse Info
-          | TIf Info Term Term Term
-          | TError Info
-          | TTry Info Term Term
+data Term = TVar SourcePos VarName Depth
+          | TAbs SourcePos String Type Term
+          | TApp SourcePos Term Term
+          | TTrue SourcePos
+          | TFalse SourcePos
+          | TIf SourcePos Term Term Term
+          | TError SourcePos
+          | TTry SourcePos Term Term
           deriving (Show, Eq)
 
 type VarName = Int
 type Depth = Int
-data Info = Info { row :: Int, column :: Int } deriving (Eq, Show)
 type AST = [Term]
 
 isVal :: Term -> Bool
@@ -25,7 +26,7 @@ isVal (TFalse _) = True
 isVal (TAbs _ _ _ _) = True
 isVal _ = False
 
-termMap :: (Int -> Info -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
+termMap :: (Int -> SourcePos -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
 termMap onVar onType s t = walk s t
                      where walk c (TVar info name depth) = onVar c info name depth
                            walk c (TAbs info x ty t) = TAbs info x (onType c ty) (walk (c+1) t)
