@@ -23,9 +23,6 @@ botParser = do
     names <- getState
     return $ (commands, names)
 
-infoFrom :: SourcePos -> Info
-infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
-
 command :: Parsec String LCNames Command
 command =  (try bindCommand) <|> (try evalCommand)
 
@@ -38,7 +35,7 @@ bindCommand = do
     reservedOp "="
     modifyState $ addName (i:d)
     ty <- typeAnnotation
-    return $ Bind (infoFrom pos) (i:d) $ TypeAddBind ty
+    return $ Bind pos (i:d) $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
 evalCommand = try $ do
@@ -54,7 +51,7 @@ apply :: LCParser
 apply = chainl1 notApply $ do
           p <- getPosition
           whiteSpace
-          return $ TApp (infoFrom p)
+          return $ TApp p
 
 notApply :: LCParser
 notApply =  try abstraction
@@ -73,7 +70,7 @@ abstraction = do
     modifyState $ bind varName (VarBind varType)
     t <- term
     setState context
-    return $ TAbs (infoFrom p) varName varType t
+    return $ TAbs p varName varType t
 
 variable :: LCParser
 variable = do
@@ -81,7 +78,7 @@ variable = do
     p <- getPosition
     ns <- getState
     case findVarName ns name of
-        Just n -> return $ TVar (infoFrom p) n (length $ ns)
+        Just n -> return $ TVar p n (length $ ns)
         Nothing -> unexpected $ "variable " ++ name ++ " has't been bound in context " ++ (show p)
 
 termType :: LCTypeParser
