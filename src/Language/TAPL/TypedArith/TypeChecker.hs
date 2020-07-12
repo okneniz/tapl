@@ -5,6 +5,8 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Except
 
+import Text.Parsec (SourcePos)
+
 import Language.TAPL.TypedArith.Types
 import Language.TAPL.TypedArith.Context
 
@@ -75,7 +77,7 @@ infer (TAbs _ name ty t) = do
   return $ TyArrow ty ty'
 
 
-data TypeError = TypeMissmatch Info String
+data TypeError = TypeMissmatch SourcePos String
 
 instance Show TypeError where
-    show (TypeMissmatch info message) = message ++ " in " ++ (show $ row info) ++ ":" ++ (show $ column info)
+    show (TypeMissmatch pos message) = message ++ " in " ++ show pos
