@@ -5,11 +5,13 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Except
 
+import Text.Parsec (SourcePos)
+
 import Language.TAPL.SimpleBool.Types
 import Language.TAPL.SimpleBool.Context
 
 type Inferred a = ExceptT TypeError (State LCNames) a
-data TypeError = TypeMissmatch Info String
+data TypeError = TypeMissmatch SourcePos String
 
 typeOf :: LCNames -> Term -> Either String Type
 typeOf names term =
@@ -21,7 +23,7 @@ infer :: Term -> Inferred Type
 infer (TTrue _) = return TyBool
 infer (TFalse _) = return TyBool
 
-infer (TIf info t1 t2 t3) = do
+infer (TIf pos t1 t2 t3) = do
   ty1 <- infer t1
   case ty1 of
        TyBool -> do
@@ -29,8 +31,8 @@ infer (TIf info t1 t2 t3) = do
           ty3 <- infer t3
           if ty2 == ty3
           then return ty2
-          else throwE $ TypeMissmatch info $ "branches of condition have different types (" ++ show ty2 ++ " and " ++ show ty3 ++ ")"
-       ty -> throwE $ TypeMissmatch info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty ++ ")"
+          else throwE $ TypeMissmatch pos $ "branches of condition have different types (" ++ show ty2 ++ " and " ++ show ty3 ++ ")"
+       ty -> throwE $ TypeMissmatch pos $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty ++ ")"
 
 infer (TVar info v _) = do
   names <- lift $ get
@@ -57,4 +59,4 @@ infer (TAbs _ name ty t) = do
   return $ TyArrow ty ty'
 
 instance Show TypeError where
-    show (TypeMissmatch info message) = message ++ " in " ++ (show $ row info) ++ ":" ++ (show $ column info)
+    show (TypeMissmatch pos message) = message ++ " in " ++ show pos

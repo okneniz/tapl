@@ -22,9 +22,6 @@ simpleBoolParser = do
     names <- getState
     return (ast, names)
 
-infoFrom :: SourcePos -> Info
-infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
-
 term :: LCParser
 term = try apply
    <|> try notApply
@@ -34,7 +31,7 @@ apply :: LCParser
 apply = chainl1 notApply $ do
             optional spaces
             pos <- getPosition
-            return $ TApp (infoFrom pos)
+            return $ TApp pos
 
 notApply :: LCParser
 notApply = (boolean     <?> "boolean")
@@ -55,7 +52,7 @@ abstraction = do
     modifyState $ bind varName (VarBind varType)
     t <- term
     setState context
-    return $ TAbs (infoFrom pos) varName varType t
+    return $ TAbs pos varName varType t
 
 variable :: LCParser
 variable = do
@@ -63,7 +60,7 @@ variable = do
     ns <- getState
     pos <- getPosition
     case findIndex ((== name) . fst) ns of
-         Just n -> return $ TVar (infoFrom pos) n (length $ ns)
+         Just n -> return $ TVar pos n (length $ ns)
          Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 boolean :: LCParser
@@ -71,11 +68,11 @@ boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
 
-constant :: String -> (Info -> Term) -> LCParser
+constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = do
     p <- getPosition
     reserved name
-    return $ t (infoFrom p)
+    return $ t p
 
 condition :: LCParser
 condition = do
@@ -86,7 +83,7 @@ condition = do
     reserved "else"
     z <- term
     pos <- getPosition
-    return $ TIf (infoFrom pos) x y z
+    return $ TIf pos x y z
 
 termType :: LCTypeParser
 termType = colon >> typeAnnotation
