@@ -6,6 +6,8 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.State.Lazy
 
+import Text.Parsec (SourcePos)
+
 import Language.TAPL.FullRecon.Types
 
 type LCNames = [(String,Binding)]
@@ -45,7 +47,7 @@ isNumerical (TZero _) = True
 isNumerical (TSucc _ x) = isNumerical x
 isNumerical _ = False
 
-termMap :: (Int -> Info -> VarName -> Depth -> Term) -> Int -> Term -> Term
+termMap :: (Int -> SourcePos -> VarName -> Depth -> Term) -> Int -> Term -> Term
 termMap onVar s t = walk s t
               where walk c (TVar info name depth) = onVar c info name depth
                     walk c (TAbs info x ty t) = TAbs info x ty (walk (c+1) t)
