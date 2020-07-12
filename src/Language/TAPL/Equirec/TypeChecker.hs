@@ -6,11 +6,13 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Except
 
+import Text.Parsec (SourcePos)
+
 import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Context
 
 type Inferred a = ExceptT TypeError (State LCNames) a
-data TypeError = TypeMissmatch Info String
+data TypeError = TypeMissmatch SourcePos String
 
 typeOf :: LCNames -> Term -> Either String Type
 typeOf names term =
@@ -77,4 +79,4 @@ typeSubstitutionTop :: Type -> Type -> Type
 typeSubstitutionTop s ty = typeShift (-1) (typeSubstitution 0 (typeShift 1 s) ty)
 
 instance Show TypeError where
-    show (TypeMissmatch info message) = message ++ " in " ++ (show $ row info) ++ ":" ++ (show $ column info)
+    show (TypeMissmatch p message) = message ++ " in " ++ show p

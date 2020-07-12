@@ -17,9 +17,6 @@ type LCTypeParser = Parsec String LCNames Type
 parse :: String -> String -> Either ParseError (AST, LCNames)
 parse = runParser equirecParser []
 
-infoFrom :: SourcePos -> Info
-infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
-
 equirecParser :: Parsec String LCNames (AST, LCNames)
 equirecParser = do
     ast <- term `sepEndBy` semi
@@ -36,7 +33,7 @@ apply :: LCParser
 apply = chainl1 notApply $ do
             optional spaces
             pos <- getPosition
-            return $ TApp (infoFrom pos)
+            return $ TApp pos
 
 notApply :: LCParser
 notApply = (abstraction <?> "abstraction")
@@ -55,7 +52,7 @@ abstraction = do
     modifyState $ bind varName (VarBind varType)
     t <- term
     setState context
-    return $ TAbs (infoFrom p) varName varType t
+    return $ TAbs p varName varType t
 
 variable :: LCParser
 variable = do
@@ -63,7 +60,7 @@ variable = do
     ns <- getState
     p <- getPosition
     case findIndex ((== name) . fst) ns of
-         Just n -> return $ TVar (infoFrom p) n (length $ ns)
+         Just n -> return $ TVar p n (length $ ns)
          Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
 
 termType :: LCTypeParser

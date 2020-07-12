@@ -1,12 +1,13 @@
 module Language.TAPL.Equirec.Types where
 
-data Term = TVar Info VarName Depth
-          | TAbs Info String Type Term
-          | TApp Info Term Term
+import Text.Parsec (SourcePos)
+
+data Term = TVar SourcePos VarName Depth
+          | TAbs SourcePos String Type Term
+          | TApp SourcePos Term Term
 
 type VarName = Int
 type Depth = Int
-data Info = Info { row :: Int, column :: Int } deriving (Show)
 type AST = [Term]
 
 data Binding = NameBind | VarBind Type

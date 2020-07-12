@@ -5,6 +5,8 @@ import Language.TAPL.Equirec.Parser
 import Language.TAPL.Equirec.TypeChecker
 import Language.TAPL.Equirec.Pretty
 
+import Text.Parsec (SourcePos)
+
 evalString :: String -> String -> Either String String
 evalString code source = do
   case parse source code of
@@ -36,7 +38,7 @@ isVal :: Term -> Bool
 isVal (TAbs _ _ _ _) = True
 isVal _ = False
 
-termMap :: (Int -> Info -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
+termMap :: (Int -> SourcePos -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
 termMap onVar onType s t = walk s t
                      where walk c (TVar info name depth) = onVar c info name depth
                            walk c (TAbs info x ty t1) = TAbs info x (onType c ty) (walk (c+1) t1)
