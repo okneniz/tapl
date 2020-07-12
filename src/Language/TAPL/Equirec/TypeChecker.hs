@@ -3,7 +3,7 @@ module Language.TAPL.Equirec.TypeChecker (typeOf, typeShiftAbove) where
 import Control.Monad (liftM)
 
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
 import Text.Parsec (SourcePos)

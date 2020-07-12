@@ -4,7 +4,7 @@ import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
 
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
 import Language.TAPL.Equirec.Types

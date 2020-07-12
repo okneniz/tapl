@@ -7,7 +7,7 @@ import qualified Data.Map.Strict as Map
 
 import Control.Monad (liftM, when)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
 import Text.Parsec (SourcePos)
