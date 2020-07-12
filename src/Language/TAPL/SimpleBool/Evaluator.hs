@@ -29,8 +29,8 @@ fullNormalize t = case normalize t of
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf info t1 t2 t3) = normalize t1 >>= \t1' -> return $ TIf info t1' t2 t3
+normalize (TIf pos t1 t2 t3) = normalize t1 >>= \t1' -> return $ TIf pos t1' t2 t3
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ substitutionTop v t
-normalize (TApp info t1 t2) | isVal t1 = TApp info t1 <$> normalize t2
-normalize (TApp info t1 t2) = normalize t1 >>= \t1' -> return $ TApp info t1' t2
+normalize (TApp pos t1 t2) | isVal t1 = TApp pos t1 <$> normalize t2
+normalize (TApp pos t1 t2) = normalize t1 >>= \t1' -> return $ TApp pos t1' t2
 normalize _ =  Nothing

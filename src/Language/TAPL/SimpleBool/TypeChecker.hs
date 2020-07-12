@@ -34,22 +34,22 @@ infer (TIf pos t1 t2 t3) = do
           else throwE $ TypeMissmatch pos $ "branches of condition have different types (" ++ show ty2 ++ " and " ++ show ty3 ++ ")"
        ty -> throwE $ TypeMissmatch pos $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty ++ ")"
 
-infer (TVar info v _) = do
+infer (TVar pos v _) = do
   names <- lift $ get
   case liftM snd $ pickVar names v of
        Just (VarBind ty') -> return ty'
-       Just x -> throwE $ TypeMissmatch info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
-       Nothing -> throwE $ TypeMissmatch info $ "var type error"
+       Just x -> throwE $ TypeMissmatch pos $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
+       Nothing -> throwE $ TypeMissmatch pos $ "var type error"
 
-infer (TApp info t1 t2) = do
+infer (TApp pos t1 t2) = do
   ty1 <- infer t1
   ty2 <- infer t2
   case ty1 of
        (TyArrow ty1' ty2') ->
           if ty2 == ty1'
           then return ty2'
-          else throwE $ TypeMissmatch info $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
-       _ -> throwE $ TypeMissmatch info $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
+          else throwE $ TypeMissmatch pos $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
+       _ -> throwE $ TypeMissmatch pos $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
 
 infer (TAbs _ name ty t) = do
   names <- lift $ get
