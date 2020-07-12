@@ -6,6 +6,8 @@ import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 
+import Text.Parsec (SourcePos)
+
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Parser
 import Language.TAPL.Recon.Context
@@ -47,25 +49,25 @@ fullNormalize t = case normalize t of
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf info t1 t2 t3) = do
+normalize (TIf pos t1 t2 t3) = do
     t1' <- normalize t1
-    return $ TIf info t1' t2 t3
+    return $ TIf pos t1' t2 t3
 
-normalize (TSucc info t1) = TSucc info <$> normalize t1
+normalize (TSucc pos t1) = TSucc pos <$> normalize t1
 
-normalize (TPred _ (TZero info)) = return $ TZero info
+normalize (TPred _ (TZero pos)) = return $ TZero pos
 normalize (TPred _ (TSucc _ t)) | isNumerical  t = return t
-normalize (TPred info t) = TPred info <$> normalize t
+normalize (TPred pos t) = TPred pos <$> normalize t
 
-normalize (TIsZero _ (TZero info)) = return $ TTrue info
-normalize (TIsZero _ (TSucc info t)) | isNumerical t = return $ TFalse info
-normalize (TIsZero info t) = TIsZero info <$> normalize t
+normalize (TIsZero _ (TZero pos)) = return $ TTrue pos
+normalize (TIsZero _ (TSucc pos t)) | isNumerical t = return $ TFalse pos
+normalize (TIsZero pos t) = TIsZero pos <$> normalize t
 
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t
-normalize (TApp info t1 t2) | isVal t1 = TApp info t1 <$> normalize t2
-normalize (TApp info t1 t2) = do
+normalize (TApp pos t1 t2) | isVal t1 = TApp pos t1 <$> normalize t2
+normalize (TApp pos t1 t2) = do
     t1' <- normalize t1
-    return $ TApp info t1' t2
+    return $ TApp pos t1' t2
 
 normalize _ = Nothing
 
@@ -81,23 +83,23 @@ isNumerical (TZero _) = True
 isNumerical (TSucc _ x) = isNumerical x
 isNumerical _ = False
 
-termMap :: (Int -> Info -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
+termMap :: (Int -> SourcePos -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
 termMap onVar onType s t = walk s t
-                     where walk c (TVar info name depth) = onVar c info name depth
-                           walk c (TAbs info x ty t1) = TAbs info x (onType c ty) (walk (c+1) t1)
-                           walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
-                           walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
-                           walk _ (TTrue info) = TTrue info
-                           walk _ (TFalse info) = TFalse info
-                           walk _ (TZero info) = TZero info
-                           walk c (TIsZero info t1) = TIsZero info (walk c t1)
-                           walk c (TPred info t1) = TPred info (walk c t1)
-                           walk c (TSucc info t1) = TSucc info (walk c t1)
+                     where walk c (TVar pos name depth) = onVar c pos name depth
+                           walk c (TAbs pos x ty t1) = TAbs pos x (onType c ty) (walk (c+1) t1)
+                           walk c (TApp pos t1 t2) = TApp pos (walk c t1) (walk c t2)
+                           walk c (TIf pos t1 t2 t3) = TIf pos (walk c t1) (walk c t2) (walk c t3)
+                           walk _ (TTrue pos) = TTrue pos
+                           walk _ (TFalse pos) = TFalse pos
+                           walk _ (TZero pos) = TZero pos
+                           walk c (TIsZero pos t1) = TIsZero pos (walk c t1)
+                           walk c (TPred pos t1) = TPred pos (walk c t1)
+                           walk c (TSucc pos t1) = TSucc pos (walk c t1)
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d s t = termMap onVar (typeShiftAbove d) s t
-                 where onVar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onVar _ info name depth = TVar info name (depth + d)
+                 where onVar c pos name depth | name >= c = TVar pos (name + d) (depth + d)
+                       onVar _ pos name depth = TVar pos name (depth + d)
 
 termShift :: VarName -> Term -> Term
 termShift d t = termShiftAbove d 0 t
@@ -105,7 +107,7 @@ termShift d t = termShiftAbove d 0 t
 termSubstitution :: VarName -> Term -> Term -> Term
 termSubstitution j s t = termMap onVar onType 0 t
                    where onVar c _ name _ | name == j + c = termShift c s
-                         onVar _ info name depth = TVar info name depth
+                         onVar _ pos name depth = TVar pos name depth
                          onType _ ty = ty
 
 termSubstitutionTop :: Term -> Term -> Term

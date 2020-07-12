@@ -1,19 +1,21 @@
 module Language.TAPL.Recon.Types where
 
+import Text.Parsec (SourcePos)
+
 data Command = Eval [Term]
-             | Bind Info String Binding
+             | Bind SourcePos String Binding
              deriving (Show)
 
-data Term = TTrue Info
-          | TFalse Info
-          | TIf Info Term Term Term
-          | TZero Info
-          | TSucc Info Term
-          | TPred Info Term
-          | TIsZero Info Term
-          | TVar Info VarName Depth
-          | TAbs Info String Type Term
-          | TApp Info Term Term
+data Term = TTrue SourcePos
+          | TFalse SourcePos
+          | TIf SourcePos Term Term Term
+          | TZero SourcePos
+          | TSucc SourcePos Term
+          | TPred SourcePos Term
+          | TIsZero SourcePos Term
+          | TVar SourcePos VarName Depth
+          | TAbs SourcePos String Type Term
+          | TApp SourcePos Term Term
           deriving (Show)
 
 data Type = TyBool
@@ -27,21 +29,17 @@ data Binding = NameBind
              | VarBind Type
              deriving (Show)
 
-data Info = Info { row :: Int, column :: Int } deriving (Show, Eq)
-
 type VarName = Int
 type VarIndex = Int
 type Depth = Int
 type AST = [Term]
 type Constraint = (Type, Type)
 
-data TypeError = TypeMissmatch Info String
+data TypeError = TypeMissmatch SourcePos String
                | CircularConstrains [Constraint]
                | UnresolvedConstraints [Constraint]
 
 instance Show TypeError where
-    show (TypeMissmatch info message) =
-        message ++ " in " ++ (show $ row info) ++ ":" ++ (show $ column info)
-
+    show (TypeMissmatch pos message) = message ++ " in " ++ show pos
     show (CircularConstrains cs) = "Circular constraints " ++ show cs
     show (UnresolvedConstraints cs) = "Unresolved constraints " ++ show cs
