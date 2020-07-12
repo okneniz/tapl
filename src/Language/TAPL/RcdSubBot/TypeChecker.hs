@@ -7,6 +7,8 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 
+import Text.Parsec (SourcePos)
+
 import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Context
 
@@ -21,41 +23,41 @@ infer (TRecord _ fields) = do
             tyf <- infer v
             return (k, tyf)
 
-infer (TVar info v _) = do
+infer (TVar pos v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
-         Nothing -> typeError info "var type error"
+         (Just x) -> typeError pos $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         Nothing -> typeError pos "var type error"
 
 infer (TAbs _ x tyT1 t2) = do
     withTmpStateT (addVar x tyT1) $ do
         tyT2 <- infer t2
         return $ TyArrow tyT1 tyT2
 
-infer (TApp info t1 t2) = do
+infer (TApp pos t1 t2) = do
     tyT1 <- infer t1
     tyT2 <- infer t2
     case tyT1 of
          (TyArrow tyT11 tyT12) -> do
             unless (tyT2 <: tyT11)
-                   (typeError info $ "incorrect application of abstraction " ++ show tyT2 ++ " to " ++ show tyT11)
+                   (typeError pos $ "incorrect application of abstraction " ++ show tyT2 ++ " to " ++ show tyT11)
             return tyT12
          TyBot -> return TyBot
-         _ -> typeError info $ "arrow type expected"
+         _ -> typeError pos $ "arrow type expected"
 
-infer (TProj info t1 (TKeyword _ key)) = do
+infer (TProj pos t1 (TKeyword _ key)) = do
     ty1 <- infer t1
     case ty1 of
          (TyRecord fields) ->
             case Map.lookup key fields of
                  Just x -> return x
-                 _ -> typeError info $ "label " ++ show key ++ " not found"
+                 _ -> typeError pos $ "label " ++ show key ++ " not found"
          TyBot -> return TyBot
-         _ -> typeError info $ "expected record type"
+         _ -> typeError pos $ "expected record type"
 
-typeError :: Info -> String -> Eval a
-typeError info message = lift $ throwE $ show info ++ ":" ++ message
+typeError :: SourcePos -> String -> Eval a
+typeError pos message = lift $ throwE $ show pos ++ ":" ++ message
 
 (<:) :: Type -> Type -> Bool
 (<:) tyS tyT | tyS == tyT = True

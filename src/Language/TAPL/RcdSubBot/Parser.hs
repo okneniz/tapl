@@ -10,6 +10,8 @@ import qualified Data.Map.Strict as Map
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 
+import Text.Parsec (SourcePos)
+
 type LCCommandParser = Parsec String LCNames Command
 type LCParser = Parsec String LCNames Term
 type LCTypeParser = Parsec String LCNames Type
@@ -24,9 +26,6 @@ reconParser = do
     names <- getState
     return $ (commands, names)
 
-infoFrom :: SourcePos -> Info
-infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
-
 command :: Parsec String LCNames Command
 command =  (try bindCommand) <|> (try evalCommand)
 
@@ -39,7 +38,7 @@ bindCommand = do
     reservedOp "="
     modifyState $ addName (i:d)
     ty <- typeAnnotation
-    return $ Bind (infoFrom pos) (i:d) $ TypeAddBind ty
+    return $ Bind pos (i:d) $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
 evalCommand = try $ do
@@ -55,7 +54,7 @@ apply :: LCParser
 apply = chainl1 notApply $ do
             optional spaces
             pos <- getPosition
-            return $ TApp (infoFrom pos)
+            return $ TApp pos
 
 notApply :: LCParser
 notApply = try value
@@ -84,7 +83,7 @@ abstraction = do
     modifyState $ addVar name ty
     t <- notTypeBind
     setState names
-    return $ TAbs (infoFrom pos) name ty t
+    return $ TAbs pos name ty t
 
 variable :: LCParser
 variable = projection keyword $ do
@@ -92,7 +91,7 @@ variable = projection keyword $ do
     names <- getState
     pos <- getPosition
     case findVarName names name of
-         Just n -> return $ TVar (infoFrom pos) n (length names)
+         Just n -> return $ TVar pos n (length names)
          Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 projection :: LCParser -> LCParser -> LCParser
@@ -104,20 +103,20 @@ projection key tm = do
           _ <- dot
           pos <- getPosition
           i <- k
-          t' <- (try $ dotRef key (TProj (infoFrom pos) t i)) <|> (return $ TProj (infoFrom pos) t i)
+          t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
           return t'
 
 record :: LCParser
 record = projection keyword $ braces $ do
     ts <- (keyValue (reservedOp "=") term) `sepBy` comma
     pos <- getPosition
-    return $ TRecord (infoFrom pos) $ Map.fromList ts
+    return $ TRecord pos $ Map.fromList ts
 
 keyword :: LCParser
 keyword = do
   word <- identifier
   p <- getPosition
-  return $ TKeyword (infoFrom p) word
+  return $ TKeyword p word
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = do

@@ -55,23 +55,23 @@ fullNormalize t = case normalize t of
 
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t
-normalize (TApp info t1 t2) | isVal t1 = TApp info t1 <$> normalize t2
-normalize (TApp info t1 t2) = normalize t1 >>= \t1' -> return $ TApp info t1' t2
+normalize (TApp pos t1 t2) | isVal t1 = TApp pos t1 <$> normalize t2
+normalize (TApp pos t1 t2) = normalize t1 >>= \t1' -> return $ TApp pos t1' t2
 
 normalize (TRecord _ fields) | (Map.size fields) == 0 = Nothing
 normalize t@(TRecord _ _) | isVal t = Nothing
 
-normalize (TRecord info fields) = do
+normalize (TRecord pos fields) = do
     fields' <- sequence $ evalField <$> Map.toList fields -- не то!
-    return $ TRecord info (Map.fromList fields')
+    return $ TRecord pos (Map.fromList fields')
     where evalField (k, field) | isVal field = return (k, field)
           evalField (k, field) = do
             field' <- normalize field
             return (k, field')
 
 normalize (TProj _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = Map.lookup key fields
-normalize (TProj info t@(TRecord _ _) (TKeyword x key)) = do
+normalize (TProj pos t@(TRecord _ _) (TKeyword x key)) = do
     t' <- normalize t
-    return $ (TProj info t' (TKeyword x key))
+    return $ (TProj pos t' (TKeyword x key))
 
 normalize _ = Nothing
