@@ -10,12 +10,14 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Except
 
+import Text.Parsec (SourcePos)
+
 import Language.TAPL.FullRef.Types
 import Language.TAPL.FullRef.Context
 
 type Inferred a = ExceptT TypeError (State (LCNames, LCMemory)) a
 
-data TypeError = TypeMissmatch Info String
+data TypeError = TypeMissmatch SourcePos String
 
 typeOf :: LCNames -> LCMemory -> Term -> Either String Type
 typeOf names mem term =
@@ -202,9 +204,9 @@ infer (TLoc _ location) = do
   ty <- infer t
   return $ TyRef ty
 
-argumentError :: Info -> Type -> Type -> Inferred Type
+argumentError :: SourcePos -> Type -> Type -> Inferred Type
 argumentError info expected actual = throwE $ TypeMissmatch info message
     where message = "Argument error, expected " ++ show expected  ++ ". Got " ++ show actual ++ "."
 
 instance Show TypeError where
-    show (TypeMissmatch info message) = message ++ " in " ++ (show $ row info) ++ ":" ++ (show $ column info)
+    show (TypeMissmatch pos message) = message ++ " in " ++ show pos

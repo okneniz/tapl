@@ -1,35 +1,37 @@
 module Language.TAPL.FullRef.Types where
 
+import Text.Parsec (SourcePos)
+
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
-data Term = TTrue Info
-          | TFalse Info
-          | TString Info String
-          | TFloat Info Double
-          | TInt Info Integer
-          | TUnit Info
-          | TZero Info
-          | TSucc Info Term
-          | TPred Info Term
-          | TIsZero Info Term
-          | TIf Info Term Term Term
-          | TVar Info VarName Depth
-          | TAbs Info String Type Term
-          | TApp Info Term Term
-          | TRef Info Term
-          | TDeref Info Term
-          | TAssign Info Term Term
-          | TLoc Info Location
-          | TLet Info String Term Term
-          | TAscribe Info Term Type
-          | TPair Info Term Term
-          | TLookup Info Term Term
-          | TRecord Info (Map String Term)
-          | TKeyword Info String
-          | TFix Info Term
-          | TTag Info String Term Type
-          | TCase Info Term (Map String (String, Term))
+data Term = TTrue SourcePos
+          | TFalse SourcePos
+          | TString SourcePos String
+          | TFloat SourcePos Double
+          | TInt SourcePos Integer
+          | TUnit SourcePos
+          | TZero SourcePos
+          | TSucc SourcePos Term
+          | TPred SourcePos Term
+          | TIsZero SourcePos Term
+          | TIf SourcePos Term Term Term
+          | TVar SourcePos VarName Depth
+          | TAbs SourcePos String Type Term
+          | TApp SourcePos Term Term
+          | TRef SourcePos Term
+          | TDeref SourcePos Term
+          | TAssign SourcePos Term Term
+          | TLoc SourcePos Location
+          | TLet SourcePos String Term Term
+          | TAscribe SourcePos Term Type
+          | TPair SourcePos Term Term
+          | TLookup SourcePos Term Term
+          | TRecord SourcePos (Map String Term)
+          | TKeyword SourcePos String
+          | TFix SourcePos Term
+          | TTag SourcePos String Term Type
+          | TCase SourcePos Term (Map String (String, Term))
           deriving (Show)
 
 data Type = TyBool
@@ -52,8 +54,6 @@ data Type = TyBool
 type VarName = Int
 type Depth = Int
 type AST = [Term]
-
-data Info = Info { row :: Int, column :: Int } deriving (Show)
 
 instance Eq Type where
   TyBool == TyBool = True
@@ -133,7 +133,7 @@ isNumerical (TZero _) = True
 isNumerical (TSucc _ t) = isNumerical t
 isNumerical _ = False
 
-termMap :: (Int -> Info -> Depth -> VarName -> Term) -> Int -> Term -> Term
+termMap :: (Int -> SourcePos -> Depth -> VarName -> Term) -> Int -> Term -> Term
 termMap onvar s t = walk s t
               where walk c (TVar info name depth) = onvar c info name depth
                     walk c (TAbs info x ty t1) = TAbs info x ty (walk (c+1) t1)
