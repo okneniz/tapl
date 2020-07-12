@@ -2,7 +2,7 @@ module Language.TAPL.FullSimple.Pretty (prettify, prettifyType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy

@@ -5,7 +5,7 @@ import Language.TAPL.FullEquirec.Context
 import Language.TAPL.FullEquirec.Lexer
 
 import Prelude hiding (abs, succ, pred)
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)

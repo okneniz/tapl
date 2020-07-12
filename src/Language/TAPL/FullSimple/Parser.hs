@@ -5,7 +5,7 @@ import Language.TAPL.FullSimple.Context
 import Language.TAPL.FullSimple.Lexer
 
 import Prelude hiding (abs, succ, pred)
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 import Data.List (findIndex)
 
 import Text.Parsec hiding (parse)

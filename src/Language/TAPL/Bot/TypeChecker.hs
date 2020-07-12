@@ -1,6 +1,6 @@
 module Language.TAPL.Bot.TypeChecker where
 
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 import Data.List (tails, (\\), intercalate)
 
 import Control.Monad (when, unless)

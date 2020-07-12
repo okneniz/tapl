@@ -10,7 +10,7 @@ import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 
 import Data.List (findIndex)
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 
 type LCParser = Parsec String LCNames Term
 type LCTypeParser = Parsec String LCNames Type

@@ -3,8 +3,8 @@ module Language.TAPL.FullEquirec.Types where
 import Text.Parsec (SourcePos)
 
 import Data.List (all)
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import Data.Map.Lazy (Map)
+import qualified Data.Map.Lazy as Map
 
 data Command = Eval [Term]
              | Bind SourcePos String Binding

@@ -1,7 +1,7 @@
 module Language.TAPL.FullSimple.Types where
 
 import Data.Map (Map)
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 import Text.Parsec (SourcePos)
 
 data Command = Eval [Term]

@@ -1,6 +1,6 @@
 module Language.TAPL.RcdSubBot.TypeChecker (typeOf) where
 
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 
 import Control.Monad (unless)
 import Control.Monad.Trans.Class (lift)

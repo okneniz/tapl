@@ -1,6 +1,6 @@
 module Language.TAPL.FullSimple.Evaluator (evalString) where
 
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 import Control.Monad (liftM)
 
 import Language.TAPL.FullSimple.Types

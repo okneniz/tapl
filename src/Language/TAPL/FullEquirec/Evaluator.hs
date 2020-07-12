@@ -1,7 +1,7 @@
 module Language.TAPL.FullEquirec.Evaluator (evalString) where
 
 import Data.List (last)
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 
 import Control.Monad (liftM)
 import Control.Monad.Trans.State.Lazy

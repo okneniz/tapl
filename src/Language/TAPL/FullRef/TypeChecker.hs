@@ -3,7 +3,7 @@ module Language.TAPL.FullRef.TypeChecker where
 import Prelude hiding (abs, succ, pred)
 import Data.List (intercalate, nub, (\\))
 
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 
 import Control.Monad (liftM, when)
 import Control.Monad.Trans.Class (lift)

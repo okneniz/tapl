@@ -7,7 +7,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
-import qualified Data.Map.Strict as Map
+import qualified Data.Map.Lazy as Map
 
 import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Context
