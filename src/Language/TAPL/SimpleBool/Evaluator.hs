@@ -1,5 +1,6 @@
 module Language.TAPL.SimpleBool.Evaluator (evalString) where
 
+import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.SimpleBool.Types
 import Language.TAPL.SimpleBool.Parser
 import Language.TAPL.SimpleBool.TypeChecker
@@ -19,12 +20,7 @@ evalString code source = do
       return $ result' ++ ":" ++ (show $ pretty ty)
 
 eval :: AST -> AST
-eval ast = fullNormalize <$> ast
-
-fullNormalize :: Term -> Term
-fullNormalize t = case normalize t of
-                       Just t' -> fullNormalize t'
-                       Nothing -> t
+eval ast = whileJust normalize <$> ast
 
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _ ) = return t

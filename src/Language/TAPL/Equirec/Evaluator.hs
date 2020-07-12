@@ -1,5 +1,6 @@
 module Language.TAPL.Equirec.Evaluator (evalString) where
 
+import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Parser
 import Language.TAPL.Equirec.TypeChecker
@@ -20,13 +21,7 @@ evalString code source = do
       return $ result' ++ ":" ++ resultType
 
 eval :: AST -> AST
-eval ast = fullNormalize <$> ast
-
-fullNormalize :: Term -> Term
-fullNormalize t =
-    case normalize t of
-         Just t' -> fullNormalize t'
-         Nothing -> t
+eval ast = whileJust normalize <$> ast
 
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ substitutionTop v t

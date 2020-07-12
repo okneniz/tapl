@@ -3,6 +3,7 @@ module Language.TAPL.FullSimple.Evaluator (evalString) where
 import qualified Data.Map.Lazy as Map
 import Control.Monad (liftM)
 
+import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Parser
 import Language.TAPL.FullSimple.TypeChecker
@@ -39,7 +40,7 @@ evalCommands ((Bind _ name binding):cs) = do
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval ts):cs) = do
     _ <- typeCheck ts
-    let ts' = fullNormalize <$> ts
+    let ts' = whileJust normalize <$> ts
     cs' <- evalCommands cs
     return $ ts' ++ cs'
 
@@ -47,11 +48,6 @@ typeCheck :: AST -> Eval Type
 typeCheck [] = lift $ throwE "attempt to check empty AST"
 typeCheck [t] = typeOf t
 typeCheck (t:ts) = typeOf t >> typeCheck ts
-
-fullNormalize :: Term -> Term
-fullNormalize t = case normalize t of
-                       Just t' -> fullNormalize t'
-                       Nothing -> t
 
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _) = return t

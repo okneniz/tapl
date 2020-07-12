@@ -1,5 +1,6 @@
 module Language.TAPL.Untyped.Evaluator (evalString) where
 
+import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.Untyped.Types
 import Language.TAPL.Untyped.Parser
 import Language.TAPL.Untyped.Pretty
@@ -9,14 +10,9 @@ evalString code source = do
   case parse source code of
     Left e -> Left $ show e
     Right (ast, names) -> do
-        let result = last $ fullNormalize <$> ast
+        let result = last $ whileJust normalize <$> ast
         result' <- render names result
         return result'
-
-fullNormalize :: Term -> Term
-fullNormalize t = case normalize t of
-                       Just t' -> fullNormalize t'
-                       Nothing -> t
 
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ t) v) | isVal v = return $ substitutionTop v t

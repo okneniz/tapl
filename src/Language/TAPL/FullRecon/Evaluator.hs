@@ -6,6 +6,7 @@ import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 
+import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Parser
 import Language.TAPL.FullRecon.Context
@@ -31,18 +32,13 @@ evalCommands ((Bind _ name binding):cs) = local (bind name binding) (evalCommand
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval ts):cs) = do
     _ <- typeCheck ts
-    let ts' = fullNormalize <$> ts
+    let ts' = whileJust normalize <$> ts
     cs' <- evalCommands cs
     return $ ts' ++ cs'
 
 typeCheck :: AST -> Eval Type
 typeCheck [t] = typeOf t
 typeCheck (t:ts) = typeOf t >> typeCheck ts
-
-fullNormalize :: Term -> Term
-fullNormalize t = case normalize t of
-                       Just t' -> fullNormalize t'
-                       Nothing -> t
 
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _) = return t

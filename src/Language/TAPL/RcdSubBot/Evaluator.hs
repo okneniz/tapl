@@ -7,6 +7,7 @@ import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
+import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Parser
 import Language.TAPL.RcdSubBot.Context
@@ -39,7 +40,7 @@ evalCommands ((Bind _ name binding):cs) = do
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval ts):cs) = do
     _ <- typeCheck ts
-    let ts' = fullNormalize <$> ts
+    let ts' = whileJust normalize <$> ts
     cs' <- evalCommands cs
     return $ ts' ++ cs'
 
@@ -47,11 +48,6 @@ typeCheck :: AST -> Eval Type
 typeCheck [] = lift $ throwE "attempt to check empty AST"
 typeCheck [t] = typeOf t
 typeCheck (t:ts) = typeOf t >> typeCheck ts
-
-fullNormalize :: Term -> Term
-fullNormalize t = case normalize t of
-                       Just t' -> fullNormalize t'
-                       Nothing -> t
 
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t
