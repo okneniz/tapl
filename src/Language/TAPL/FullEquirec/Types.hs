@@ -1,47 +1,44 @@
 module Language.TAPL.FullEquirec.Types where
 
+import Text.Parsec (SourcePos)
+
 import Data.List (all)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
 data Command = Eval [Term]
-             | Bind Info String Binding
+             | Bind SourcePos String Binding
              deriving (Show)
 
-data Term = TTrue Info
-          | TFalse Info
-          | TIf Info Term Term Term
-          | TVar Info VarName Depth
-          | TInt Info Integer
-          | TAbs Info String Type Term
-          | TApp Info Term Term
-          | TString Info String
-          | TFloat Info Double
-          | TUnit Info
-          | TZero Info
-          | TSucc Info Term
-          | TPred Info Term
-          | TIsZero Info Term
-          | TPair Info Term Term
-          | TRecord Info (Map String Term)
-          | TLookup Info Term Term
-          | TLet Info String Term Term
-          | TAscribe Info Term Type
-          | TCase Info Term (Map String (String, Term))
-          | TTag Info String Term Type
-          | TKeyword Info String
-          | TFix Info Term
-          | TTimesFloat Info Term Term
+data Term = TTrue SourcePos
+          | TFalse SourcePos
+          | TIf SourcePos Term Term Term
+          | TVar SourcePos VarName Depth
+          | TInt SourcePos Integer
+          | TAbs SourcePos String Type Term
+          | TApp SourcePos Term Term
+          | TString SourcePos String
+          | TFloat SourcePos Double
+          | TUnit SourcePos
+          | TZero SourcePos
+          | TSucc SourcePos Term
+          | TPred SourcePos Term
+          | TIsZero SourcePos Term
+          | TPair SourcePos Term Term
+          | TRecord SourcePos (Map String Term)
+          | TLookup SourcePos Term Term
+          | TLet SourcePos String Term Term
+          | TAscribe SourcePos Term Type
+          | TCase SourcePos Term (Map String (String, Term))
+          | TTag SourcePos String Term Type
+          | TKeyword SourcePos String
+          | TFix SourcePos Term
+          | TTimesFloat SourcePos Term Term
            deriving (Show)
 
 type AST = [Term]
 type VarName = Int
 type Depth = Int
-
-data Info = Info { row :: Int, column :: Int } deriving (Eq)
-
-instance Show Info where
-    show info = (show $ row info) ++ ":" ++ (show $ column info)
 
 isVal :: Term -> Bool
 isVal (TTrue _) = True
@@ -62,46 +59,46 @@ isNumerical (TZero _) = True
 isNumerical (TSucc _ x) = isNumerical x
 isNumerical _ = False
 
-termMap :: (Int -> Info -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
+termMap :: (Int -> SourcePos -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
 termMap onVar onType s t = walk s t
-                     where walk c (TVar info name depth) = onVar c info name depth
-                           walk c (TAbs info x ty t) = TAbs info x (onType c ty) (walk (c+1) t)
-                           walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
-                           walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
-                           walk c (TTrue info) = TTrue info
-                           walk c (TFalse info) = TFalse info
-                           walk c (TString info s) = TString info s
-                           walk c (TUnit info) = TUnit info
-                           walk c (TZero info) = TZero info
-                           walk c (TInt info t) = TInt info t
-                           walk c (TKeyword info t) = TKeyword info t
-                           walk c (TIsZero info t) = TIsZero info (walk c t)
-                           walk c (TPred info t) = TPred info (walk c t)
-                           walk c (TSucc info t) = TSucc info (walk c t)
-                           walk c (TFloat info t) = TFloat info t
-                           walk c (TFix info t) = TFix info (walk c t)
-                           walk c (TPair info t1 t2) = TPair info (walk c t1) (walk c t2)
-                           walk c (TRecord info fields) = TRecord info $ Map.map (walk c) fields
-                           walk c (TTag info k t ty) = TTag info k (walk c t) (onType c ty)
-                           walk c (TLookup info r k) = TLookup info (walk c r) k
-                           walk c (TLet info x t1 t2) = TLet info x (walk c t1) (walk (c+1) t2)
-                           walk c (TAscribe info t ty) = TAscribe info (walk c t) (onType c ty)
-                           walk c (TTimesFloat info t1 t2) = TTimesFloat info (walk c t1) (walk c t2)
-                           walk c (TCase info t1 branches) = TCase info (walk c t1) $ Map.map walkBranch branches
+                     where walk c (TVar p name depth) = onVar c p name depth
+                           walk c (TAbs p x ty t) = TAbs p x (onType c ty) (walk (c+1) t)
+                           walk c (TApp p t1 t2) = TApp p (walk c t1) (walk c t2)
+                           walk c (TIf p t1 t2 t3) = TIf p (walk c t1) (walk c t2) (walk c t3)
+                           walk c (TTrue p) = TTrue p
+                           walk c (TFalse p) = TFalse p
+                           walk c (TString p s) = TString p s
+                           walk c (TUnit p) = TUnit p
+                           walk c (TZero p) = TZero p
+                           walk c (TInt p t) = TInt p t
+                           walk c (TKeyword p t) = TKeyword p t
+                           walk c (TIsZero p t) = TIsZero p (walk c t)
+                           walk c (TPred p t) = TPred p (walk c t)
+                           walk c (TSucc p t) = TSucc p (walk c t)
+                           walk c (TFloat p t) = TFloat p t
+                           walk c (TFix p t) = TFix p (walk c t)
+                           walk c (TPair p t1 t2) = TPair p (walk c t1) (walk c t2)
+                           walk c (TRecord p fields) = TRecord p $ Map.map (walk c) fields
+                           walk c (TTag p k t ty) = TTag p k (walk c t) (onType c ty)
+                           walk c (TLookup p r k) = TLookup p (walk c r) k
+                           walk c (TLet p x t1 t2) = TLet p x (walk c t1) (walk (c+1) t2)
+                           walk c (TAscribe p t ty) = TAscribe p (walk c t) (onType c ty)
+                           walk c (TTimesFloat p t1 t2) = TTimesFloat p (walk c t1) (walk c t2)
+                           walk c (TCase p t1 branches) = TCase p (walk c t1) $ Map.map walkBranch branches
                                                        where walkBranch (x, y) = (x, walk (c + 1) y)
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d c t = termMap onVar (typeShiftAbove d) c t
-                 where onVar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onVar c info name depth = TVar info name (depth + d)
+                 where onVar c p name depth | name >= c = TVar p (name + d) (depth + d)
+                       onVar c p name depth = TVar p name (depth + d)
 
 termShift :: VarName -> Term -> Term
 termShift d t = termShiftAbove d 0 t
 
 termSubstitution :: VarName -> Term -> Term -> Term
 termSubstitution j s t = termMap onVar onType 0 t
-                   where onVar c info name depth | name == j + c = termShift c s
-                         onVar c info name depth = TVar info name depth
+                   where onVar c p name depth | name == j + c = termShift c s
+                         onVar c p name depth = TVar p name depth
                          onType j ty = ty
 
 termSubstitutionTop :: Term -> Term -> Term

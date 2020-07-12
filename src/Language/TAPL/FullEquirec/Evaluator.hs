@@ -57,45 +57,45 @@ fullNormalize t = case normalize t of
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf info t1 t2 t3) = do
+normalize (TIf p t1 t2 t3) = do
     t1' <- normalize t1
-    return $ TIf info t1' t2 t3
+    return $ TIf p t1' t2 t3
 
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v =
     return $ termSubstitutionTop v t
 
-normalize (TApp info t1 t2) | isVal t1 =
-    TApp info t1 <$> normalize t2
+normalize (TApp p t1 t2) | isVal t1 =
+    TApp p t1 <$> normalize t2
 
-normalize (TApp info t1 t2) = do
+normalize (TApp p t1 t2) = do
     t1' <- normalize t1
-    return $ TApp info t1' t2
+    return $ TApp p t1' t2
 
-normalize (TSucc info t) = TSucc info <$> normalize t
+normalize (TSucc p t) = TSucc p <$> normalize t
 
-normalize (TPred _ (TZero info)) = return $ TZero info
+normalize (TPred _ (TZero p)) = return $ TZero p
 normalize (TPred _ (TSucc _ t)) | isNumerical t = return t
-normalize (TPred info t) = TPred info <$> normalize t
+normalize (TPred p t) = TPred p <$> normalize t
 
-normalize (TIsZero _ (TZero info)) = return $ TTrue info
-normalize (TIsZero _ (TSucc info t)) | isNumerical t =
-    return $ TFalse info
+normalize (TIsZero _ (TZero p)) = return $ TTrue p
+normalize (TIsZero _ (TSucc p t)) | isNumerical t =
+    return $ TFalse p
 
-normalize (TIsZero info t) = TIsZero info <$> normalize t
+normalize (TIsZero p t) = TIsZero p <$> normalize t
 
-normalize (TPair info t1 t2) | isVal t1 =
-    TPair info t1 <$> normalize t2
+normalize (TPair p t1 t2) | isVal t1 =
+    TPair p t1 <$> normalize t2
 
-normalize (TPair info t1 t2) = do
+normalize (TPair p t1 t2) = do
     t1' <- normalize t1
-    return $ TPair info t1' t2
+    return $ TPair p t1' t2
 
 normalize (TRecord _ fields) | (Map.size fields) == 0 = Nothing
 normalize t@(TRecord _ _) | isVal t = Nothing
 
-normalize (TRecord info fs) = do
+normalize (TRecord p fs) = do
     fs' <- sequence $ evalField <$> Map.toList fs
-    return $ TRecord info (Map.fromList fs')
+    return $ TRecord p (Map.fromList fs')
     where evalField (k, v) | isVal v = return (k, v)
           evalField (k, v) = do
             v' <- normalize v
@@ -104,23 +104,23 @@ normalize (TRecord info fs) = do
 normalize (TLookup _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t =
     Map.lookup k fs
 
-normalize (TLookup info t@(TRecord _ _) (TKeyword x k)) = do
+normalize (TLookup p t@(TRecord _ _) (TKeyword x k)) = do
     t' <- normalize t
-    return $ (TLookup info t' (TKeyword x k))
+    return $ (TLookup p t' (TKeyword x k))
 
 normalize (TLookup _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
 normalize (TLookup _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
 
-normalize (TLookup info t k) = do
+normalize (TLookup p t k) = do
     t' <- normalize t
-    return $ TLookup info t' k
+    return $ TLookup p t' k
 
 normalize (TLet _ _ t1 t2) | isVal t1 =
     return $ termSubstitutionTop t1 t2
 
-normalize (TLet info v t1 t2) = do
+normalize (TLet p v t1 t2) = do
     t1' <- normalize t1
-    return $ TLet info v t1' t2
+    return $ TLet p v t1' t2
 
 normalize (TAscribe _ t _) | isVal t = return t
 normalize (TAscribe _ t _) = normalize t
@@ -128,24 +128,24 @@ normalize (TAscribe _ t _) = normalize t
 normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a =
     return $ termSubstitutionTop t1 t2
 
-normalize (TFix info t) = TFix info <$> normalize t
+normalize (TFix p t) = TFix p <$> normalize t
 
-normalize (TTimesFloat info (TFloat _ t1) (TFloat _ t2)) =
-    return $ TFloat info (t1 * t2)
+normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) =
+    return $ TFloat p (t1 * t2)
 
-normalize (TTimesFloat info t1@(TFloat _ _) t2) =
-    TTimesFloat info t1 <$> normalize t2
+normalize (TTimesFloat p t1@(TFloat _ _) t2) =
+    TTimesFloat p t1 <$> normalize t2
 
-normalize (TTimesFloat info t1 t2@(TFloat _ _)) = do
+normalize (TTimesFloat p t1 t2@(TFloat _ _)) = do
     t1' <- normalize t1
-    return $ TTimesFloat info t1' t2
+    return $ TTimesFloat p t1' t2
 
 normalize (TCase _ (TTag _ k v _) bs) | isVal v =
     liftM (\(_, t) -> termSubstitutionTop v t)
           (Map.lookup k bs)
 
-normalize (TCase info t fs) = do
+normalize (TCase p t fs) = do
     t' <- normalize t
-    return $ TCase info t' fs
+    return $ TCase p t' fs
 
 normalize _ = Nothing
