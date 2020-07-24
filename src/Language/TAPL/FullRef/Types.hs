@@ -26,7 +26,7 @@ data Term = TTrue SourcePos
           | TLet SourcePos String Term Term
           | TAscribe SourcePos Term Type
           | TPair SourcePos Term Term
-          | TLookup SourcePos Term Term
+          | TProj SourcePos Term Term
           | TRecord SourcePos (Map String Term)
           | TKeyword SourcePos String
           | TFix SourcePos Term
@@ -156,7 +156,7 @@ termMap onvar s t = walk s t
                     walk c (TAscribe info t1 ty) = TAscribe info (walk c t1) ty
                     walk c (TPair info t1 t2) = TPair info (walk c t1) (walk c t2)
                     walk c (TRecord info fields) = TRecord info $ Map.map (walk c) fields
-                    walk c (TLookup info t1 t2) = TLookup info (walk c t1) (walk c t2)
+                    walk c (TProj info t1 t2) = TProj info (walk c t1) (walk c t2)
                     walk c (TTag info k t1 ty) = TTag info k (walk c t1) ty
                     walk c (TCase info t1 branches) = TCase info (walk c t1) $ Map.map walkBranch branches
                                                 where walkBranch (x, y) = (x, walk (c + 1) y)

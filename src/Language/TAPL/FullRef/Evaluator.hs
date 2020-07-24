@@ -97,14 +97,14 @@ normalize (TRecord info fields) = do
             field' <- normalize field
             return (k, field')
 
-normalize (TLookup _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = lift $ Map.lookup key fields
-normalize (TLookup info t@(TRecord _ _) (TKeyword x key)) = do
+normalize (TProj _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = lift $ Map.lookup key fields
+normalize (TProj info t@(TRecord _ _) (TKeyword x key)) = do
     t' <- normalize t
-    return $ (TLookup info t' (TKeyword x key))
+    return $ (TProj info t' (TKeyword x key))
 
-normalize (TLookup _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
-normalize (TLookup _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
-normalize (TLookup info t k) = normalize t >>= \t' -> return $ TLookup info t' k
+normalize (TProj _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
+normalize (TProj _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
+normalize (TProj info t k) = normalize t >>= \t' -> return $ TProj info t' k
 
 normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = return $ substitutionTop t1 t2
 normalize (TFix info t) = TFix info <$> normalize t

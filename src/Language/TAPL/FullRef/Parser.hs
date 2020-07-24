@@ -30,8 +30,8 @@ term = try apply
    <|> try notApply
    <|> parens term
 
-lookup' :: LCParser -> LCParser -> LCParser
-lookup' key tm = do
+projection :: LCParser -> LCParser -> LCParser
+projection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
@@ -41,7 +41,7 @@ dotRef key t = do
     _ <- dot
     pos <- getPosition
     i <- key
-    t' <- (try $ dotRef key (TLookup pos t i)) <|> (return $ TLookup pos t i)
+    t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
     return t'
 
 anotated :: LCParser -> LCParser
@@ -226,7 +226,7 @@ case' = do
           return (caseName, varName)
 
 pair :: LCParser
-pair = lookup' integer $ braces $ do
+pair = projection integer $ braces $ do
     t1 <- term
     _ <- comma
     t2 <- term
@@ -234,7 +234,7 @@ pair = lookup' integer $ braces $ do
     return $ TPair pos t1 t2
 
 record :: LCParser
-record = lookup' keyword $ braces $ do
+record = projection keyword $ braces $ do
     ts <- (keyValue (reservedOp "=") term) `sepBy` comma
     p <- getPosition
     return $ TRecord p $ Map.fromList ts
@@ -260,7 +260,7 @@ abstraction = do
     return $ TAbs p varName varType t
 
 variable :: LCParser
-variable = anotated $ lookup' (try integer <|> try keyword) $ do
+variable = anotated $ projection (try integer <|> try keyword) $ do
     name <- identifier
     p <- getPosition
     ns <- getState

@@ -98,7 +98,7 @@ infer (TRecord _ fields) = do
             tyf <- infer v
             return (k, tyf)
 
-infer (TLookup _ t (TInt info i)) = do
+infer (TProj _ t (TInt info i)) = do
     ty <- infer t
     case (ty, i) of
          ((TyProduct x _), 0) -> return x
@@ -106,7 +106,7 @@ infer (TLookup _ t (TInt info i)) = do
          ((TyProduct _ _), _) -> throwE $ TypeMissmatch info "invalid index for pair"
          (_, _)               -> throwE $ TypeMissmatch info "invalid lookup operation"
 
-infer (TLookup _ t (TKeyword info key)) = do
+infer (TProj _ t (TKeyword info key)) = do
     ty <- infer t
     case ty of
          (TyRecord fields) ->
@@ -115,7 +115,7 @@ infer (TLookup _ t (TKeyword info key)) = do
                  _ -> throwE $ TypeMissmatch info $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
          _ -> throwE $ TypeMissmatch info "invalid lookup operation"
 
-infer (TLookup info _ _) = throwE $ TypeMissmatch info "invalid lookup operation"
+infer (TProj info _ _) = throwE $ TypeMissmatch info "invalid lookup operation"
 
 infer (TLet _ v t1 t2) = do
     ty1 <- infer t1
