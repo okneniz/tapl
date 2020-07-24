@@ -202,12 +202,9 @@ case' = do
           return (caseName, varName)
 
 pair :: LCParser
-pair = projection integer $ braces $ do
-    t1 <- term
-    _ <- comma
-    t2 <- term
-    pos <- getPosition
-    return $ TPair pos t1 t2
+pair = projection integer $ braces $ TPair <$> getPosition
+                                           <*> (term <* comma)
+                                           <*> term
 
 record :: LCParser
 record = projection keyword $ braces $ do

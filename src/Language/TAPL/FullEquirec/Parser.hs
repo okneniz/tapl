@@ -175,12 +175,9 @@ optionalAscribed e = do
           return $ TAscribe pos t ty
 
 pair :: LCParser
-pair = projection integer $ braces $ do
-    t1 <- notTypeBind
-    comma
-    t2 <- notTypeBind
-    pos <- getPosition
-    return $ TPair pos t1 t2
+pair = projection integer $ braces $ TPair <$> getPosition
+                                           <*> (notTypeBind <* comma)
+                                           <*> notTypeBind
 
 record :: LCParser
 record = projection keyword $ braces $ do
