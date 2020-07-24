@@ -111,11 +111,7 @@ ref :: LCParser
 ref = fun "ref" TRef
 
 deref :: LCParser
-deref = do
-    reservedOp "!"
-    p <- getPosition
-    t <- term
-    return $ TDeref p t
+deref = TDeref <$> (reservedOp "!" >> getPosition) <*> term
 
 fix :: LCParser
 fix = TFix <$> (reserved "fix" *> getPosition) <*> term
