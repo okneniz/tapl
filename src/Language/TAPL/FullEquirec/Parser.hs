@@ -3,6 +3,7 @@ module Language.TAPL.FullEquirec.Parser (parse) where
 import Language.TAPL.FullEquirec.Types
 import Language.TAPL.FullEquirec.Context
 import Language.TAPL.FullEquirec.Lexer
+import Language.TAPL.Common.Helpers (ucid)
 
 import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map
@@ -30,13 +31,11 @@ command =  (try bindCommand) <|> (try evalCommand)
 bindCommand :: LCCommandParser
 bindCommand = do
     pos <- getPosition
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
-    _ <- spaces
+    x <- ucid <* spaces
     reserved "="
-    modifyState $ addName (i:d)
+    modifyState $ addName x
     ty <- typeAnnotation
-    return $ Bind pos (i:d) $ TypeAddBind ty
+    return $ Bind pos x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
 evalCommand = try $ do
@@ -305,15 +304,12 @@ typeAnnotation = try recursiveType
 recursiveType :: LCTypeParser
 recursiveType = do
     reserved "Rec"
-    spaces
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
-    dot
+    x <- spaces *> ucid <* dot
     names <- getState
-    modifyState $ addName (i:d)
+    modifyState $ addName x
     ty <- typeAnnotation
     setState names
-    return $ TyRec (i:d) ty
+    return $ TyRec x ty
 
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
@@ -378,10 +374,8 @@ primitiveType name ty = do
 
 typeVarOrID:: LCTypeParser
 typeVarOrID = do
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
+    name <- ucid
     names <- getState
-    let name = (i:d)
     return $ case findVarName names name of
                   Just varName -> TyVar varName (length names)
                   Nothing -> TyID name

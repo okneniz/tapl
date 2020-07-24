@@ -3,6 +3,7 @@ module Language.TAPL.FullRecon.Parser (parse) where
 import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Context
 import Language.TAPL.FullRecon.Lexer
+import Language.TAPL.Common.Helpers (ucid)
 
 import Text.Parsec (SourcePos)
 
@@ -33,13 +34,11 @@ command = (try evalCommand) <|> bindCommand
 bindCommand :: LCCommandParser
 bindCommand = do
     pos <- getPosition
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
-    _ <- spaces
+    x <- ucid <* spaces
     reserved "="
-    modifyState $ \c -> addName c (i:d)
+    modifyState $ \c -> addName c x
     ty <- typeAnnotation
-    return $ Bind pos (i:d) $ VarBind ty
+    return $ Bind pos x $ VarBind ty
 
 evalCommand :: LCCommandParser
 evalCommand = do
@@ -188,10 +187,8 @@ primitiveType name ty = do
 
 typeVarOrID:: LCTypeParser
 typeVarOrID = do
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
+    name <- ucid
     ns <- getState
-    let name = (i:d)
-    return $ case  findIndex ((== name) . fst) ns of
+    return $ case findIndex ((== name) . fst) ns of
                   Just varName -> TyVar varName (length ns)
                   Nothing -> TyID name

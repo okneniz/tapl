@@ -3,6 +3,7 @@ module Language.TAPL.FullRef.Parser (parse) where
 import Language.TAPL.FullRef.Types
 import Language.TAPL.FullRef.Context
 import Language.TAPL.FullRef.Lexer
+import Language.TAPL.Common.Helpers (ucid)
 
 import Prelude hiding (abs, succ, pred)
 
@@ -327,9 +328,8 @@ primitiveType name ty = do
 
 idTypeAnnotation :: LCTypeParser
 idTypeAnnotation = do
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
-    return $ TyID (i:d)
+    x <- ucid
+    return $ TyID x
 
 topAnnotation :: LCTypeParser
 topAnnotation = primitiveType "Top" TyTop

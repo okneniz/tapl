@@ -8,6 +8,7 @@ import Prelude hiding (abs, succ, pred)
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
+import Language.TAPL.Common.Helpers (ucid)
 
 import Data.List (findIndex)
 
@@ -85,24 +86,19 @@ arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
 recursiveType :: LCTypeParser
 recursiveType = do
     reserved "Rec"
-    _ <- spaces
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
-    _ <- dot
+    x <- spaces *> ucid <* dot
     context <- getState
-    setState $ addName context (i:d)
+    setState $ addName context x
     ty <- typeAnnotation
-    return $ TyRec (i:d) ty
+    return $ TyRec x ty
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = varOrID <?> "ID type or type variable"
 
 varOrID:: LCTypeParser
 varOrID = do
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
+    name <- ucid
     names <- getState
-    let name = (i:d)
     return $ case findIndex (\(x,_) -> x == name) names of
                   Just x -> TyVar x (length names)
                   Nothing -> TyID name

@@ -3,6 +3,7 @@ module Language.TAPL.FullSimple.Parser (parse) where
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Context
 import Language.TAPL.FullSimple.Lexer
+import Language.TAPL.Common.Helpers (ucid)
 
 import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map
@@ -31,12 +32,11 @@ command =  (try bindCommand) <|> (try evalCommand)
 bindCommand :: LCCommandParser
 bindCommand = do
     p <- getPosition
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
+    x <- ucid
     reserved "="
-    modifyState $ addName (i:d)
+    modifyState $ addName x
     ty <- typeAnnotation
-    return $ Bind p (i:d) $ TypeAddBind ty
+    return $ Bind p x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
 evalCommand = try $ Eval <$> term `sepEndBy` semi

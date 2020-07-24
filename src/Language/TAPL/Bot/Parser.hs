@@ -3,6 +3,7 @@ module Language.TAPL.Bot.Parser (parse) where
 import Language.TAPL.Bot.Types
 import Language.TAPL.Bot.Context
 import Language.TAPL.Bot.Lexer
+import Language.TAPL.Common.Helpers (ucid)
 
 import Prelude hiding (abs, succ, pred)
 
@@ -29,13 +30,11 @@ command =  (try bindCommand) <|> (try evalCommand)
 bindCommand :: LCCommandParser
 bindCommand = do
     pos <- getPosition
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
-    _ <- spaces
+    x <- ucid <* spaces
     reservedOp "="
-    modifyState $ addName (i:d)
+    modifyState $ addName x
     ty <- typeAnnotation
-    return $ Bind pos (i:d) $ TypeAddBind ty
+    return $ Bind pos x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
 evalCommand = try $ do

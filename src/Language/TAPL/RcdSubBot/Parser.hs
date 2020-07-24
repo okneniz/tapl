@@ -3,6 +3,7 @@ module Language.TAPL.RcdSubBot.Parser (parse) where
 import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Context
 import Language.TAPL.RcdSubBot.Lexer
+import Language.TAPL.Common.Helpers (ucid)
 
 import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map
@@ -32,13 +33,11 @@ command =  (try bindCommand) <|> (try evalCommand)
 bindCommand :: LCCommandParser
 bindCommand = do
     pos <- getPosition
-    i <- try $ oneOf ['A'..'Z']
-    d <- try $ many $ oneOf ['a'..'z']
-    _ <- spaces
+    x <- ucid <* spaces
     reservedOp "="
-    modifyState $ addName (i:d)
+    modifyState $ addName x
     ty <- typeAnnotation
-    return $ Bind pos (i:d) $ TypeAddBind ty
+    return $ Bind pos x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
 evalCommand = try $ do
