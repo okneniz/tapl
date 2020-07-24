@@ -343,9 +343,7 @@ botAnnotation :: LCTypeParser
 botAnnotation = primitiveType "Bot" TyBot
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = do
-    reserved name
-    return ty
+primitiveType name ty = reserved name >> return ty
 
 typeVarOrID:: LCTypeParser
 typeVarOrID = do

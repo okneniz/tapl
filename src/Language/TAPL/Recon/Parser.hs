@@ -151,9 +151,7 @@ natAnnotation :: LCTypeParser
 natAnnotation = primitiveType "Nat" TyNat
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = do
-    reserved name
-    return ty
+primitiveType name ty = reserved name >> return ty
 
 typeVarOrID:: LCTypeParser
 typeVarOrID = do

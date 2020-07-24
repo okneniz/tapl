@@ -298,9 +298,7 @@ notArrowAnnotation = (booleanAnnotation     <?> "boolean type")
                  <|> try (variantAnnotation <?> "variant annotation")
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = do
-    reserved name
-    return ty
+primitiveType name ty = reserved name >> return ty
 
 idTypeAnnotation :: LCTypeParser
 idTypeAnnotation = do
