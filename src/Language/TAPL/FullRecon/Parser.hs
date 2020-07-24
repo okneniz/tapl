@@ -121,11 +121,7 @@ boolean = true <|> false
           false = constant "false" TFalse
 
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
-fun name tm = do
-    reserved name
-    p <- getPosition
-    t <- notTypeBind
-    return $ tm  p t
+fun name tm = tm <$> (reserved name *> getPosition) <*> term
 
 succ :: LCParser
 succ = fun "succ" TSucc

@@ -160,11 +160,7 @@ constant name t = do
     return $ t p
 
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
-fun name tm = do
-    reserved name
-    p <- getPosition
-    t <- term
-    return $ tm p t
+fun name tm = tm <$> (reserved name *> getPosition) <*> term
 
 condition :: LCParser
 condition = TIf <$> getPosition
