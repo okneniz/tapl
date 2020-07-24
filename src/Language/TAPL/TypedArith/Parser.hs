@@ -103,7 +103,8 @@ zero :: LCParser
 zero = constant "zero" TZero
 
 condition :: LCParser
-condition = TIf <$> (reserved "if"   *> term)
+condition = TIf <$> getPosition
+                <*> (reserved "if" *> term)
                 <*> (reserved "then" *> term)
                 <*> (reserved "else" *> term)
 

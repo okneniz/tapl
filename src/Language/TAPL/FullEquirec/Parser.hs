@@ -285,9 +285,7 @@ keyValue devider val = do
   return (key,value)
 
 termType :: LCTypeParser
-termType = do
-  colon
-  typeAnnotation
+termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = try recursiveType

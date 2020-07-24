@@ -284,10 +284,7 @@ keyValue devider val = do
   return (k,v)
 
 termType :: LCTypeParser
-termType = do
-    _ <- colon
-    ty <- typeAnnotation
-    return ty
+termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = (try arrowAnnotation <?> "arrow type annotation")

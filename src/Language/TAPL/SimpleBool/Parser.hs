@@ -75,7 +75,8 @@ constant name t = do
     return $ t p
 
 condition :: LCParser
-condition = TIf <$> (reserved "if"   *> term)
+condition = TIf <$> getPosition
+                <*> (reserved "if" *> term)
                 <*> (reserved "then" *> term)
                 <*> (reserved "else" *> term)
 
