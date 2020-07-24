@@ -317,11 +317,9 @@ refAnnotation :: LCTypeParser
 refAnnotation = TyRef <$> (reserved "Ref" *> typeAnnotation)
 
 productAnnotation :: LCTypeParser
-productAnnotation = braces $ do
-    ty1 <- typeAnnotation
+productAnnotation = braces $ chainl1 typeAnnotation $ do
     reservedOp "*"
-    ty2 <- typeAnnotation
-    return $ TyProduct ty1 ty2
+    return $ TyProduct
 
 recordAnnotation :: LCTypeParser
 recordAnnotation = braces $ do
