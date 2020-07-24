@@ -69,10 +69,7 @@ boolean = true <|> false
           false = constant "false" TFalse
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = do
-    p <- getPosition
-    reserved name
-    return $ t p
+constant name t = reserved name >> (t <$> getPosition)
 
 condition :: LCParser
 condition = TIf <$> getPosition

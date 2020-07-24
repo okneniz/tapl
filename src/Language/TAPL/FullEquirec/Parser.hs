@@ -135,10 +135,7 @@ integer :: LCParser
 integer = TInt <$> getPosition <*> natural
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = do
-    p <- getPosition
-    reserved name
-    return $ t p
+constant name t = reserved name >> (t <$> getPosition)
 
 unit :: LCParser
 unit = constant "unit" TUnit

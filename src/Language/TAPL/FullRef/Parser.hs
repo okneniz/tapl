@@ -154,10 +154,7 @@ integer :: LCParser
 integer = TInt <$> getPosition <*> natural
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = do
-    p <- getPosition
-    reserved name
-    return $ t p
+constant name t = reserved name >> (t <$> getPosition)
 
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
 fun name tm = tm <$> (reserved name *> getPosition) <*> term

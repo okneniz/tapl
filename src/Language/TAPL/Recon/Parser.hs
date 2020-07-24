@@ -115,10 +115,7 @@ isZero :: LCParser
 isZero = fun "zero?" TIsZero
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = do
-    p <- getPosition
-    reserved name
-    return $ t p
+constant name t = reserved name >> (t <$> getPosition)
 
 zero :: LCParser
 zero = constant "zero" TZero

@@ -106,10 +106,7 @@ error' :: LCParser
 error' = constant "error" TError
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = do
-    p <- getPosition
-    reserved name
-    return $ t p
+constant name t = reserved name >> (t <$> getPosition)
 
 condition :: LCParser
 condition = TIf <$> getPosition
