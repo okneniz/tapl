@@ -90,7 +90,7 @@ variable = optionalAscribed $ projection (integer <|> keyword) $ do
     p <- getPosition
     case findIndex ((== name) . fst) names of
          Just n -> return $ TVar p n (length $ names)
-         Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
+         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
 
 string' :: LCParser
 string' = TString <$> getPosition <*> try stringLiteral

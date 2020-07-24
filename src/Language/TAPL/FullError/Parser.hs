@@ -95,7 +95,7 @@ variable = do
     pos <- getPosition
     case findVarName names name of
          Just n -> return $ TVar pos n (length names)
-         Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
+         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 boolean :: LCParser
 boolean = true <|> false

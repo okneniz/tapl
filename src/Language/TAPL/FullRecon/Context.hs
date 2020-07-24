@@ -60,7 +60,6 @@ termMap onVar s t = walk s t
                     walk c (TPred info t) = TPred info (walk c t)
                     walk c (TSucc info t) = TSucc info (walk c t)
                     walk c (TLet info x t1 t2) = TLet info x (walk c t1) (walk (c+1) t2)
-                    walk c x = error $ show x
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d c t = termMap onVar c t

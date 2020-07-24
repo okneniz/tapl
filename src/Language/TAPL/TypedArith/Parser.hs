@@ -70,7 +70,7 @@ variable = do
     pos <- getPosition
     case findIndex ((== name) . fst) ns of
          Just n -> return $ TVar pos n (length $ ns)
-         Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
+         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 boolean :: LCParser
 boolean = true <|> false
