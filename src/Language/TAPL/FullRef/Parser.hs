@@ -301,9 +301,7 @@ primitiveType :: String -> Type -> LCTypeParser
 primitiveType name ty = reserved name >> return ty
 
 idTypeAnnotation :: LCTypeParser
-idTypeAnnotation = do
-    x <- ucid
-    return $ TyID x
+idTypeAnnotation = TyID <$> ucid
 
 topAnnotation :: LCTypeParser
 topAnnotation = primitiveType "Top" TyTop
