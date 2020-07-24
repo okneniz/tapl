@@ -88,7 +88,7 @@ abstraction = do
     return $ TAbs p varName varType t
 
 variable :: LCParser
-variable = optionalAscribed $ lookup' (integer <|> keyword) $ do
+variable = optionalAscribed $ projection (integer <|> keyword) $ do
     name <- identifier
     names <- getState
     p <- getPosition
@@ -137,8 +137,8 @@ condition = TIf <$> getPosition
                 <*> (reserved "then" *> term)
                 <*> (reserved "else" *> term)
 
-lookup' :: LCParser -> LCParser -> LCParser
-lookup' key tm = do
+projection :: LCParser -> LCParser -> LCParser
+projection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
@@ -146,7 +146,7 @@ lookup' key tm = do
           _ <- dot
           p <- getPosition
           i <- k
-          t' <- (try $ dotRef key (TLookup p t i)) <|> (return $ TLookup p t i)
+          t' <- (try $ dotRef key (TProj p t i)) <|> (return $ TProj p t i)
           return t'
 
 optionalAscribed :: LCParser -> LCParser
@@ -159,12 +159,12 @@ optionalAscribed e = do
                        <*> (reserved "as" *> typeAnnotation)
 
 pair :: LCParser
-pair = lookup' integer $ braces $ TPair <$> getPosition
+pair = projection integer $ braces $ TPair <$> getPosition
                                         <*> (term <* comma)
                                         <*> term
 
 record :: LCParser
-record = lookup' keyword $ braces $ do
+record = projection keyword $ braces $ do
     ts <- keyValue (reservedOp "=") term `sepBy` comma
     p <- getPosition
     return $ TRecord p $ Map.fromList ts
