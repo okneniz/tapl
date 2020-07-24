@@ -110,10 +110,7 @@ record = projection keyword $ braces $ do
     return $ TRecord pos $ Map.fromList ts
 
 keyword :: LCParser
-keyword = do
-  word <- identifier
-  p <- getPosition
-  return $ TKeyword p word
+keyword = TKeyword <$> getPosition <*> identifier
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = (,) <$> (identifier <* devider) <*> val

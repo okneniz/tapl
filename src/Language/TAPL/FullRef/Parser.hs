@@ -216,10 +216,7 @@ record = projection keyword $ braces $ do
     return $ TRecord p $ Map.fromList ts
 
 keyword :: LCParser
-keyword = do
-  word <- identifier
-  p <- getPosition
-  return $ TKeyword p word
+keyword = TKeyword <$> getPosition <*> identifier
 
 abstraction :: LCParser
 abstraction = do
@@ -320,10 +317,7 @@ unitAnnotation :: LCTypeParser
 unitAnnotation = primitiveType "Unit" TyUnit
 
 refAnnotation :: LCTypeParser
-refAnnotation = do
-    reserved "Ref"
-    ty <- typeAnnotation
-    return $ TyRef ty
+refAnnotation = TyRef <$> (reserved "Ref" *> typeAnnotation)
 
 productAnnotation :: LCTypeParser
 productAnnotation = braces $ do

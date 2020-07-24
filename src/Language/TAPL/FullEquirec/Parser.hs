@@ -189,10 +189,7 @@ record = projection keyword $ braces $ do
     return $ TRecord pos $ Map.fromList ts
 
 keyword :: LCParser
-keyword = do
-  word <- identifier
-  p <- getPosition
-  return $ TKeyword p word
+keyword = TKeyword <$> getPosition <*> identifier
 
 let' :: LCParser
 let' = do
