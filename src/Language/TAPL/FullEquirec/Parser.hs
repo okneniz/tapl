@@ -106,10 +106,7 @@ variable = optionalAscribed $ projection (integer <|> keyword) $ do
          Nothing -> error $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
 
 string' :: LCParser
-string' = do
-    p <- getPosition
-    t <- try stringLiteral
-    return $ TString p t
+string' = TString <$> getPosition <*> try stringLiteral
 
 boolean :: LCParser
 boolean = true <|> false

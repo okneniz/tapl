@@ -139,10 +139,7 @@ boolean = true <|> false
           false = constant "false" TFalse
 
 string' :: LCParser
-string' = do
-    p <- getPosition
-    t <- try stringLiteral
-    return $ TString p t
+string' = TString <$> getPosition <*> try stringLiteral
 
 unit :: LCParser
 unit = constant "unit" TUnit
