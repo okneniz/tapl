@@ -96,12 +96,14 @@ projection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
-  where dotRef k t = do
-          _ <- dot
-          pos <- getPosition
-          i <- k
-          t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-          return t'
+
+dotRef :: LCParser -> Term -> LCParser
+dotRef key t = do
+    _ <- dot
+    pos <- getPosition
+    i <- key
+    t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
+    return t'
 
 record :: LCParser
 record = projection keyword $ braces $ do

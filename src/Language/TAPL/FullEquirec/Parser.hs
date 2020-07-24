@@ -154,12 +154,14 @@ projection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
-  where dotRef key t = do
-          dot
-          pos <- getPosition
-          i <- key
-          t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-          return t'
+
+dotRef :: LCParser -> Term -> LCParser
+dotRef key t = do
+    _ <- dot
+    pos <- getPosition
+    i <- key
+    t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
+    return t'
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
