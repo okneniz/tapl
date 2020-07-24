@@ -40,9 +40,7 @@ bindCommand = do
     return $ Bind pos x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
-evalCommand = try $ do
-    ast <- term `sepEndBy` semi
-    return $ Eval ast
+evalCommand = try $ Eval <$> term `sepEndBy` semi
 
 term :: LCParser
 term = try apply
