@@ -136,16 +136,10 @@ isZero :: LCParser
 isZero = fun "zero?" TIsZero
 
 float :: LCParser
-float = do
-    pos <- getPosition
-    n <- floatNum
-    return $ TFloat pos n
+float = TFloat <$> getPosition <*> floatNum
 
 integer :: LCParser
-integer = do
-    pos <- getPosition
-    n <- natural
-    return $ TInt pos n
+integer = TInt <$> getPosition <*> natural
 
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = do

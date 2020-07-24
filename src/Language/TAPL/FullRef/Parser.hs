@@ -151,16 +151,10 @@ zero :: LCParser
 zero = constant "zero" TZero
 
 float :: LCParser
-float = do
-    p <- getPosition
-    n <- floatNum
-    return $ TFloat p n
+float = TFloat <$> getPosition <*> floatNum
 
 integer :: LCParser
-integer = do
-    p <- getPosition
-    n <- natural
-    return $ TInt p n
+integer = TInt <$> getPosition <*> natural
 
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = do
