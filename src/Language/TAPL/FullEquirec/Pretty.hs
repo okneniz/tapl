@@ -75,7 +75,7 @@ prettify (TRecord _ ts) = do
             doc <- prettify t
             return $ pretty s <> equals <> doc
 
-prettify (TLookup _ t k) = do
+prettify (TProj _ t k) = do
     doc1 <- prettify t
     doc2 <- prettify k
     return $ doc1 <> dot <> doc2

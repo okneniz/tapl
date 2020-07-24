@@ -97,19 +97,19 @@ normalize (TRecord p fs) = do
             v' <- normalize v
             return (k, v')
 
-normalize (TLookup _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t =
+normalize (TProj _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t =
     Map.lookup k fs
 
-normalize (TLookup p t@(TRecord _ _) (TKeyword x k)) = do
+normalize (TProj p t@(TRecord _ _) (TKeyword x k)) = do
     t' <- normalize t
-    return $ (TLookup p t' (TKeyword x k))
+    return $ (TProj p t' (TKeyword x k))
 
-normalize (TLookup _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
-normalize (TLookup _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
+normalize (TProj _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
+normalize (TProj _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
 
-normalize (TLookup p t k) = do
+normalize (TProj p t k) = do
     t' <- normalize t
-    return $ TLookup p t' k
+    return $ TProj p t' k
 
 normalize (TLet _ _ t1 t2) | isVal t1 =
     return $ termSubstitutionTop t1 t2

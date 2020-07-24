@@ -26,7 +26,7 @@ data Term = TTrue SourcePos
           | TIsZero SourcePos Term
           | TPair SourcePos Term Term
           | TRecord SourcePos (Map String Term)
-          | TLookup SourcePos Term Term
+          | TProj SourcePos Term Term
           | TLet SourcePos String Term Term
           | TAscribe SourcePos Term Type
           | TCase SourcePos Term (Map String (String, Term))
@@ -80,7 +80,7 @@ termMap onVar onType s t = walk s t
                            walk c (TPair p t1 t2) = TPair p (walk c t1) (walk c t2)
                            walk c (TRecord p fields) = TRecord p $ Map.map (walk c) fields
                            walk c (TTag p k t ty) = TTag p k (walk c t) (onType c ty)
-                           walk c (TLookup p r k) = TLookup p (walk c r) k
+                           walk c (TProj p r k) = TProj p (walk c r) k
                            walk c (TLet p x t1 t2) = TLet p x (walk c t1) (walk (c+1) t2)
                            walk c (TAscribe p t ty) = TAscribe p (walk c t) (onType c ty)
                            walk c (TTimesFloat p t1 t2) = TTimesFloat p (walk c t1) (walk c t2)

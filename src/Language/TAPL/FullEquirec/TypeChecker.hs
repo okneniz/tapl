@@ -38,7 +38,7 @@ typeOf (TRecord _ fields) = do
             tyf <- typeOf v
             return (k, tyf)
 
-typeOf (TLookup _ t (TInt p i)) = do
+typeOf (TProj _ t (TInt p i)) = do
     ty <- typeOf t
     ty' <- simplifyType ty
     case (ty', i) of
@@ -47,7 +47,7 @@ typeOf (TLookup _ t (TInt p i)) = do
          ((TyProduct _ _), _) -> typeError p "invalid index for pair"
          (_, _)               -> typeError p "invalid lookup operation"
 
-typeOf (TLookup _ t (TKeyword p key)) = do
+typeOf (TProj _ t (TKeyword p key)) = do
     ty <- typeOf t
     ty' <- simplifyType ty
     case ty' of
@@ -57,7 +57,7 @@ typeOf (TLookup _ t (TKeyword p key)) = do
                  _ -> typeError p $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
          _ -> typeError p "invalid lookup operation"
 
-typeOf (TLookup p _ _) = typeError p "invalid lookup operation"
+typeOf (TProj p _ _) = typeError p "invalid lookup operation"
 
 typeOf (TAbs _ x tyT1 t2) = do
     withTmpStateT (addVar x tyT1) $ do
