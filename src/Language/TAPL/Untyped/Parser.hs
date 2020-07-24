@@ -21,9 +21,6 @@ untypedParser = do
     names <- getState
     return (ast, names)
 
-infoFrom :: SourcePos -> Info
-infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
-
 term :: LCParser
 term = try apply
    <|> try notApply
@@ -33,7 +30,7 @@ apply :: LCParser
 apply = chainl1 notApply $ do
             optional spaces
             pos <- getPosition
-            return $ TApp (infoFrom pos)
+            return $ TApp pos
 
 notApply :: LCParser
 notApply = (abstraction <?> "abstraction")
@@ -51,7 +48,7 @@ abstraction = do
     modifyState $ \c -> addName c varName
     t <- term
     setState context
-    return $ TAbs (infoFrom pos) varName t
+    return $ TAbs pos varName t
 
 variable :: LCParser
 variable = do
@@ -59,5 +56,5 @@ variable = do
     ns <- getState
     pos <- getPosition
     case findIndex ((== name) . fst) ns of
-         Just n -> return $ TVar (infoFrom pos) n (length $ ns)
+         Just n -> return $ TVar pos n (length $ ns)
          Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
