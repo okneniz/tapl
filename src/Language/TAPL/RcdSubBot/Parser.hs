@@ -116,11 +116,7 @@ keyword = do
   return $ TKeyword p word
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
-keyValue devider val = do
-  k <- identifier
-  _ <- devider
-  v <- val
-  return (k,v)
+keyValue devider val = (,) <$> (identifier <* devider) <*> val
 
 termType :: LCTypeParser
 termType = colon >> typeAnnotation

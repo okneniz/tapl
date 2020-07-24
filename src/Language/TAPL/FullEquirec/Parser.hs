@@ -262,11 +262,8 @@ timesFloat = do
     t2 <- notApply
     return $ TTimesFloat pos t1 t2
 
-keyValue devider val = do
-  key <- identifier
-  devider
-  value <- val
-  return (key,value)
+keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
+keyValue devider val = (,) <$> (identifier <* devider) <*> val
 
 termType :: LCTypeParser
 termType = colon >> typeAnnotation
