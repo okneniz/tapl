@@ -128,15 +128,9 @@ zero :: LCParser
 zero = constant "zero" TZero
 
 condition :: LCParser
-condition = do
-    reserved "if"
-    x <- notTypeBind
-    reserved "then"
-    y <- notTypeBind
-    reserved "else"
-    z <- notTypeBind
-    pos <- getPosition
-    return $ TIf pos x y z
+condition = TIf <$> (reserved "if"   *> notTypeBind)
+                <*> (reserved "then" *> notTypeBind)
+                <*> (reserved "else" *> notTypeBind)
 
 termType :: LCTypeParser
 termType = colon >> typeAnnotation

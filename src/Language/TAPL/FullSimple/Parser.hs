@@ -17,7 +17,7 @@ type LCParser = Parsec String LCNames Term
 type LCTypeParser = Parsec String LCNames Type
 
 parse :: String -> String -> Either ParseError ([Command], LCNames)
-parse = runParser reconParser []
+parse = runParser simpleParser []
 
 simpleParser :: Parsec String LCNames ([Command], LCNames)
 simpleParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
@@ -280,4 +280,3 @@ primitiveType name ty = reserved name >> return ty
 
 padded :: Parsec String LCNames a -> Parsec String LCNames a
 padded x = optional spaces *> x <* optional spaces
-

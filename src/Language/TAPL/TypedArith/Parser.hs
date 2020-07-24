@@ -103,15 +103,9 @@ zero :: LCParser
 zero = constant "zero" TZero
 
 condition :: LCParser
-condition = do
-    reserved "if"
-    x <- term
-    reserved "then"
-    y <- term
-    reserved "else"
-    z <- term
-    pos <- getPosition
-    return $ TIf pos x y z
+condition = TIf <$> (reserved "if"   *> term)
+                <*> (reserved "then" *> term)
+                <*> (reserved "else" *> term)
 
 termType :: LCTypeParser
 termType = colon >> typeAnnotation

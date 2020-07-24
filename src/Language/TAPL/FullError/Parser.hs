@@ -112,15 +112,10 @@ constant name t = do
     return $ t p
 
 condition :: LCParser
-condition = do
-    pos <- getPosition
-    reserved "if"
-    x <- notTypeBind
-    reserved "then"
-    y <- notTypeBind
-    reserved "else"
-    z <- notTypeBind
-    return $ TIf pos x y z
+condition = TIf <$> getPosition
+                <*> (reserved "if"   *> notTypeBind)
+                <*> (reserved "then" *> notTypeBind)
+                <*> (reserved "else" *> notTypeBind)
 
 termType :: LCTypeParser
 termType = colon >> typeAnnotation

@@ -176,15 +176,10 @@ fun name tm = do
     return $ tm p t
 
 condition :: LCParser
-condition = do
-    p <- getPosition
-    reserved "if"
-    t1 <- term
-    reserved "then"
-    t2 <- term
-    reserved "else"
-    t3 <- term
-    return $ TIf p t1 t2 t3
+condition = TIf <$> getPosition
+                <*> (reserved "if" *> term)
+                <*> (reserved "then" *> term)
+                <*> (reserved "else" *> term)
 
 let' :: LCParser
 let' = do
