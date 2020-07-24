@@ -113,9 +113,6 @@ boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
 
-nat :: LCParser
-nat = zero <|> succ <|> pred
-
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
 fun name tm = tm <$> (reserved name *> getPosition) <*> term
 
@@ -200,7 +197,6 @@ let' = do
     optional spaces
     reserved "in"
     optional spaces
-    names <- getState
     modifyState $ addName name
     t2 <- notTypeBind
     return $ TLet p name t1 t2
