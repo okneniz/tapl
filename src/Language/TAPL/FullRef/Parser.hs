@@ -118,11 +118,7 @@ deref = do
     return $ TDeref p t
 
 fix :: LCParser
-fix = do
-    reserved "fix"
-    p <- getPosition
-    t <- term
-    return $ TFix p t
+fix = TFix <$> (reserved "fix" *> getPosition) <*> term
 
 isZero :: LCParser
 isZero = fun "zero?" TIsZero

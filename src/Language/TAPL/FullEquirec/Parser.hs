@@ -247,11 +247,7 @@ variant x = do
   return $ TTag pos key t ty
 
 fix :: LCParser
-fix = do
-    reserved "fix"
-    t <- notTypeBind
-    pos <- getPosition
-    return $ TFix pos t
+fix = TFix <$> (reserved "fix" *> getPosition) <*> term
 
 timesFloat :: LCParser
 timesFloat = do
