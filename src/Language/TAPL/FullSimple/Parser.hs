@@ -19,12 +19,8 @@ type LCTypeParser = Parsec String LCNames Type
 parse :: String -> String -> Either ParseError ([Command], LCNames)
 parse = runParser reconParser []
 
-reconParser :: Parsec String LCNames ([Command], LCNames)
-reconParser = do
-    commands <- command `sepEndBy` semi
-    eof
-    names <- getState
-    return $ (commands, names)
+simpleParser :: Parsec String LCNames ([Command], LCNames)
+simpleParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
 command =  (try bindCommand) <|> (try evalCommand)
@@ -160,8 +156,8 @@ optionalAscribed e = do
 
 pair :: LCParser
 pair = projection integer $ braces $ TPair <$> getPosition
-                                        <*> (term <* comma)
-                                        <*> term
+                                           <*> (term <* comma)
+                                           <*> term
 
 record :: LCParser
 record = projection keyword $ braces $ do
@@ -206,16 +202,11 @@ variant :: LCParser -> LCParser
 variant x = do
   p <- getPosition
   (k, t) <- angles $ keyValue (reservedOp "=") x
-  reserved "as"
-  ty <- variantAnnotation
+  ty <- reserved "as" *> variantAnnotation
   return $ TTag p k t ty
 
 fix :: LCParser
-fix = do
-    reserved "fix"
-    p <- getPosition
-    t <- term
-    return $ TFix p t
+fix = TFix <$> (reserved "fix" *> getPosition) <*> term
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = (,) <$> (identifier <* devider) <*> val
@@ -266,10 +257,7 @@ floatAnnotation :: LCTypeParser
 floatAnnotation = primitiveType "Float" TyFloat
 
 baseTypeAnnotation :: LCTypeParser
-baseTypeAnnotation = do
-    i <- oneOf ['A'..'Z']
-    d <- many $ oneOf ['a'..'z']
-    return $ TyID (i:d)
+baseTypeAnnotation = TyID <$> ucid
 
 recordAnnotation :: LCTypeParser
 recordAnnotation = braces $ do
