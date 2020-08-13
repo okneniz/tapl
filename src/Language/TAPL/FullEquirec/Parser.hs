@@ -276,12 +276,12 @@ arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
     optional spaces
     reservedOp "->"
     optional spaces
-    return $ TyArrow
+    return TyArrow
 
 productAnnotation :: LCTypeParser
 productAnnotation = braces $ chainl1 typeAnnotation $ do
     reservedOp "*"
-    return $ TyProduct
+    return TyProduct
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = booleanAnnotation

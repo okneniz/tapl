@@ -226,7 +226,7 @@ typeAnnotation = try arrowAnnotation
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
     padded (reservedOp "->")
-    return $ TyArrow
+    return TyArrow
 
 productAnnotation :: LCTypeParser
 productAnnotation = braces $ chainl1 typeAnnotation $ do

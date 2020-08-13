@@ -135,7 +135,7 @@ arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
     optional spaces
     reservedOp "->"
     optional spaces
-    return $ TyArrow
+    return TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = booleanAnnotation

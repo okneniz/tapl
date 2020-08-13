@@ -88,7 +88,7 @@ arrowAnnotation = chainr1 (booleanAnnotation <|> parens arrowAnnotation) $ do
     optional spaces
     reservedOp "->"
     optional spaces
-    return $ TyArrow
+    return TyArrow
 
 booleanAnnotation :: LCTypeParser
 booleanAnnotation = reserved "Bool" >> return TyBool
