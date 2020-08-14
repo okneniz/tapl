@@ -168,12 +168,12 @@ spec = do
         describe "church bool" $ do
            tests evalString [
                     (
-                      "B = Nat->Nat->Nat; \
-                      \let tru = (lambda t:Nat.(lambda f:Nat. t)) in \
-                      \let fls = (lambda t:Nat.(lambda f:Nat. f)) in \
+                      "B = Nat->Nat; \
+                      \let tru = (lambda t:B.(lambda f:B. t)) in \
+                      \let fls = (lambda t:B.(lambda f:B. f)) in \
                       \fls \
                       \",
-                      pass "(lambda t.(lambda f.f)):(Nat -> (Nat -> Nat))" -- wtf ?
+                      pass "(lambda t.(lambda f.f)):(fls -> (fls -> fls))" -- wtf ?
                     ),
                     (
                       "B = Nat->Nat; \
