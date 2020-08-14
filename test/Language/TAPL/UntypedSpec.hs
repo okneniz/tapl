@@ -1,6 +1,7 @@
 module Language.TAPL.UntypedSpec where
 
 import Test.Hspec
+import Language.TAPL.TestHelpers
 import Language.TAPL.Untyped.Evaluator (evalString)
 
 spec :: Spec
@@ -8,18 +9,14 @@ spec = do
   describe "eval" $ do
     describe "values" $ do
       describe "abstractions" $ do
-          let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
-              examples = [
-                ("(lambda x.x x)", "(lambda x.x x)"),
-                ("(lambda x.lambda y.x y)", "(lambda x.(lambda y.x y))")
+        tests evalString [
+                ("(lambda x.x x)", pass "(lambda x.x x)"),
+                ("(lambda x.lambda y.x y)", pass "(lambda x.(lambda y.x y))")
                ]
-          mapM_ test examples
 
     describe "apply" $ do
-      let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
-          examples = [
-            ("(lambda x.lambda y.lambda z.y z) (lambda z.z z)", "(lambda y.(lambda z.y z))"),
-            ("(lambda x.lambda y.lambda z.x)(lambda z.z z)", "(lambda y.(lambda z.(lambda z'.z' z')))"),
-            ("(lambda x.lambda y.lambda z.x) (lambda z.z z)(lambda z.z z)", "(lambda z.(lambda z'.z' z'))")
+        tests evalString [
+            ("(lambda x.lambda y.lambda z.y z) (lambda z.z z)", pass "(lambda y.(lambda z.y z))"),
+            ("(lambda x.lambda y.lambda z.x)(lambda z.z z)", pass "(lambda y.(lambda z.(lambda z'.z' z')))"),
+            ("(lambda x.lambda y.lambda z.x) (lambda z.z z)(lambda z.z z)", pass "(lambda z.(lambda z'.z' z'))")
            ]
-      mapM_ test examples

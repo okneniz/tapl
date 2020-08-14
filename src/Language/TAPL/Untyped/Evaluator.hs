@@ -5,9 +5,9 @@ import Language.TAPL.Untyped.Types
 import Language.TAPL.Untyped.Parser
 import Language.TAPL.Untyped.Pretty
 
-evalString :: String -> String -> Either String String
-evalString code source = do
-  case parse source code of
+evalString :: String  -> Either String String
+evalString code = do
+  case parse "<stdint>" code of
     Left e -> Left $ show e
     Right (ast, names) -> do
         let result = last $ whileJust normalize <$> ast
