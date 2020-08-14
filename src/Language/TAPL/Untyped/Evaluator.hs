@@ -7,7 +7,7 @@ import Language.TAPL.Untyped.Pretty
 
 evalString :: String  -> Either String String
 evalString code = do
-  case parse "<stdint>" code of
+  case parse "<stdin>" code of
     Left e -> Left $ show e
     Right (ast, names) -> do
         let result = last $ whileJust normalize <$> ast
