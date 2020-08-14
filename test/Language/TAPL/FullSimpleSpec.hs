@@ -191,3 +191,25 @@ spec = do
                     )
                  ]
             mapM_ test examples
+
+        describe "church bool" $ do
+            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
+                examples = [
+                    (
+                      "B = Nat->Nat->Nat; \
+                      \let tru = (lambda t:Nat.(lambda f:Nat. t)) in \
+                      \let fls = (lambda t:Nat.(lambda f:Nat. f)) in \
+                      \fls \
+                      \",
+                      "(lambda t.(lambda f.f)):(Nat -> (Nat -> Nat))" -- wtf ?
+                    ),
+                    (
+                      "B = Nat->Nat; \
+                      \let tru = (lambda t:B.(lambda f:B. t)) in \
+                      \let fls = (lambda t:B.(lambda f:B. f)) in \
+                      \tru \
+                      \",
+                      "(lambda t.(lambda f.t)):(B -> (B -> B))"
+                    )
+                 ]
+            mapM_ test examples

@@ -62,3 +62,19 @@ withTmpStateT f g = do
     put s
     return x
     return x
+
+computeType :: Type -> Eval (Maybe Type)
+computeType (TyVar i _) = do
+    n <- get
+    if isTypeAbb n i
+    then return $ getTypeAbb n i
+    else return Nothing
+
+computeType _ = return Nothing
+
+simplifyType :: Type -> Eval Type
+simplifyType ty = do
+    n <- computeType ty
+    case n of
+         Just x -> simplifyType x
+         _ -> return ty

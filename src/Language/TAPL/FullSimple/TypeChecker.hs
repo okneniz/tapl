@@ -12,8 +12,8 @@ import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
 import Language.TAPL.Common.Helpers (unlessM)
-
 import Language.TAPL.FullSimple.Types
+import Language.TAPL.FullSimple.Pretty
 import Language.TAPL.FullSimple.Context
 
 data TypeError = TypeMissmatch SourcePos String
@@ -24,14 +24,13 @@ typeOf (TFalse _) = return TyBool
 
 typeOf (TIf p t1 t2 t3) = do
   ty1 <- typeOf t1
-  unlessM (typeEq ty1 TyBool)
-          (typeError p $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")")
-
+  unlessM (typeEq ty1 TyBool) (unexpectedType p TyBool ty1)
   ty2 <- typeOf t2
   ty3 <- typeOf t3
-  unlessM (typeEq ty2 ty3)
-          (typeError p $ "branches of condition have different types (" ++ show t2 ++ " and " ++ show t3 ++ ")")
-
+  unlessM (typeEq ty2 ty3) $ do
+    ty2p <- prettifyType ty2
+    ty3p <- prettifyType ty3
+    typeError p $ "branches of condition have different types (" ++ show ty2p ++ " and " ++ show ty3p ++ ")"
   return ty2
 
 typeOf (TCase p v branches) = do
@@ -70,8 +69,7 @@ typeOf (TTag p key t tyT) = do
             case Map.lookup key tys of
                  Just expected -> do
                     actual <- typeOf t
-                    unlessM (typeEq actual expected)
-                            (typeError p $ "field does not have expected type")
+                    unlessM (typeEq actual expected) (unexpectedType p expected actual)
                     return tyT
                  _ -> typeError p $ "label " ++ key ++ " not found"
          _ -> typeError p $ "Annotation is not a variant type"
@@ -93,10 +91,14 @@ typeOf (TApp p t1 t2) = do
     ty2 <- simplifyType =<< typeOf t2
     case ty1 of
          (TyArrow ty1' ty2') -> do
-            unlessM (typeEq ty2 ty1')
-                    (typeError p $ "incorrect application " ++ show ty2 ++ " to " ++ show ty1)
+            unlessM (typeEq ty2 ty1') $ do
+                ty1p <- prettifyType ty1
+                ty2p <- prettifyType ty2
+                typeError p $ "incorrect application " ++ show ty2p ++ " to " ++ show ty1p
             return ty2'
-         _ -> typeError p $ "arrow type expected " ++ show ty1
+         _ -> do
+            ty1p <- prettifyType ty1
+            typeError p $ "arrow type expected, insted" ++ show ty1p
 
 typeOf (TLet _ x t1 t2) = do
     ty1 <- typeOf t1
@@ -153,33 +155,36 @@ typeOf (TInt _ _) = return TyInt
 
 typeOf (TTimesFloat p t1 t2) = do
     ty1 <- typeOf t1
-    unlessM (typeEq ty1 TyFloat) (typeError p "expected Float type for first argument")
+    unlessM (typeEq ty1 TyFloat) (unexpectedType p TyFloat ty1)
     ty2 <- typeOf t2
-    unlessM (typeEq ty2 TyFloat) (typeError p "expected Float type for second argument")
+    unlessM (typeEq ty2 TyFloat) (unexpectedType p TyFloat ty2)
     return TyFloat
 
 typeOf (TZero _) = return TyNat
 
 typeOf (TSucc p t) = do
   ty <- typeOf t
-  unlessM (typeEq ty TyNat)
-          (typeError p "expected Nat type for second argument")
+  unlessM (typeEq ty TyNat)(unexpectedType p TyNat ty)
   return TyNat
 
 typeOf (TPred p t) = do
   ty <- typeOf t
-  unlessM (typeEq ty TyNat)
-          (typeError p "expected Nat type for second argument")
+  unlessM (typeEq ty TyNat)(unexpectedType p TyNat ty)
   return TyNat
 
 typeOf (TIsZero p t) = do
   ty <- typeOf t
-  unlessM (typeEq ty TyNat)
-          (typeError p "expected Nat type for second argument")
+  unlessM (typeEq ty TyNat)(unexpectedType p TyNat ty)
   return TyBool
 
 typeError :: SourcePos -> String -> Eval a
 typeError p message = lift $ throwE $ show p ++ ":" ++ message
+
+unexpectedType :: SourcePos -> Type -> Type -> Eval a
+unexpectedType p expected actual = do
+    tyE <- prettifyType expected
+    tyA <- prettifyType actual
+    typeError p $ "expected type " ++ show tyE ++ ", actual " ++ show tyA
 
 instance Show TypeError where
     show (TypeMissmatch p message) = show p ++ ":" ++ message
@@ -223,19 +228,3 @@ typeEq ty1 ty2 = do
         all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
       _ -> return False
-
-computeType :: Type -> Eval (Maybe Type)
-computeType (TyVar i _) = do
-    n <- get
-    if isTypeAbb n i
-    then return $ getTypeAbb n i
-    else return Nothing
-
-computeType _ = return Nothing
-
-simplifyType :: Type -> Eval Type
-simplifyType ty = do
-    n <- computeType ty
-    case n of
-         Just x -> simplifyType x
-         _ -> return ty
