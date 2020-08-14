@@ -219,11 +219,11 @@ typeEq ty1 ty2 = do
 
       (TyProduct tyS1 tyS2, TyProduct tyT1 tyT2) -> (&&) <$> typeEq tyS1 tyT1 <*> typeEq tyS2 tyT2
 
-      (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
+      (TyRecord f1, TyRecord f2) | (Map.keys f1) /= (Map.keys f2) -> return False
       (TyRecord f1, TyRecord f2) ->
         all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
-      (TyVariant f1, TyVariant f2) | (Map.keys f1) /= (Map.keys f2) -> return False
+      (TyVariant f1, TyVariant f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
       (TyVariant f1, TyVariant f2) ->
         all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
