@@ -15,9 +15,9 @@ import Language.TAPL.Recon.Context
 import Language.TAPL.Recon.TypeChecker
 import Language.TAPL.Recon.Pretty
 
-evalString :: String -> String -> Either String String
-evalString code source = do
-    case parse source code of
+evalString :: String -> Either String String
+evalString code = do
+    case parse "<stdin>" code of
         Left e -> Left $ show e
         Right (commands, names) -> evalState (runExceptT (runReaderT (f commands) names)) (0, [])
     where
