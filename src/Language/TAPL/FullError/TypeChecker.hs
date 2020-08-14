@@ -14,27 +14,24 @@ import Language.TAPL.FullError.Types
 import Language.TAPL.FullError.Context
 
 typeOf :: Term -> Eval Type
-typeOf = infer
+typeOf (TTrue _) = return TyBool
+typeOf (TFalse _) = return TyBool
 
-infer :: Term -> Eval Type
-infer (TTrue _) = return TyBool
-infer (TFalse _) = return TyBool
-
-infer (TVar info v _) = do
+typeOf (TVar info v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
          (Just x) -> typeError info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
          Nothing -> typeError info "var type error"
 
-infer (TAbs _ x tyT1 t2) = do
+typeOf (TAbs _ x tyT1 t2) = do
     withTmpStateT (addVar x tyT1) $ do
-        tyT2 <- infer t2
+        tyT2 <- typeOf t2
         return $ TyArrow tyT1 (typeShift (-1) tyT2)
 
-infer (TApp info t1 t2) = do
-    tyT1 <- infer t1
-    tyT2 <- infer t2
+typeOf (TApp info t1 t2) = do
+    tyT1 <- typeOf t1
+    tyT2 <- typeOf t2
     tyT1' <- simplifyType tyT1
     case tyT1' of
          (TyArrow tyT11 tyT12) -> do
@@ -44,19 +41,19 @@ infer (TApp info t1 t2) = do
          TyBot -> return TyBot
          _ -> typeError info $ "arrow type expected"
 
-infer (TIf info t1 t2 t3) = do
-    ty1 <- infer t1
+typeOf (TIf info t1 t2 t3) = do
+    ty1 <- typeOf t1
     unlessM (ty1 <: TyBool)
             (typeError info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")")
-    ty2 <- infer t2
-    ty3 <- infer t3
+    ty2 <- typeOf t2
+    ty3 <- typeOf t3
     joinTypes ty2 ty3
 
-infer (TError _) = return TyBot
+typeOf (TError _) = return TyBot
 
-infer (TTry _ t1 t2) = do
-    ty1 <- infer t1
-    ty2 <- infer t2
+typeOf (TTry _ t1 t2) = do
+    ty1 <- typeOf t1
+    ty2 <- typeOf t2
     joinTypes ty1 ty2
 
 typeError :: SourcePos -> String -> Eval a
