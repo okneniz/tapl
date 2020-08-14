@@ -9,6 +9,7 @@ import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
+import Language.TAPL.Common.Helpers (unlessM)
 import Language.TAPL.FullError.Types
 import Language.TAPL.FullError.Context
 
@@ -57,11 +58,6 @@ infer (TTry _ t1 t2) = do
     ty1 <- infer t1
     ty2 <- infer t2
     joinTypes ty1 ty2
-
-unlessM :: Monad m => m Bool -> m () -> m ()
-unlessM p s = do
-    x <- p
-    unless x s
 
 typeError :: SourcePos -> String -> Eval a
 typeError info message = lift $ throwE $ show info ++ ":" ++ message

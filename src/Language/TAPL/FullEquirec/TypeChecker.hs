@@ -10,6 +10,7 @@ import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
+import Language.TAPL.Common.Helpers (unlessM)
 import Language.TAPL.FullEquirec.Types
 import Language.TAPL.FullEquirec.Context
 
@@ -178,11 +179,6 @@ whenM :: Monad m => m Bool -> m () -> m ()
 whenM p s = do
     x <- p
     when x s
-
-unlessM :: Monad m => m Bool -> m () -> m ()
-unlessM p s = do
-    x <- p
-    unless x s
 
 typeError :: SourcePos -> String -> Eval a
 typeError p message = lift $ throwE $ show p ++ ":" ++ message
