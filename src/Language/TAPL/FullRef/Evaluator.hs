@@ -13,9 +13,9 @@ import Language.TAPL.FullRef.Pretty
 
 type Eval a = StateT LCMemory Maybe a
 
-evalString :: String -> String -> Either String String
-evalString code source = do
-  case parse source code of
+evalString :: String -> Either String String
+evalString code = do
+  case parse "<stdin>" code of
     Left e -> Left $ show e
     Right ([], _) -> return ""
     Right (ast, names) -> do
