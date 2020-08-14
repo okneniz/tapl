@@ -1,13 +1,13 @@
-module Language.TAPL.Arith.Evaluator (eval) where
+module Language.TAPL.Arith.Evaluator (evalString) where
 
 import Data.Text.Prettyprint.Doc (pretty)
 import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.Arith.Types
 import Language.TAPL.Arith.Parser
 
-eval :: String -> String -> Either String String
-eval code path = do
-   case parse code path of
+evalString :: String -> Either String String
+evalString code = do
+   case parse code "<stdin>" of
         Left e -> Left $ show e
         Right ast -> return $ show
                             $ pretty

@@ -1,47 +1,40 @@
 module Language.TAPL.ArithSpec where
 
 import Test.Hspec
-import Language.TAPL.Arith.Evaluator (eval)
+import Language.TAPL.TestHelpers
+import Language.TAPL.Arith.Evaluator (evalString)
 
 spec :: Spec
 spec = do
   describe "eval" $ do
     describe "primitive values" $ do
-       let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
-           examples = [
-              ("true", "true"),
-              ("false", "false"),
-              ("zero", "zero")
-            ]
-       mapM_ test examples
+       tests evalString [
+          ("true", pass "true"),
+          ("false", pass "false"),
+          ("zero", pass "zero")
+        ]
 
     describe "condition" $ do
-       let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
-           examples = [
-              ("if true then true else false", "true"),
-              ("if true then false else false", "false"),
-              ("if false then false else true", "true")
-            ]
-       mapM_ test examples
+       tests evalString [
+          ("if true then true else false", pass "true"),
+          ("if true then false else false", pass "false"),
+          ("if false then false else true", pass "true")
+        ]
 
     describe "predefined functions" $ do
-        let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
-            examples = [
-              ("succ zero", "succ zero"),
-              ("pred zero", "zero"),
-              ("pred succ zero", "zero"),
-              ("succ pred pred zero", "succ zero"),
-              ("zero? zero", "true"),
-              ("zero? succ zero", "false"),
-              ("zero? pred succ zero", "true")
-             ]
-        mapM_ test examples
+       tests evalString [
+          ("succ zero", pass "succ zero"),
+          ("pred zero", pass "zero"),
+          ("pred succ zero", pass "zero"),
+          ("succ pred pred zero", pass "succ zero"),
+          ("zero? zero", pass "true"),
+          ("zero? succ zero", pass "false"),
+          ("zero? pred succ zero", pass "true")
+         ]
 
     describe "invalid terms" $ do
-       let test = (\(x,y) -> it x $ do { eval x "<stdin>" `shouldBe` Right y })
-           examples = [
-              ("zero? zero? zero", "zero? true"),
-              ("if succ zero then pred zero else false", "if succ zero then pred zero else false"),
-              ("zero? false", "zero? false")
-            ]
-       mapM_ test examples
+       tests evalString [
+          ("zero? zero? zero", pass "zero? true"),
+          ("if succ zero then pred zero else false", pass "if succ zero then pred zero else false"),
+          ("zero? false", pass "zero? false")
+        ]
