@@ -14,9 +14,9 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
-evalString :: String -> String -> Either String String
-evalString code source = do
-    case parse source code of
+evalString :: String -> Either String String
+evalString code = do
+    case parse "<stdin>" code of
         Left e -> Left $ show e
         Right ([], _) -> return ""
         Right (commands, names) -> runExcept (evalStateT (f commands) names)
