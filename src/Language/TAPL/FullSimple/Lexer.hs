@@ -59,16 +59,16 @@ reserved :: String -> Parsec String u ()
 reserved = Token.reserved lexer
 
 reservedOp :: String -> Parsec String u ()
-reservedOp = Token.reservedOp    lexer
+reservedOp = Token.reservedOp lexer
 
 parens :: Parsec String u a -> Parsec String u a
 parens = Token.parens lexer
 
 braces :: Parsec String u a -> Parsec String u a
-braces = Token.braces        lexer
+braces = Token.braces lexer
 
 angles :: Parsec String u a -> Parsec String u a
-angles = Token.angles        lexer
+angles = Token.angles lexer
 
 comma :: Parsec String u String
 comma = Token.comma lexer

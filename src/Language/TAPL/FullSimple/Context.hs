@@ -16,6 +16,9 @@ bind x b n = (x,b):n
 addName :: String -> LCNames -> LCNames
 addName x = bind x NameBind
 
+addVar :: String -> Type -> LCNames -> LCNames
+addVar x ty n = bind x (VarBind ty) n
+
 isBound :: String -> LCNames -> Bool
 isBound k n = isJust $ Prelude.lookup k n
 
@@ -30,3 +33,32 @@ pickVar _ _ = Nothing
 
 nameFromContext :: LCNames -> VarName -> Maybe String
 nameFromContext n v = liftM fst $ pickVar n v
+
+bindingType :: LCNames -> VarName -> Maybe Binding
+bindingType names varName = liftM snd $ pickVar names varName
+
+getBinding names varName =
+    case bindingType names varName of
+         (Just binding) -> return $ bindingShift (varName + 1) binding
+         x -> x
+
+isTypeAbb names varName = isJust $ getTypeAbb names varName
+
+getTypeAbb names varName =
+    case getBinding names varName of
+         (Just (TypeAddBind ty)) -> Just ty
+         x -> Nothing
+
+bindingShift :: VarName -> Binding -> Binding
+bindingShift d NameBind = NameBind
+bindingShift d (VarBind ty) = VarBind (typeShift d ty)
+bindingShift d TypeVarBind = TypeVarBind
+bindingShift d (TypeAddBind ty) = TypeAddBind (typeShift d ty)
+
+withTmpStateT f g = do
+    s <- get
+    modify f
+    x <- g
+    put s
+    return x
+    return x

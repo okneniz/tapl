@@ -62,7 +62,7 @@ notApply = try value
        <|> try (abstraction <?> "abstraction")
        <|> try (variable <?> "variable")
        <|> try (parens notApply)
-       <|> try (parens apply)
+       <|> try (parens apply) -- wtf??
 
 notTypeBind :: LCParser
 notTypeBind = try apply

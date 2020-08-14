@@ -27,12 +27,12 @@ command =  (try bindCommand) <|> (try evalCommand)
 
 bindCommand :: LCCommandParser
 bindCommand = do
-    p <- getPosition
-    x <- ucid
+    pos <- getPosition
+    x <- ucid <* spaces
     reserved "="
     modifyState $ addName x
     ty <- typeAnnotation
-    return $ Bind p x $ TypeAddBind ty
+    return $ Bind pos x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
 evalCommand = try $ Eval <$> term `sepEndBy` semi
@@ -43,18 +43,24 @@ term = try apply
    <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ TApp <$> getPosition
+apply = chainl1 (notApply <|> try (parens apply)) $ TApp <$> getPosition
 
 notApply :: LCParser
-notApply = value
-       <|> ((variant value) <?> "variant")
-       <|> (condition <?> "condition")
-       <|> (let' <?> "let")
-       <|> (fix <?> "fix")
-       <|> (case' <?> "case")
-       <|> (abstraction <?> "abstraction")
-       <|> (variable <?> "variable")
-       <|> (parens notApply)
+notApply = try value
+       <|> try (timesFloat <?> "timesfloat")
+       <|> try ((variant value) <?> "variant")
+       <|> try (condition <?> "condition")
+       <|> try (let' <?> "let")
+       <|> try (fix <?> "fix")
+       <|> try (case' <?> "case")
+       <|> try (abstraction <?> "abstraction")
+       <|> try (variable <?> "variable")
+       <|> try (parens notApply)
+
+notTypeBind :: LCParser
+notTypeBind = try apply
+          <|> try notApply
+          <|> try (parens notTypeBind)
 
 value :: LCParser
 value = optionalAscribed $ (boolean <?> "boolean")
@@ -63,9 +69,9 @@ value = optionalAscribed $ (boolean <?> "boolean")
                        <|> (pred <?> "pred")
                        <|> (isZero <?> "zero?")
                        <|> (zero <?> "zero")
-                       <|> (float <?> "float")
-                       <|> (integer <?> "integer")
                        <|> (unit <?> "unit")
+                       <|> try (float <?> "float")
+                       <|> try (integer <?> "integer")
                        <|> try (record <?> "record")
                        <|> try (pair <?> "pair")
 
@@ -78,8 +84,8 @@ abstraction = do
     _ <- dot
     optional spaces
     context <- getState
-    modifyState $ bind varName (VarBind varType)
-    t <- term
+    modifyState $ addVar varName varType
+    t <- notTypeBind
     setState context
     return $ TAbs p varName varType t
 
@@ -89,7 +95,7 @@ variable = optionalAscribed $ projection (integer <|> keyword) $ do
     names <- getState
     p <- getPosition
     case findIndex ((== name) . fst) names of
-         Just n -> return $ TVar p n (length $ names)
+         Just n -> return $ TVar p n (length names)
          Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
 
 string' :: LCParser
@@ -101,7 +107,7 @@ boolean = true <|> false
           false = constant "false" TFalse
 
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
-fun name tm = reserved name *> (tm <$> getPosition <*> term)
+fun name tm = tm <$> (reserved name *> getPosition) <*> notTypeBind
 
 succ :: LCParser
 succ = fun "succ" TSucc
@@ -129,9 +135,14 @@ zero = constant "zero" TZero
 
 condition :: LCParser
 condition = TIf <$> getPosition
-                <*> (reserved "if" *> term)
-                <*> (reserved "then" *> term)
-                <*> (reserved "else" *> term)
+                <*> (reserved "if" *> notTypeBind)
+                <*> (reserved "then" *> notTypeBind)
+                <*> (reserved "else" *> notTypeBind)
+
+pair :: LCParser
+pair = projection integer $ braces $ TPair <$> getPosition
+                                           <*> (notTypeBind <* comma)
+                                           <*> notTypeBind
 
 projection :: LCParser -> LCParser -> LCParser
 projection key tm = do
@@ -152,18 +163,17 @@ optionalAscribed e = do
     t <- e
     t' <- (try $ f t) <|> (return t)
     return t'
-  where f t = TAscribe <$> getPosition
-                       <*> pure t
-                       <*> (reserved "as" *> typeAnnotation)
-
-pair :: LCParser
-pair = projection integer $ braces $ TPair <$> getPosition
-                                           <*> (term <* comma)
-                                           <*> term
+  where f t = do
+          spaces
+          reserved "as"
+          optional spaces
+          ty <- typeAnnotation
+          pos <- getPosition
+          return $ TAscribe pos t ty
 
 record :: LCParser
 record = projection keyword $ braces $ do
-    ts <- keyValue (reservedOp "=") term `sepBy` comma
+    ts <- keyValue (reservedOp "=") notTypeBind `sepBy` comma
     p <- getPosition
     return $ TRecord p $ Map.fromList ts
 
@@ -174,41 +184,63 @@ let' :: LCParser
 let' = do
     reserved "let"
     p <- getPosition
-    (v, t1) <- keyValue (reservedOp "=") term
+    name <- identifier
+    reservedOp "="
+    t1 <- notTypeBind
+    optional spaces
     reserved "in"
-    context <- getState
-    modifyState $ addName v
-    t2 <- term
-    setState context
-    return $ TLet p v t1 t2
+    optional spaces
+    modifyState $ addName name
+    t2 <- notTypeBind
+    return $ TLet p name t1 t2
 
 case' :: LCParser
 case' = do
   reserved "case"
-  t <- term
-  optional spaces *> reserved "of" <* optional spaces
+  t <- notTypeBind
+  optional spaces
+  reserved "of"
+  optional spaces
   branches <- branch `sepBy` (reservedOp "|")
-  p <- getPosition
-  return $ TCase p t $ Map.fromList branches
+  pos <- getPosition
+  return $ TCase pos t $ Map.fromList branches
   where branch = do
           (caseName, varName) <- pattern
           reservedOp "->"
-          context <- getState
+          names <- getState
           modifyState $ addName varName
-          t2 <- term
-          setState context
+          t2 <- notTypeBind
+          setState names
           return (caseName, (varName, t2))
-        pattern = angles $ keyValue (reservedOp "=") identifier
+        pattern = angles $ do
+          caseName <- identifier
+          reservedOp "="
+          name <- identifier
+          return (caseName, name)
+
+timesFloat :: LCParser
+timesFloat = try $ do
+    reserved "timesfloat"
+    pos <- getPosition
+    t1 <- notApply
+    spaces
+    t2 <- notApply
+    return $ TTimesFloat pos t1 t2
 
 variant :: LCParser -> LCParser
 variant x = do
-  p <- getPosition
-  (k, t) <- angles $ keyValue (reservedOp "=") x
-  ty <- reserved "as" *> variantAnnotation
-  return $ TTag p k t ty
+  reservedOp "<"
+  pos <- getPosition
+  key <- identifier
+  reservedOp "="
+  t <- x
+  reservedOp ">"
+  reserved "as"
+  ty <- typeAnnotation
+  return $ TTag pos key t ty
 
 fix :: LCParser
-fix = TFix <$> (reserved "fix" *> getPosition) <*> term
+fix = TFix <$> (reserved "fix" *> getPosition) <*> notTypeBind
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = (,) <$> (identifier <* devider) <*> val
@@ -217,31 +249,26 @@ termType :: LCTypeParser
 termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
-typeAnnotation = try arrowAnnotation
-             <|> try productAnnotation
-             <|> try recordAnnotation
-             <|> try variantAnnotation
-             <|> notArrowAnnotation
+typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-    padded (reservedOp "->")
-    return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation)
+                $ padded (reservedOp "->") *> return TyArrow
 
 productAnnotation :: LCTypeParser
-productAnnotation = braces $ chainl1 typeAnnotation $ do
-    padded (reservedOp "*")
-    return TyProduct
+productAnnotation = braces $ chainl1 typeAnnotation
+                           $ padded (reservedOp "*") *> return TyProduct
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = booleanAnnotation
-                 <|> stringAnnotation
-                 <|> unitAnnotation
-                 <|> natAnnotation
-                 <|> floatAnnotation
-                 <|> baseTypeAnnotation
-                 <|> topAnnotation
-                 <|> botAnnotation
+                 <|> try recordAnnotation
+                 <|> try productAnnotation
+                 <|> try variantAnnotation
+                 <|> try stringAnnotation
+                 <|> try unitAnnotation
+                 <|> try natAnnotation
+                 <|> try floatAnnotation
+                 <|> try typeVarOrID
 
 booleanAnnotation :: LCTypeParser
 booleanAnnotation = primitiveType "Bool" TyBool
@@ -258,9 +285,6 @@ natAnnotation = primitiveType "Nat" TyNat
 floatAnnotation :: LCTypeParser
 floatAnnotation = primitiveType "Float" TyFloat
 
-baseTypeAnnotation :: LCTypeParser
-baseTypeAnnotation = TyID <$> ucid
-
 recordAnnotation :: LCTypeParser
 recordAnnotation = braces $ do
     tys <- (keyValue colon typeAnnotation) `sepBy` comma
@@ -271,14 +295,16 @@ variantAnnotation = angles $ do
     ts <- (keyValue colon typeAnnotation) `sepBy` comma
     return $ TyVariant $ Map.fromList ts
 
-topAnnotation :: LCTypeParser
-topAnnotation = primitiveType "Top" TyTop
-
-botAnnotation :: LCTypeParser
-botAnnotation = primitiveType "Bot" TyBot
-
 primitiveType :: String -> Type -> LCTypeParser
 primitiveType name ty = reserved name >> return ty
+
+typeVarOrID:: LCTypeParser
+typeVarOrID = do
+    name <- ucid
+    names <- getState
+    return $ case findIndex ((== name) . fst) names of
+                  Just x -> TyVar x (length names)
+                  Nothing -> TyID name
 
 padded :: Parsec String LCNames a -> Parsec String LCNames a
 padded x = optional spaces *> x <* optional spaces

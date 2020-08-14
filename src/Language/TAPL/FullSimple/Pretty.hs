@@ -105,8 +105,6 @@ prettify (TCase _ t cs) = do
 prettify (TFix _ t) = prettify t
 
 prettifyType :: Type -> Eval (Doc a)
-prettifyType TyTop = return $ pretty "Top"
-prettifyType TyBot = return $ pretty "Bot"
 prettifyType TyBool = return $ pretty "Bool"
 prettifyType TyInt = return $ pretty "Int"
 prettifyType TyString = return $ pretty "String"
@@ -139,3 +137,9 @@ prettifyType (TyVariant ts) = do
     where f (k, ty) = do
             doc <- prettifyType ty
             return $ pretty k <> colon <> doc
+
+prettifyType (TyVar name _) = do
+    names <- get
+    case nameFromContext names name of
+         Just s -> return $ pretty s
+         Nothing -> lift $ throwE $ "[bad index in " ++ show name ++ "]"

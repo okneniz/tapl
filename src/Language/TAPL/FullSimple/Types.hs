@@ -31,22 +31,7 @@ data Term = TTrue SourcePos
           | TTag SourcePos String Term Type
           | TKeyword SourcePos String
           | TFix SourcePos Term
-          deriving (Show)
-
-data Type = TyBool
-          | TyArrow Type Type
-          | TyString
-          | TyUnit
-          | TyNat
-          | TyFloat
-          | TyInt
-          | TyProduct Type Type
-          | TyRecord (Map String Type)
-          | TyID String
-          | TyVariant (Map String Type)
-          | TyKeyword
-          | TyTop
-          | TyBot
+          | TTimesFloat SourcePos Term Term
           deriving (Show)
 
 type VarName = Int
@@ -67,9 +52,9 @@ isVal (TAbs _ _ _ _) = True
 isVal (TString _ _) = True
 isVal (TUnit _) = True
 isVal (TFloat _ _) = True
-isVal (TPair _ t1 t2) = (isVal t1) && (isVal t2)
 isVal x | isNumerical x = True
 isVal (TRecord _ ts) = all isVal $ Map.elems ts
+isVal (TPair _ t1 t2) = (isVal t1) && (isVal t2)
 isVal (TAscribe _ t _) = isVal t
 isVal (TTag _ _ t _) = isVal t
 isVal _ = False
@@ -121,3 +106,47 @@ substitution j s t = tmmap onvar 0 t
 
 substitutionTop :: Term -> Term -> Term
 substitutionTop s t = shift (-1) (substitution 0 (shift 1 s) t)
+
+data Type = TyBool
+          | TyArrow Type Type
+          | TyString
+          | TyUnit
+          | TyNat
+          | TyFloat
+          | TyInt
+          | TyProduct Type Type
+          | TyRecord (Map String Type)
+          | TyID String
+          | TyVariant (Map String Type)
+          | TyKeyword
+          | TyVar VarName Depth
+          deriving (Show)
+
+typeMap :: (Int -> Depth -> VarName -> Type) -> Int -> Type -> Type
+typeMap onVar s ty = walk s ty
+               where walk _ TyBool = TyBool
+                     walk c (TyArrow ty1 ty2) = TyArrow (walk c ty1) (walk c ty2)
+                     walk _ TyString = TyString
+                     walk _ TyUnit = TyUnit
+                     walk _ TyNat = TyNat
+                     walk _ TyFloat = TyFloat
+                     walk c (TyRecord fs) = TyRecord $ Map.map (walk c) fs
+                     walk _ x@(TyID _) = x
+                     walk c (TyVariant fs) = TyVariant $ Map.map (walk c) fs
+                     walk c (TyVar x n) = onVar c x n
+
+typeShiftAbove :: Depth -> VarName -> Type -> Type
+typeShiftAbove d c ty = typeMap onVar c ty
+                  where onVar c name depth | name >= c = TyVar (name + d) (depth + d)
+                        onVar c name depth = TyVar name (depth + d)
+
+typeShift :: VarName -> Type -> Type
+typeShift d ty = typeShiftAbove d 0 ty
+
+typeSubstitution :: VarName -> Type -> Type -> Type
+typeSubstitution j s ty = typeMap onVar 0 ty
+                    where onVar c name depth | name == j + c = typeShift c s
+                          onVar c name depth = TyVar name depth
+
+typeSubstitutionTop :: Type -> Type -> Type
+typeSubstitutionTop s ty = typeShift (-1) (typeSubstitution 0 (typeShift 1 s) ty)

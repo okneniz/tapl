@@ -20,6 +20,7 @@ spec = do
                   ("\"foo\"", "\"foo\":String"),
                   ("unit", "unit:Unit"),
                   ("1.1", "1.1:Float"),
+                  ("1", "1:Int"),
                   ("1.1000001", "1.1000001:Float")
                 ]
            mapM_ test examples
@@ -94,11 +95,7 @@ spec = do
                     ("(lambda x:A.x)", "(lambda x.x):(A -> A)"),
                     ("(lambda x:Top.x)", "(lambda x.x):(Top -> Top)"),
                     ("(lambda x:Bot.x)", "(lambda x.x):(Bot -> Bot)"),
-                    ("(lambda x:Bot.x)", "(lambda x.x):(Bot -> Bot)"),
-                    ("(lambda x:{Bot*Top}.x.1)", "(lambda x.x.1):({Bot*Top} -> Top)"),
-                    ("(lambda x:{Bool*{Unit*Top}}.true)", "(lambda x.true):({Bool*{Unit*Top}} -> Bool)"),
-                    ("(lambda x:{Bool*{Unit*(A->B)}}.x)", "(lambda x.x):({Bool*{Unit*(A -> B)}} -> {Bool*{Unit*(A -> B)}})"),
-                    ("(lambda x:{Bool*{Unit*{Unit*Float}}}.x)", "(lambda x.x):({Bool*{Unit*{Unit*Float}}} -> {Bool*{Unit*{Unit*Float}}})")
+                    ("(lambda x:Bot.x)", "(lambda x.x):(Bot -> Bot)")
                  ]
             mapM_ test examples
 
@@ -120,7 +117,10 @@ spec = do
                   ("pred succ zero", "zero:Nat"),
                   ("succ pred pred zero", "succ zero:Nat"),
                   ("zero? zero", "true:Bool"),
-                  ("zero? succ zero", "false:Bool")
+                  ("zero? succ zero", "false:Bool"),
+                  ("timesfloat 1.0 2.0", "2.0:Float"),
+                  ("timesfloat (timesfloat 1.3 1.111) 2.0", "2.8886000000000003:Float"),
+                  ("timesfloat (timesfloat 3.14 2.0) 10.0", "62.800000000000004:Float")
                  ]
             mapM_ test examples
 
@@ -146,9 +146,9 @@ spec = do
                     \lambda z:Float. \
                     \lambda p:Float. \
                     \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14 9.8", "9.8:Float"),
-                  ("(lambda x:{a:Bool}.x) {a=true, b=false}", "{a=true, b=false}:{a=Bool, b=Bool}"),
-                  ("(lambda x:{a:Bool}.if x.a then false else true) {a=true, b=false}", "false:Bool"),
-                  ("(lambda x:<a:Unit>.x) <a=unit> as <a:Unit,b:Unit,c:Nat>", "<a=unit>:<a:Unit, b:Unit, c:Nat>")
+                  ("(lambda x:{a:Bool,b:Bool}.x) {a=true, b=false}", "{a=true, b=false}:{a=Bool, b=Bool}"),
+                  ("(lambda x:{a:Bool,b:Bool}.if x.a then false else true) {a=true, b=false}", "false:Bool"),
+                  ("(lambda x:<a:Unit,b:Unit,c:Nat>.x) <a=unit> as <a:Unit,b:Unit,c:Nat>", "<a=unit>:<a:Unit, b:Unit, c:Nat>")
                  ]
             mapM_ test examples
 
@@ -160,5 +160,34 @@ spec = do
                     "let ff = (lambda ie:Nat -> Bool.lambda x:Nat.if zero? x then true else (if zero? (pred x) then false else ie (pred pred x))) in let iseven = fix ff in iseven",
                     "(lambda x.if zero? x then true else if zero? pred x then false\n                                    else (lambda ie.(lambda x'.if zero? x'\n                                                               then true\n                                                               else if zero? pred x'\n                                                                    then false\n                                                                    else ie pred pred x')) pred pred x):(Nat -> Bool)"
                   )
+                 ]
+            mapM_ test examples
+
+        describe "type binding" $ do
+            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
+                examples = [
+                    (
+                      "T = Nat->Nat",
+                      ""
+                    ),
+                    (
+                      "Bit = Bool; (lambda x:Bit.x)",
+                      "(lambda x.x):(Bit -> Bit)"
+                    ),
+                    (
+                      "T = Nat->Nat; \
+                      \ (lambda x:T.x zero) (lambda y:Nat. if zero? y then succ y else y)",
+                      "succ zero:Nat"
+                    ),
+                    (
+                      "T = Nat->Nat; \
+                      \ (lambda f:T. (lambda x:Nat. f x))",
+                      "(lambda f.(lambda x.f x)):(T -> (Nat -> Nat))"
+                    ),
+                    (
+                      "T = Nat->Nat; \
+                      \ (lambda f:T. (lambda x:Nat. f (f x)))",
+                      "(lambda f.(lambda x.f f x)):(T -> (Nat -> Nat))"
+                    )
                  ]
             mapM_ test examples
