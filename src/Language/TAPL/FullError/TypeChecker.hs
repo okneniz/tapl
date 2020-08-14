@@ -1,8 +1,5 @@
 module Language.TAPL.FullError.TypeChecker (typeOf) where
 
-import Data.List (tails, (\\), intercalate)
-
-import Control.Monad (when, unless)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
@@ -50,7 +47,6 @@ typeOf (TIf info t1 t2 t3) = do
     joinTypes ty2 ty3
 
 typeOf (TError _) = return TyBot
-
 typeOf (TTry _ t1 t2) = do
     ty1 <- typeOf t1
     ty2 <- typeOf t2
@@ -109,10 +105,8 @@ joinTypes tyS tyT = do
             else do tyS' <- simplifyType tyS
                     tyT' <- simplifyType tyT
                     case (tyS',tyT') of
-                         (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> do
-                            ty1 <- meetTypes tyS1 tyT1
-                            ty2 <- joinTypes tyS2 tyT2
-                            return $ TyArrow ty1 ty2
+                         (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) ->
+                            TyArrow <$> meetTypes tyS1 tyT1 <*> joinTypes tyS2 tyT2
                          _ -> return TyTop
 
 meetTypes :: Type -> Type -> Eval Type
@@ -126,10 +120,8 @@ meetTypes tyS tyT = do
             else do tyS' <- simplifyType tyS
                     tyT' <- simplifyType tyT
                     case (tyS',tyT') of
-                         (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> do
-                            ty1 <- joinTypes tyS1 tyT1
-                            ty2 <- meetTypes tyS2 tyT2
-                            return $ TyArrow ty1 ty2
+                         (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) ->
+                            TyArrow <$> joinTypes tyS1 tyT1 <*> meetTypes tyS2 tyT2
                          _ -> return TyBot
 
 computeType :: Type -> Eval (Maybe Type)
