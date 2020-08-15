@@ -54,11 +54,3 @@ getTypeAbb names varName =
     case getBinding names varName of
          (Just (TypeAddBind ty)) -> Just ty
          _ -> Nothing
-
-withTmpStateT :: Monad m => (s -> s) -> StateT s m b -> StateT s m b
-withTmpStateT f g = do
-    s <- get
-    modify f
-    x <- g
-    put s
-    return x

@@ -7,6 +7,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
+import Language.TAPL.Common.Helpers
 import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Context
 

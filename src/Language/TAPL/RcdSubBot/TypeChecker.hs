@@ -9,6 +9,7 @@ import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
+import Language.TAPL.Common.Helpers
 import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Context
 

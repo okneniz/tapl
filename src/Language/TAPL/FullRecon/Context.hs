@@ -86,11 +86,3 @@ termSubstitution j s t = termMap onvar 0 t
 
 termSubstitutionTop :: Term -> Term -> Term
 termSubstitutionTop s t = termShift (-1) (termSubstitution 0 (termShift 1 s) t)
-
-withTmpStateT :: Monad m => (s -> s) -> StateT s m b -> StateT s m b
-withTmpStateT f g = do
-    s <- get
-    modify f
-    x <- g
-    put s
-    return x
