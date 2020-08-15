@@ -61,10 +61,3 @@ bindingShift d NameBind = NameBind
 bindingShift d (VarBind ty) = VarBind (typeShift d ty)
 bindingShift d TypeVarBind = TypeVarBind
 bindingShift d (TypeAddBind ty) = TypeAddBind (typeShift d ty)
-
-withTmpStateT f g = do
-    s <- get
-    modify f
-    x <- g
-    put s
-    return x

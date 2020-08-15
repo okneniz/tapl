@@ -9,6 +9,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 import Text.Parsec (SourcePos)
 
+import Language.TAPL.Common.Helpers (withTmpStateT)
 import Language.TAPL.Bot.Types
 import Language.TAPL.Bot.Context
 

@@ -8,6 +8,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
+import Language.TAPL.Common.Helpers (withTmpStateT)
 import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Context
 

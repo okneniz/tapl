@@ -43,10 +43,3 @@ findVarName names name = findIndex ((== name) . fst) names
 bindingType names varName = liftM snd $ pickVar names varName
 
 getBinding names varName = bindingType names varName
-
-withTmpStateT f g = do
-    s <- get
-    modify f
-    x <- g
-    put s
-    return x

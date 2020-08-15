@@ -10,7 +10,7 @@ import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
-import Language.TAPL.Common.Helpers (unlessM)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
 import Language.TAPL.FullEquirec.Types
 import Language.TAPL.FullEquirec.Context
 

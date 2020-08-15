@@ -55,14 +55,6 @@ bindingShift d (VarBind ty) = VarBind (typeShift d ty)
 bindingShift d TypeVarBind = TypeVarBind
 bindingShift d (TypeAddBind ty) = TypeAddBind (typeShift d ty)
 
-withTmpStateT f g = do
-    s <- get
-    modify f
-    x <- g
-    put s
-    return x
-    return x
-
 computeType :: Type -> Eval (Maybe Type)
 computeType (TyVar i _) = do
     n <- get

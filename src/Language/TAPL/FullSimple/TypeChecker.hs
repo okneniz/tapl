@@ -11,7 +11,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
-import Language.TAPL.Common.Helpers (unlessM)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Pretty
 import Language.TAPL.FullSimple.Context
