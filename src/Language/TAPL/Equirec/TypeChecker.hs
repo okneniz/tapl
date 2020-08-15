@@ -1,82 +1,94 @@
-module Language.TAPL.Equirec.TypeChecker (typeOf, typeShiftAbove) where
+module Language.TAPL.Equirec.TypeChecker (typeOf) where
 
-import Control.Monad (liftM)
+import qualified Data.Map.Lazy as Map
+import Data.List (tails, (\\), intercalate, sort)
 
+import Control.Monad (when, unless)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
+import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
+import Language.TAPL.Common.Helpers (unlessM)
 import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Context
 
-type Inferred a = ExceptT TypeError (State LCNames) a
-data TypeError = TypeMissmatch SourcePos String
+typeOf :: Term -> Eval Type
+typeOf (TVar p v _) = do
+    n <- get
+    case getBinding n v of
+         (Just (VarBind ty)) -> return ty
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         Nothing -> typeError p "var type error"
 
-typeOf :: LCNames -> Term -> Either String Type
-typeOf names term =
-    case evalState (runExceptT (infer term)) names of
-         Left x -> Left $ show x
-         Right x -> return x
+typeOf (TAbs _ x tyT1 t2) = do
+    withTmpStateT (addVar x tyT1) $ do
+        tyT2 <- typeOf t2
+        return $ TyArrow tyT1 (typeShift (-1) tyT2)
 
-infer :: Term -> Inferred Type
-infer (TVar info varname _) = do
-    names <- lift get
-    case liftM snd $ pickVar names varname of
-         Just (VarBind ty') -> return ty'
-         Just _ -> throwE $ TypeMissmatch info $ "wrong kind of binding for variable"
-         Nothing -> throwE $ TypeMissmatch info $ "var type error"
+typeOf (TApp p t1 t2) = do
+    tyT1 <- typeOf t1
+    tyT2 <- typeOf t2
+    tyT1' <- simplifyType tyT1
+    case tyT1' of
+         (TyArrow tyT11 tyT12) -> do
+            x <- typeEq tyT2 tyT11
+            if x
+            then return tyT12
+            else typeError p $ "incorrect application of abstraction " ++ show tyT2 ++ " to " ++ show tyT11
+         _ -> typeError p $ "incorrect application " ++ show tyT1 ++ " and " ++ show tyT2
 
-infer (TApp info t1 t2) = do
-    ty1 <- infer t1
-    ty2 <- infer t2
-    names <- lift get
-    case simplifyType names ty1 of
-         (TyArrow ty1' ty2') ->
-             if ty2 <: ty1'
-             then return ty2'
-             else throwE $ TypeMissmatch info $ "incorrect application of abstraction"
-         _ -> throwE $ TypeMissmatch info $ "incorrect application"
+typeError :: SourcePos -> String -> Eval a
+typeError p message = lift $ throwE $ show p ++ ":" ++ message
 
-infer (TAbs _ name ty t) = do
-    names <- lift get
-    lift $ modify $ bind name (VarBind ty)
-    ty' <- infer t
-    lift $ put names
-    return $ TyArrow ty (typeShift (-1) ty')
+argumentError :: SourcePos -> Type -> Type -> Eval a
+argumentError p expected actual = typeError p message
+    where message = "Argument error, expected " ++ show expected  ++ ". Got " ++ show actual ++ "."
 
-computeType :: a -> Type -> Maybe Type
-computeType _ tyS@(TyRec _ tyS1) = Just $ typeSubstitutionTop tyS tyS1
-computeType _ _ = Nothing
+typeEq :: Type -> Type -> Eval Bool
+typeEq tyS tyT = do
+    names <- get
+    return $ typeEq' [] names tyS tyT
+    where mem _ [] = False
+          mem y (x:xs) = (y == x) || (mem y xs)
+          typeEq' seen ns ty1 ty2 =
+            if mem (tyS,tyT) seen
+            then True
+            else typeEq'' [] ns ty1 ty2
+          typeEq'' seen n (TyRec _ tyS1) _ = typeEq' ((tyS, tyT):seen) n (typeSubstitutionTop tyS tyS1) tyT
+          typeEq'' seen n _ (TyRec _ tyT1) = typeEq' ((tyS, tyT):seen) n tyS (typeSubstitutionTop tyT tyT1)
+          typeEq'' _ _ (TyID b1) (TyID b2) = b1 == b2
 
-simplifyType :: a -> Type -> Type
-simplifyType c ty = case computeType c ty of
-                         Just x -> simplifyType c x
-                         _ -> ty
+          typeEq'' seen n (TyVar i _) tyT1 | isTypeAbb n i =
+            case (getTypeAbb n i) of
+                Just x -> typeEq' seen n x tyT1
+                _ -> False
 
-typeMap :: (Int -> Depth -> VarName -> Type) -> Int -> Type -> Type
-typeMap onVar s ty = walk s ty
-               where walk c (TyVar x n) = onVar c x n
-                     walk c (TyRec x ty1) = TyRec x (walk (c + 1) ty1)
-                     walk _ (TyID x) = TyID x
-                     walk c (TyArrow ty1 ty2) = TyArrow (walk c ty1) (walk c ty2)
+          typeEq'' seen n tyS1 (TyVar i _) | isTypeAbb n i =
+            case (getTypeAbb n i) of
+                Just x -> typeEq' seen n tyS1 x
+                _ -> False
 
-typeShiftAbove :: Depth -> VarName -> Type -> Type
-typeShiftAbove d s ty = typeMap onVar s ty
-                  where onVar c name depth | name >= c = TyVar (name + d) (depth + d)
-                        onVar _ name depth = TyVar name (depth + d)
+          typeEq'' _ _ (TyVar _ i) (TyVar _ j) = i == j
+          typeEq'' seen n (TyArrow tyS1 tyS2) (TyArrow tyT1 tyT2) = (typeEq' seen n tyS1 tyT1) && (typeEq' seen n tyS2 tyT2)
+          typeEq'' _ _ _ _ = False
 
-typeShift :: VarName -> Type -> Type
-typeShift d ty = typeShiftAbove d 0 ty
+computeType :: Type -> Eval (Maybe Type)
+computeType ty@(TyRec _ tyS) = do
+    return $ Just $ typeSubstitutionTop ty tyS
 
-typeSubstitution :: VarName -> Type -> Type -> Type
-typeSubstitution j s ty = typeMap onVar 0 ty
-                    where onVar c name _ | name == j + c = typeShift c s
-                          onVar _ name depth = TyVar name depth
+computeType (TyVar i _) = do
+    n <- get
+    if isTypeAbb n i
+    then return $ getTypeAbb n i
+    else return Nothing
 
-typeSubstitutionTop :: Type -> Type -> Type
-typeSubstitutionTop s ty = typeShift (-1) (typeSubstitution 0 (typeShift 1 s) ty)
+computeType _ = return Nothing
 
-instance Show TypeError where
-    show (TypeMissmatch p message) = message ++ " in " ++ show p
+simplifyType :: Type -> Eval Type
+simplifyType ty = do
+    n <- computeType ty
+    case n of
+         Just x -> simplifyType x
+         _ -> return ty

@@ -29,37 +29,16 @@ reserved :: String -> Parsec String u ()
 reserved = Token.reserved lexer
 
 reservedOp :: String -> Parsec String u ()
-reservedOp = Token.reservedOp    lexer
+reservedOp = Token.reservedOp lexer
 
 parens :: Parsec String u a -> Parsec String u a
 parens = Token.parens lexer
 
-braces :: Parsec String u a -> Parsec String u a
-braces = Token.braces lexer
-
-angles :: Parsec String u a -> Parsec String u a
-angles = Token.angles lexer
-
-comma :: Parsec String u String
-comma = Token.comma lexer
-
-floatNum :: Parsec String u Double
-floatNum = Token.float lexer
-
-natural :: Parsec String u Integer
-natural = Token.natural lexer
-
 semi :: Parsec String u String
 semi = Token.semi lexer
-
-whiteSpace :: Parsec String u ()
-whiteSpace = Token.whiteSpace lexer
 
 dot :: Parsec String u String
 dot = Token.dot lexer
 
 colon :: Parsec String u String
 colon = Token.colon lexer
-
-stringLiteral :: Parsec String u String
-stringLiteral = Token.stringLiteral lexer
