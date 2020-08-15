@@ -3,7 +3,6 @@ module Language.TAPL.FullRecon.Context where
 import Data.Maybe
 import Control.Monad (liftM)
 import Control.Monad.Trans.Except
-import Control.Monad.Trans.Reader
 import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
@@ -11,8 +10,19 @@ import Text.Parsec (SourcePos)
 import Language.TAPL.FullRecon.Types
 
 type LCNames = [(String,Binding)]
+data LCState = LCState { names :: LCNames, varIndex :: VarIndex, constraints :: [Constraint] } deriving (Show)
+type Eval a = StateT LCState (Except String) a
 
-type Eval a = ReaderT LCNames (ExceptT String (State (VarIndex, [Constraint]))) a
+newState :: LCNames -> LCState
+newState x = LCState { names = x, varIndex = 0, constraints = [] }
+
+getNames :: Eval LCNames
+getNames = do
+    state <- get
+    return $ names state
+
+putVar :: String -> Type -> LCState -> LCState
+putVar x ty state = state { names = (bind x (VarBind ty) (names state)) }
 
 bind :: String -> Binding -> LCNames -> LCNames
 bind x b n = (x,b):n
@@ -76,3 +86,11 @@ termSubstitution j s t = termMap onvar 0 t
 
 termSubstitutionTop :: Term -> Term -> Term
 termSubstitutionTop s t = termShift (-1) (termSubstitution 0 (termShift 1 s) t)
+
+withTmpStateT :: Monad m => (s -> s) -> StateT s m b -> StateT s m b
+withTmpStateT f g = do
+    s <- get
+    modify f
+    x <- g
+    put s
+    return x

@@ -1,6 +1,5 @@
 module Language.TAPL.FullRecon.TypeReconstructor (reconstruct) where
 
-import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Class (lift)
@@ -40,22 +39,21 @@ recover (TIf _ t1 t2 t3) = do
     return tyT3
 
 recover (TVar info varName _) = do
-    names <- ask
-    case pickVar names varName of
+    n <- getNames
+    case pickVar n varName of
          Just (_, VarBind ty) -> return ty
          _ -> lift $ throwE $ show $ TypeMissmatch info "Wrong type of binding"
 
 recover (TAbs _ x (Just tyT1) t2) =
-    local (bind x (VarBind(tyT1))) $ do
+    withTmpStateT (putVar x tyT1) $ do
         tyT2 <- recover t2
         return $ TyArrow tyT1 tyT2
 
 recover (TAbs _ x Nothing t2) = do
     u <- newVar
-    let tyX = TyID u
-    local (bind x (VarBind tyX)) $ do
+    withTmpStateT (putVar x (TyID u)) $ do
         tyT2 <- recover t2
-        return $ TyArrow tyX tyT2
+        return $ TyArrow (TyID u) tyT2
 
 recover (TApp _ t1 t2) = do
     tyT1 <- recover t1
@@ -68,22 +66,17 @@ recover (TLet _ x t1 t2) | isVal t1 = recover $ termSubstitutionTop t1 t2
 
 recover (TLet _ x t1 t2) = do
     tyT1 <- recover t1
-    local (bind x (VarBind tyT1)) $ do
-        tyT2 <- recover t2
-        return tyT2
+    withTmpStateT (putVar x tyT1) (recover t2)
 
 newVar :: Eval String
 newVar = do
-    (varIndex, constraints) <- lift.lift $ get
-    lift.lift $ put (varIndex + 1, constraints)
-    return $ "x" ++ show varIndex
+    state <- get
+    let x = "x" ++ show (varIndex state)
+    put $ state { varIndex = ((varIndex state) + 1) }
+    return x
 
 prependConstraint :: (Type, Type) -> Eval ()
-prependConstraint c = do
-    (varIndex, constraints) <- lift.lift $ get
-    lift.lift $ put (varIndex , [c] ++ constraints)
+prependConstraint c = modify $ \state -> state { constraints = [c] ++ (constraints state) }
 
 appendConstraint :: (Type, Type) -> Eval ()
-appendConstraint c = do
-    (varIndex, constraints) <- lift.lift $ get
-    lift.lift $ put (varIndex , constraints ++ [c])
+appendConstraint c = modify $ \state -> state { constraints = (constraints state) ++ [c] }

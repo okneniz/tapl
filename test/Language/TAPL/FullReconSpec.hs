@@ -32,10 +32,10 @@ spec = do
                     ("(lambda x:Bool.lambda y:A.x)", pass "(lambda x.(lambda y.x)):(Bool -> (A -> Bool))"),
                     ("(lambda x:Bool.lambda y:A.y)", pass "(lambda x.(lambda y.y)):(Bool -> (A -> A))"),
                     ("(lambda x:(Bool -> A).lambda y:A.y)", pass "(lambda x.(lambda y.y)):((Bool -> A) -> (A -> A))"),
-                    ("(lambda x:A -> A.lambda y:A.x y)", pass "(lambda x.(lambda y.x y)):((x0 -> x0) -> (x0 -> x0))"),
+                    ("(lambda x:A -> A.lambda y:A.x y)", pass "(lambda x.(lambda y.x y)):((A -> A) -> (A -> x0))"),
                     ("(lambda x:A.x)", pass "(lambda x.x):(A -> A)"),
-                    ("(lambda x. x zero);", pass "(lambda x.x zero):((Nat -> x3) -> x3)"),
-                    ("(lambda x:X. lambda y:X->X. y x)", pass "(lambda x.(lambda y.y x)):(x0 -> ((x0 -> x0) -> x0))")
+                    ("(lambda x.x zero);", pass "(lambda x.x zero):(x1 -> x2)"),
+                    ("(lambda x:X.lambda y:X->X.y x)", pass "(lambda x.(lambda y.y x)):(X -> ((X -> X) -> x0))")
                  ]
 
     describe "operations" $ do
@@ -61,7 +61,7 @@ spec = do
                   ("(lambda x:Nat. succ x) zero", pass "succ zero:Nat"),
                   (
                     "(lambda x:Bool -> Bool.lambda y:A. x true)",
-                    pass "(lambda x.(lambda y.x true)):((Bool -> Bool) -> (A -> Bool))"
+                    pass "(lambda x.(lambda y.x true)):((Bool -> Bool) -> (A -> x0))"
                   ),
                   ("(lambda x:Nat. succ x) succ zero", pass "succ succ zero:Nat"),
                   ("(lambda x:Nat -> Nat. x zero) (lambda x:Nat. succ x)", pass "succ zero:Nat"),
@@ -69,7 +69,7 @@ spec = do
                     "(lambda x:Bool->Bool. if x false then true else false) (lambda x:Bool. if x then false else true);",
                     pass "true:Bool"
                   ),
-                  ("(lambda x. x zero);", pass "(lambda x.x zero):((Nat -> x3) -> x3)"),
+                  ("(lambda x. x zero);", pass "(lambda x.x zero):(x1 -> x2)"),
                   ("(lambda x:X->X. x zero) (lambda y:Nat. y)", pass "zero:Nat")
                  ]
 
