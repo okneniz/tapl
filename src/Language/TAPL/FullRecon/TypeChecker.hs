@@ -8,8 +8,6 @@ import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Context
 import Language.TAPL.FullRecon.TypeReconstructor
 
-import Debug.Trace
-
 typeOf :: Term -> Eval Type
 typeOf t = do
     ty <- reconstruct t
