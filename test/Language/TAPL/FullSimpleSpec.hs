@@ -165,22 +165,39 @@ spec = do
                     )
                  ]
 
-        describe "church bool" $ do
+        describe "Church bools" $ do
+           let definitions = "B = Nat->Nat; \
+               \let tru = (lambda t:B.(lambda f:B. t)) in \
+               \let fls = (lambda t:B.(lambda f:B. f))"
+
            tests evalString [
                     (
-                      "B = Nat->Nat; \
-                      \let tru = (lambda t:B.(lambda f:B. t)) in \
-                      \let fls = (lambda t:B.(lambda f:B. f)) in \
-                      \fls \
-                      \",
+                      definitions ++ " in fls",
                       pass "(lambda t.(lambda f.f)):(fls -> (fls -> fls))" -- wtf ?
                     ),
                     (
-                      "B = Nat->Nat; \
-                      \let tru = (lambda t:B.(lambda f:B. t)) in \
-                      \let fls = (lambda t:B.(lambda f:B. f)) in \
-                      \tru \
-                      \",
+                      definitions ++ " in tru",
                       pass "(lambda t.(lambda f.t)):(B -> (B -> B))"
+                    )
+                 ]
+
+        describe "Church pairs" $ do
+           let definitions = "Pair = Bool->Nat; \
+                \let pair = (lambda f:Nat.(lambda s:Nat.(lambda i:Bool.if i then f else s))) in \
+                \let first = (lambda p:Pair.p true) in \
+                \let second = (lambda p:Pair.p false)"
+
+           tests evalString [
+                    (
+                      definitions ++ "in pair (zero) (succ zero)",
+                      pass "(lambda i.if i then zero else succ zero):(Bool -> Nat)"
+                    ),
+                    (
+                      definitions ++ "in let x = pair (zero) (succ zero) in first x",
+                      pass "zero:Nat"
+                    ),
+                    (
+                      definitions ++ "in let x = pair (zero) (succ zero) in second x",
+                      pass "succ zero:Nat"
                     )
                  ]
