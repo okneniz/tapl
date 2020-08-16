@@ -4,9 +4,7 @@ import Data.Map (Map)
 import qualified Data.Map.Lazy as Map
 import Text.Parsec (SourcePos)
 
-data Command = Eval [Term]
-             | Bind SourcePos String Binding
-             deriving (Show)
+data Command = Eval [Term] deriving (Show)
 
 data Term = TTrue SourcePos
           | TFalse SourcePos
@@ -74,6 +72,7 @@ tmmap onvar s t = walk s t
                   walk c (TRecord p fields) = TRecord p $ Map.map (walk c) fields
                   walk c (TProj p r k) = TProj p (walk c r) k
                   walk c (TLet p x t1 t2) = TLet p x (walk c t1) (walk (c+1) t2)
+                  walk c (TTimesFloat p t1 t2) = TTimesFloat p (walk c t1) (walk c t2)
                   walk _ t1@(TKeyword _ _) = t1
 
 termShiftAbove :: Depth -> VarName -> Term -> Term

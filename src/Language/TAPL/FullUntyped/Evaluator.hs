@@ -1,7 +1,6 @@
 module Language.TAPL.FullUntyped.Evaluator (evalString) where
 
 import qualified Data.Map.Lazy as Map
-import Control.Monad (liftM)
 
 import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.FullUntyped.Types
@@ -9,7 +8,6 @@ import Language.TAPL.FullUntyped.Parser
 import Language.TAPL.FullUntyped.Pretty
 import Language.TAPL.FullUntyped.Context
 
-import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
@@ -85,10 +83,11 @@ normalize (TLet p v t1 t2) = normalize t1 >>= \t1' -> return $ TLet p v t1' t2
 normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) =
     return $ TFloat p (t1 * t2)
 
-normalize (TTimesFloat p t1@(TFloat _ _) t2) =
-    TTimesFloat p t1 <$> normalize t2
+normalize (TTimesFloat p t1 t2) | isVal t1 = do
+    t2' <- normalize t2
+    return $ TTimesFloat p t1 t2'
 
-normalize (TTimesFloat p t1 t2@(TFloat _ _)) = do
+normalize (TTimesFloat p t1 t2) | isVal t2 = do
     t1' <- normalize t1
     return $ TTimesFloat p t1' t2
 

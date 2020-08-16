@@ -208,3 +208,168 @@ spec = do
                       pass "false"
                     )
                  ]
+
+        describe "Church numbers" $ do
+           let definitions = "\
+               \let z =           (lambda f.(lambda x.x)) in \
+               \let one =         (lambda f.(lambda x.f x)) in \
+               \let two =         (lambda f.(lambda x.f (f x))) in \
+               \let three =       (lambda f.(lambda x.f (f (f x)))) in \
+               \let four =        (lambda f.(lambda x.f (f (f (f x))))) in \
+               \let five =        (lambda f.(lambda x.f (f (f (f (f x)))))) in \
+               \let six =         (lambda f.(lambda x.f (f (f (f (f (f x))))))) in \
+               \let seven =       (lambda f.(lambda x.f (f (f (f (f (f (f x)))))))) in \
+               \let eight =       (lambda f.(lambda x.f (f (f (f (f (f (f (f x))))))))) in \
+               \let nine =        (lambda f.(lambda x.f (f (f (f (f (f (f (f (f x)))))))))) in \
+               \let ten =         (lambda f.(lambda x.f (f (f (f (f (f (f (f (f (f x))))))))))) in \
+               \let plus =        (lambda m.(lambda n.(lambda f.(lambda x.m f (n f x))))) in \
+               \let successor =   (lambda n.(lambda f.(lambda x.n f x))) in \
+               \let multiply =    (lambda m.(lambda n.(lambda f.(lambda x.(m (n f)) x)))) in \
+               \let exp =         (lambda m.(lambda n.m n)) in \
+               \let cube =        exp two in \
+               \let predecessor = (lambda n.(lambda f.(lambda x.n (lambda g.(lambda h.h (g f))) (lambda u.x) (lambda u.u)))) in \
+               \let minus =       (lambda m.(lambda n.(n predecessor) m)) in \
+               \"
+
+           tests evalString [
+                    (
+                      definitions ++ "plus z one",
+                      pass "(lambda f.(lambda x.(lambda f'.(lambda x'.x')) f (lambda f'.(lambda x'.f' x')) f x))"
+                    ),
+                    (
+                      definitions ++ "successor z",
+                      pass "(lambda f.(lambda x.(lambda f'.(lambda x'.x')) f x))"
+                    ),
+                    (
+                      definitions ++ "successor one",
+                      pass "(lambda f.(lambda x.(lambda f'.(lambda x'.f' x')) f x))"
+                    ),
+                    (
+                      definitions ++ "multiply two five",
+                      pass "(lambda f.(lambda x.(lambda f'.(lambda x'.f' f' x')) (lambda f'.(lambda x'.f' f' f' f' f' x')) f x))"
+                    ),
+
+                    (
+                      definitions ++ "z (lambda x.timesfloat x 2.0) 3.0",
+                      pass "3.0"
+                    ),
+                    (
+                      definitions ++ "one (lambda x.timesfloat x 2.0) 3.0",
+                      pass "6.0"
+                    ),
+                    (
+                      definitions ++ "two (lambda x.timesfloat x 2.0) 3.0",
+                      pass "12.0"
+                    ),
+                    (
+                      definitions ++ "three (lambda x.timesfloat x 2.0) 3.0",
+                      pass "24.0"
+                    ),
+                    (
+                      definitions ++ "four (lambda x.timesfloat x 2.0) 3.0",
+                      pass "48.0"
+                    ),
+                    (
+                      definitions ++ "five (lambda x.timesfloat x 2.0) 3.0",
+                      pass "96.0"
+                    ),
+                    (
+                      definitions ++ "six (lambda x.timesfloat x 2.0) 3.0",
+                      pass "192.0"
+                    ),
+                    (
+                      definitions ++ "seven (lambda x.timesfloat x 2.0) 3.0",
+                      pass "384.0"
+                    ),
+                    (
+                      definitions ++ "eight (lambda x.timesfloat x 2.0) 3.0",
+                      pass "768.0"
+                    ),
+                    (
+                      definitions ++ "nine (lambda x.timesfloat x 2.0) 3.0",
+                      pass "1536.0"
+                    ),
+                    (
+                      definitions ++ "ten (lambda x.timesfloat x 2.0) 3.0",
+                      pass "3072.0"
+                    ),
+
+                    (
+                      definitions ++ "z two (lambda x.timesfloat x 2.0) 3.0",
+                      pass "6.0"
+                    ),
+                    (
+                      definitions ++ "z ten (lambda x.timesfloat x 2.0) 3.0",
+                      pass "6.0"
+                    ),
+
+                    (
+                      definitions ++ "successor one (lambda x.timesfloat x 2.0) 3.0",
+                      pass "6.0"
+                    ),
+
+                    (
+                      definitions ++ "predecessor two (lambda x.timesfloat x 2.0) 3.0",
+                      pass "6.0"
+                    ),
+
+                    (
+                      definitions ++ "((multiply three two) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "192.0"
+                    ),
+                    (
+                      definitions ++ "((multiply two three) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "192.0"
+                    ),
+
+                    (
+                      definitions ++ "((plus z six) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "192.0"
+                    ),
+                    (
+                      definitions ++ "((plus three (plus one (plus two z))) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "192.0"
+                    ),
+                    (
+                      definitions ++ "((plus three (plus one (successor two))) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "192.0"
+                    ),
+                    (
+                      definitions ++ "((minus seven one) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "192.0"
+                    ),
+                    (
+                      definitions ++ "((minus eight two) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "192.0"
+                    ),
+                    (
+                      definitions ++ "((minus ten four) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "192.0"
+                    ),
+
+                    (
+                      definitions ++ "((multiply two two) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "48.0"
+                    ),
+                    (
+                      definitions ++ "((exp two two) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "48.0"
+                    ),
+                    (
+                      definitions ++ "((cube two) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "48.0"
+                    ),
+
+                    (
+                      definitions ++ "((multiply two (multiply two two)) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "768.0"
+                    ),
+                    (
+                      definitions ++ "((exp three two) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "768.0"
+                    ),
+                    (
+                      definitions ++ "((exp three (predecessor three)) (lambda x.timesfloat x 2.0)) 3.0",
+                      pass "768.0"
+                    )
+                 ]

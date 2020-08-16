@@ -80,3 +80,8 @@ prettify (TLet _ v t1 t2) = do
     doc1 <- prettify t1
     doc2 <- prettify t2
     return $ pretty "let" <+> align (pretty v <+> equals <+> doc1 <+> pretty "in" <+> doc2)
+
+prettify (TTimesFloat _ t1 t2) = do
+    doc1 <- prettify t1
+    doc2 <- prettify t2
+    return $ pretty "timesfloat" <+> doc1 <+> doc2
