@@ -106,5 +106,4 @@ normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = return $ TFloat p (t1 * 
 normalize (TTimesFloat p t1 t2) | isVal t1 = TTimesFloat p t1 <$> normalize t2
 normalize (TTimesFloat p t1 t2) = normalize t1 >>= \t1' -> return $ TTimesFloat p t1' t2
 
-
 normalize _ = Nothing
