@@ -98,18 +98,113 @@ spec = do
                   ("(lambda x.if x.a then false else true) {a=true, b=false}", pass "false")
                  ]
 
-        describe "Church bools" $ do
+        describe "Church Booleans" $ do
            let definitions = "\
                \let tru = (lambda t.(lambda f.t)) in \
-               \let fls = (lambda t.(lambda f.f))"
+               \let fls = (lambda t.(lambda f.f)) in \
+               \let and = (lambda p.(lambda q.(p q) p)) in \
+               \let or = (lambda p.(lambda q.(p p) q)) in \
+               \let not = (lambda p.(lambda a.(lambda b.p b a))) in \
+               \let xor = (lambda a.(lambda b.a (not b) b)) in \
+               \let churchif = (lambda p.(lambda a.(lambda b.p a b))) in \
+               \"
 
            tests evalString [
                     (
-                      definitions ++ " in fls",
+                      definitions ++ "fls",
                       pass "(lambda t.(lambda f.f))"
                     ),
                     (
-                      definitions ++ " in tru",
+                      definitions ++ "tru",
                       pass "(lambda t.(lambda f.t))"
+                    ),
+
+                    (
+                      definitions ++ "and",
+                      pass "(lambda p.(lambda q.p q p))"
+                    ),
+                    (
+                      definitions ++ "and tru tru",
+                      pass "(lambda t.(lambda f.t))"
+                    ),
+                    (
+                      definitions ++ "and tru fls",
+                      pass "(lambda t.(lambda f.f))"
+                    ),
+                    (
+                      definitions ++ "and fls tru",
+                      pass "(lambda t.(lambda f.f))"
+                    ),
+                    (
+                      definitions ++ "and fls fls",
+                      pass "(lambda t.(lambda f.f))"
+                    ),
+
+                    (
+                      definitions ++ "or",
+                      pass "(lambda p.(lambda q.p p q))"
+                    ),
+                    (
+                      definitions ++ "or fls fls",
+                      pass "(lambda t.(lambda f.f))"
+                    ),
+                    (
+                      definitions ++ "or tru fls",
+                      pass "(lambda t.(lambda f.t))"
+                    ),
+                    (
+                      definitions ++ "or fls tru",
+                      pass "(lambda t.(lambda f.t))"
+                    ),
+                    (
+                      definitions ++ "or tru tru",
+                      pass "(lambda t.(lambda f.t))"
+                    ),
+
+                    (
+                      definitions ++ "not",
+                      pass "(lambda p.(lambda a.(lambda b.p b a)))"
+                    ),
+                    (
+                      definitions ++ "(not tru) true false",
+                      pass "false"
+                    ),
+                    (
+                      definitions ++ "(not fls) true false",
+                      pass "true"
+                    ),
+
+                    (
+                      definitions ++ "xor",
+                      pass "(lambda a.(lambda b.a (lambda p.(lambda a'.(lambda b'.p b' a'))) b b))"
+                    ),
+                    (
+                      definitions ++ "(xor tru tru) true false",
+                      pass "false"
+                    ),
+                    (
+                      definitions ++ "(xor tru fls) true false",
+                      pass "true"
+                    ),
+                    (
+                      definitions ++ "(xor fls tru) true false",
+                      pass "true"
+                    ),
+                    (
+                      definitions ++ "(xor fls fls) true false",
+                      pass "false"
+                    ),
+
+                    (
+                      definitions ++ "churchif",
+                      pass "(lambda p.(lambda a.(lambda b.p a b)))"
+                    ),
+                    (
+                      definitions ++ "(churchif tru) true false",
+                      pass "true"
+                    ),
+                    (
+                      definitions ++ "(churchif fls) true false",
+                      pass "false"
                     )
                  ]
