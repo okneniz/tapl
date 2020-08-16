@@ -70,7 +70,8 @@ spec = do
                   ("zero? succ zero", pass "false"),
                   ("timesfloat 1.0 2.0", pass "2.0"),
                   ("timesfloat (timesfloat 1.3 1.111) 2.0", pass "2.8886000000000003"),
-                  ("timesfloat (timesfloat 3.14 2.0) 10.0", pass "62.800000000000004")
+                  ("timesfloat (timesfloat 3.14 2.0) 10.0", pass "62.800000000000004"),
+                  ("timesfloat (timesfloat 3.14 2.0) (timesfloat 5.0 2.0)", pass "62.800000000000004")
                  ]
 
         describe "apply" $ do
