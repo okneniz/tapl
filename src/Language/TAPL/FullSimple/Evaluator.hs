@@ -77,15 +77,11 @@ normalize t@(TRecord _ _) | isVal t = Nothing
 normalize (TRecord p fields) = do
     fields' <- sequence $ evalField <$> Map.toList fields
     return $ TRecord p (Map.fromList fields')
-    where evalField (k, field) | isVal field = return (k, field)
-          evalField (k, field) = do
-            field' <- normalize field
-            return (k, field')
+    where evalField (k, v) | isVal v = return (k, v)
+          evalField (k, v) = ((,) k) <$> normalize v
 
 normalize (TProj _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = Map.lookup key fields
-normalize (TProj p t@(TRecord _ _) (TKeyword x key)) = do
-    t' <- normalize t
-    return $ TProj p t' (TKeyword x key)
+normalize (TProj p t@(TRecord _ _) (TKeyword x key)) = normalize t >>= \t' -> return $ TProj p t' (TKeyword x key)
 
 normalize (TProj _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
 normalize (TProj _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
@@ -106,14 +102,9 @@ normalize (TCase _ (TTag _ key v _) branches) | isVal v =
 
 normalize (TCase p t fields) = normalize t >>= \t' -> return $ TCase p t' fields
 
-normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) =
-    return $ TFloat p (t1 * t2)
+normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = return $ TFloat p (t1 * t2)
+normalize (TTimesFloat p t1 t2) | isVal t1 = TTimesFloat p t1 <$> normalize t2
+normalize (TTimesFloat p t1 t2) = normalize t1 >>= \t1' -> return $ TTimesFloat p t1' t2
 
-normalize (TTimesFloat p t1@(TFloat _ _) t2) =
-    TTimesFloat p t1 <$> normalize t2
-
-normalize (TTimesFloat p t1 t2@(TFloat _ _)) = do
-    t1' <- normalize t1
-    return $ TTimesFloat p t1' t2
 
 normalize _ = Nothing
