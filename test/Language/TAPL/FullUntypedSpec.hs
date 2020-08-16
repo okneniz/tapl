@@ -373,3 +373,48 @@ spec = do
                       pass "768.0"
                     )
                  ]
+
+        describe "Church lists" $ do
+           let definitions = "\
+               \let pair   = (lambda x.(lambda y.(lambda z.z x y))) in \
+               \let first  = (lambda p.p (lambda x.(lambda y.x))) in \
+               \let second = (lambda p.p (lambda x.(lambda y.y))) in \
+               \let head   = first in \
+               \let tail   = second in \
+               \let cons   = pair in \
+               \"
+
+           tests evalString [
+                    (
+                      definitions ++ "first (pair 3.14 0.0)",
+                      pass "3.14"
+                    ),
+                    (
+                      definitions ++ "second (pair 3.14 0.0)",
+                      pass "0.0"
+                    ),
+                    (
+                      definitions ++ "head (cons 3.14 0.0)",
+                      pass "3.14"
+                    ),
+                    (
+                      definitions ++ "head (cons 1.1 (cons 3.14 0.0))",
+                      pass "1.1"
+                    ),
+                    (
+                      definitions ++ "tail (cons 3.14 0.0)",
+                      pass "0.0"
+                    ),
+                    (
+                      definitions ++ "tail (cons 1.1 (cons 3.14 0.0))",
+                      pass "(lambda z.z 3.14 0.0)"
+                    ),
+                    (
+                      definitions ++ "tail (tail (cons 1.1 (cons 3.14 0.0)))",
+                      pass "0.0"
+                    ),
+                    (
+                      definitions ++ "head (tail (cons 1.1 (cons 3.14 0.0)))",
+                      pass "3.14"
+                    )
+                 ]
