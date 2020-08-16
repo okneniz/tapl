@@ -1,6 +1,7 @@
 # tapl
 
 ? fullpoly
+? fullisorec
 
 - fomega
 - fomsub
@@ -8,11 +9,9 @@
 - fullfomsubref
 - fullfsub
 - fullfsubref
-- fullisorec
 - fullomega
 - fullsub
 - fullupdate
 - joinexercise
 - letexercise
 - purefsub
-- reconbase

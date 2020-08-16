@@ -35,7 +35,14 @@ spec = do
                     ("(lambda x:A -> A.lambda y:A.x y)", pass "(lambda x.(lambda y.x y)):((A -> A) -> (A -> x0))"),
                     ("(lambda x:A.x)", pass "(lambda x.x):(A -> A)"),
                     ("(lambda x.x zero);", pass "(lambda x.x zero):(x1 -> x2)"),
-                    ("(lambda x:X.lambda y:X->X.y x)", pass "(lambda x.(lambda y.y x)):(X -> ((X -> X) -> x0))")
+                    ("(lambda x:X.lambda y:X->X.y x)", pass "(lambda x.(lambda y.y x)):(X -> ((X -> X) -> x0))"),
+
+                    ("(lambda x:X.x)", pass "(lambda x.x):(X -> X)"),
+                    ("(lambda z:Z.(lambda y:Y.z (y true)))", pass "(lambda z.(lambda y.z y true)):(Z -> (Y -> x1))"),
+                    (
+                      "(lambda w:W.if true then false else w false)",
+                      pass "(lambda w.if true then false else w false):(W -> x0)"
+                    )
                  ]
 
     describe "operations" $ do
