@@ -97,3 +97,19 @@ spec = do
                   ("(lambda x.x) {a=true, b=false}", pass "{a=true, b=false}"),
                   ("(lambda x.if x.a then false else true) {a=true, b=false}", pass "false")
                  ]
+
+        describe "Church bools" $ do
+           let definitions = "\
+               \let tru = (lambda t.(lambda f.t)) in \
+               \let fls = (lambda t.(lambda f.f))"
+
+           tests evalString [
+                    (
+                      definitions ++ " in fls",
+                      pass "(lambda t.(lambda f.f))"
+                    ),
+                    (
+                      definitions ++ " in tru",
+                      pass "(lambda t.(lambda f.t))"
+                    )
+                 ]
