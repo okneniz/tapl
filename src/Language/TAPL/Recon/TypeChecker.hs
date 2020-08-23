@@ -11,10 +11,10 @@ import Language.TAPL.Recon.TypeReconstructor
 typeOf :: Term -> Eval Type
 typeOf t = do
     ty <- reconstruct t
-    (vi, cs) <- lift $ lift $ get
-    case unify cs of
+    state <- get
+    case unify (constraints state) of
         Right cs' -> do
-            lift $ lift $ put (vi, cs')
+            put $ state { constraints = cs' }
             return $ applySubst cs' ty
         Left x -> lift $ throwE $ show x
 

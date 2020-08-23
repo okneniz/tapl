@@ -1,13 +1,13 @@
 module Language.TAPL.Recon.TypeReconstructor (reconstruct) where
 
-import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Class (lift)
 
+import Language.TAPL.Common.Context (pickVar)
+import Language.TAPL.Common.Helpers
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Context
-import Language.TAPL.Common.Context (pickVar)
 
 reconstruct :: Term -> Eval Type
 reconstruct = recover
@@ -40,14 +40,14 @@ recover (TIf _ t1 t2 t3) = do
     prependConstraint (tyT1,TyBool)
     return tyT3
 
-recover (TVar pos varName _) = do
-    names <- ask
-    case pickVar names varName of
+recover (TVar info varName _) = do
+    n <- getNames
+    case pickVar n varName of
          Just (_, VarBind ty) -> return ty
-         _ -> lift $ throwE $ show $ TypeMissmatch pos "Wrong type of binding"
+         _ -> lift $ throwE $ show $ TypeMissmatch info "Wrong type of binding"
 
 recover (TAbs _ x tyT1 t2) =
-    local (addVar x tyT1) $ do
+    withTmpStateT (putVar x tyT1) $ do
         tyT2 <- recover t2
         return $ TyArrow tyT1 tyT2
 
@@ -60,16 +60,13 @@ recover (TApp _ t1 t2) = do
 
 newVar :: Eval String
 newVar = do
-    (varIndex, constraints) <- lift.lift $ get
-    lift.lift $ put (varIndex + 1, constraints)
-    return $ "x" ++ show varIndex
+    s <- get
+    let x = "x" ++ show (varIndex s)
+    put $ s { varIndex = ((varIndex s) + 1) }
+    return x
 
 prependConstraint :: (Type, Type) -> Eval ()
-prependConstraint c = do
-    (varIndex, constraints) <- lift.lift $ get
-    lift.lift $ put (varIndex , [c] ++ constraints)
+prependConstraint c = modify $ \s -> s { constraints = [c] ++ (constraints s) }
 
 appendConstraint :: (Type, Type) -> Eval ()
-appendConstraint c = do
-    (varIndex, constraints) <- lift.lift $ get
-    lift.lift $ put (varIndex , constraints ++ [c])
+appendConstraint c = modify $ \s -> s { constraints = (constraints s) ++ [c] }

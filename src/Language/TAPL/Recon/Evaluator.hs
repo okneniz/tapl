@@ -1,37 +1,43 @@
 module Language.TAPL.Recon.Evaluator (evalString) where
 
 import Data.List (last)
-
-import Control.Monad.Trans.Reader
-import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
-
-import Text.Parsec (SourcePos)
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Context (bind)
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Parser
 import Language.TAPL.Recon.Context
-import Language.TAPL.Common.Context (bind)
 import Language.TAPL.Recon.TypeChecker
 import Language.TAPL.Recon.Pretty
+
+import Text.Parsec (SourcePos)
 
 evalString :: String -> Either String String
 evalString code = do
     case parse "<stdin>" code of
         Left e -> Left $ show e
-        Right (commands, names) -> evalState (runExceptT (runReaderT (f commands) names)) (0, [])
+        Right ([], _) -> return ""
+        Right (commands, ns) -> runExcept (evalStateT (f commands) (newState ns))
     where
         f cs = do
             cs' <- evalCommands cs
-            let t = last cs'
-            ty <- typeOf t
-            t' <- render t
-            return $ t' ++ ":" ++ (show $ pretty ty)
+            if null cs'
+            then return ""
+            else do let t = last cs'
+                    ty <- typeOf t
+                    t' <- prettify t
+                    ty' <- prettifyType ty
+                    return $ show t' ++ ":" ++ show ty'
 
 evalCommands :: [Command] -> Eval AST
 evalCommands [] = return []
-evalCommands ((Bind _ name binding):cs) = local (bind name binding) (evalCommands cs)
+evalCommands ((Bind _ name binding):cs) = do
+   modify $ \s -> s { names = (bind name binding (names s)) }
+   evalCommands cs
+
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval ts):cs) = do
     _ <- typeCheck ts
@@ -40,6 +46,7 @@ evalCommands ((Eval ts):cs) = do
     return $ ts' ++ cs'
 
 typeCheck :: AST -> Eval Type
+typeCheck [] = lift $ throwE "attempt to check empty AST"
 typeCheck [t] = typeOf t
 typeCheck (t:ts) = typeOf t >> typeCheck ts
 
