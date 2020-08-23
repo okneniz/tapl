@@ -1,6 +1,5 @@
 module Language.TAPL.SimpleBool.TypeChecker where
 
-import Control.Monad (liftM)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
@@ -9,6 +8,7 @@ import Text.Parsec (SourcePos)
 
 import Language.TAPL.SimpleBool.Types
 import Language.TAPL.SimpleBool.Context
+import Language.TAPL.Common.Context (bindingType)
 
 type Inferred a = ExceptT TypeError (State LCNames) a
 data TypeError = TypeMissmatch SourcePos String
@@ -36,7 +36,7 @@ infer (TIf pos t1 t2 t3) = do
 
 infer (TVar pos v _) = do
   names <- lift $ get
-  case liftM snd $ pickVar names v of
+  case bindingType names v of
        Just (VarBind ty') -> return ty'
        Just x -> throwE $ TypeMissmatch pos $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
        Nothing -> throwE $ TypeMissmatch pos $ "var type error"
@@ -53,7 +53,7 @@ infer (TApp pos t1 t2) = do
 
 infer (TAbs _ name ty t) = do
   names <- lift $ get
-  lift $ modify $ bind name (VarBind ty)
+  lift $ modify $ addVar name ty
   ty' <- infer t
   lift $ put names
   return $ TyArrow ty ty'

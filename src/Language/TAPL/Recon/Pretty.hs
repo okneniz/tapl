@@ -9,6 +9,7 @@ import Control.Monad.Trans.Except
 
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Context
+import Language.TAPL.Common.Context (nameFromContext)
 
 render :: Term -> Eval String
 render t = do

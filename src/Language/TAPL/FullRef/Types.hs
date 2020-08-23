@@ -1,6 +1,7 @@
 module Language.TAPL.FullRef.Types where
 
 import Text.Parsec (SourcePos)
+import Language.TAPL.Common.Context
 
 import Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
@@ -45,8 +46,6 @@ data Term = TTrue SourcePos
           | TTimesFloat SourcePos Term Term
           deriving (Show)
 
-type VarName = Int
-type Depth = Int
 type AST = [Term]
 type Location = Int
 
@@ -151,7 +150,6 @@ typeMap onVar s ty = walk s ty
                      walk _ TyString = TyString
                      walk _ TyFloat = TyFloat
                      walk _ TyUnit = TyUnit
-                     walk c (TyRef ty1) = TyRef (walk c ty1)
                      walk c (TyRef ty1) = TyRef (walk c ty1)
                      walk c (TySource ty1) = TySource (walk c ty1)
                      walk c (TySink ty1) = TySink (walk c ty1)

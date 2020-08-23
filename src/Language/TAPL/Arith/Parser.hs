@@ -12,7 +12,7 @@ parse :: String -> String -> Either ParseError [Term]
 parse code path = runParser arithParser () path code
 
 arithParser :: Parsec String () [Term]
-arithParser = (term `sepEndBy` semi) <* eof
+arithParser = term `sepEndBy` semi <* eof
 
 term :: LCParser
 term = condition
@@ -23,15 +23,11 @@ term = condition
 
 boolean :: LCParser
 boolean = true <|> false
+    where true = constant "true" TTrue
+          false = constant "false" TFalse
 
 nat :: LCParser
 nat = zero <|> succ <|> pred
-
-true :: LCParser
-true = constant "true" TTrue
-
-false :: LCParser
-false = constant "false" TFalse
 
 succ :: LCParser
 succ = fun "succ" TSucc

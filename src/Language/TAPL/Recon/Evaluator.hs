@@ -12,6 +12,7 @@ import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Parser
 import Language.TAPL.Recon.Context
+import Language.TAPL.Common.Context (bind)
 import Language.TAPL.Recon.TypeChecker
 import Language.TAPL.Recon.Pretty
 

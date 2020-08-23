@@ -5,6 +5,7 @@ import Text.Parsec (SourcePos)
 import Data.List (all)
 import Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
+import Language.TAPL.Common.Context
 
 data Command = Eval [Term]
              | Bind SourcePos String Binding
@@ -37,8 +38,6 @@ data Term = TTrue SourcePos
            deriving (Show)
 
 type AST = [Term]
-type VarName = Int
-type Depth = Int
 
 isVal :: Term -> Bool
 isVal (TTrue _) = True

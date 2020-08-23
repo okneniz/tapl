@@ -9,6 +9,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Context (bind)
 import Language.TAPL.FullEquirec.Types
 import Language.TAPL.FullEquirec.Parser
 import Language.TAPL.FullEquirec.Context

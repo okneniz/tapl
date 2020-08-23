@@ -9,6 +9,7 @@ import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
 import Language.TAPL.Common.Helpers (withTmpStateT)
+import Language.TAPL.Common.Context (nameFromContext, findName)
 import Language.TAPL.FullEquirec.Types
 import Language.TAPL.FullEquirec.Context
 

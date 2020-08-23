@@ -8,6 +8,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Context (bind)
 import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Parser
 import Language.TAPL.RcdSubBot.Context

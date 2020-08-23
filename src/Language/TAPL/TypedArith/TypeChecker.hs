@@ -9,6 +9,7 @@ import Text.Parsec (SourcePos)
 
 import Language.TAPL.TypedArith.Types
 import Language.TAPL.TypedArith.Context
+import Language.TAPL.Common.Context (bindingType)
 
 type Inferred a = ExceptT TypeError (State LCNames) a
 
@@ -54,7 +55,7 @@ infer (TIf info t1 t2 t3) = do
 
 infer v@(TVar info varname _) = do
   names <- lift $ get
-  case liftM snd $ pickVar names varname of
+  case bindingType names varname of
        Just (VarBind ty') -> return ty'
        Just x -> throwE $ TypeMissmatch info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
        Nothing -> throwE $ TypeMissmatch info $ "var type error"
@@ -71,7 +72,7 @@ infer (TApp info t1 t2) = do
 
 infer (TAbs _ name ty t) = do
   names <- lift $ get
-  lift $ modify $ bind name (VarBind ty)
+  lift $ modify $ addVar name ty
   ty' <- infer t
   lift $ put names
   return $ TyArrow ty ty'

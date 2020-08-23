@@ -4,14 +4,13 @@ import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Context
 import Language.TAPL.RcdSubBot.Lexer
 import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Context (findVarName)
 
 import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
-
-import Text.Parsec (SourcePos)
 
 type LCCommandParser = Parsec String LCNames Command
 type LCParser = Parsec String LCNames Term

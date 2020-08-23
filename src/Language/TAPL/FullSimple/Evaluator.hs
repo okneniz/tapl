@@ -4,6 +4,7 @@ import qualified Data.Map.Lazy as Map
 import Control.Monad (liftM)
 
 import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Context (bind)
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Parser
 import Language.TAPL.FullSimple.TypeChecker

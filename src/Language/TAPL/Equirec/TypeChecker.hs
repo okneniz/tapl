@@ -1,16 +1,12 @@
 module Language.TAPL.Equirec.TypeChecker (typeOf) where
 
-import qualified Data.Map.Lazy as Map
-import Data.List (tails, (\\), intercalate, sort)
-
-import Control.Monad (when, unless)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (withTmpStateT)
 import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Context
 
@@ -41,10 +37,6 @@ typeOf (TApp p t1 t2) = do
 
 typeError :: SourcePos -> String -> Eval a
 typeError p message = lift $ throwE $ show p ++ ":" ++ message
-
-argumentError :: SourcePos -> Type -> Type -> Eval a
-argumentError p expected actual = typeError p message
-    where message = "Argument error, expected " ++ show expected  ++ ". Got " ++ show actual ++ "."
 
 typeEq :: Type -> Type -> Eval Bool
 typeEq tyS tyT = do

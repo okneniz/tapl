@@ -9,6 +9,7 @@ import Control.Monad.Trans.Except
 
 import Language.TAPL.SimpleBool.Types
 import Language.TAPL.SimpleBool.Context
+import Language.TAPL.Common.Context (nameFromContext)
 
 type Printed a = ExceptT String (State LCNames) a
 

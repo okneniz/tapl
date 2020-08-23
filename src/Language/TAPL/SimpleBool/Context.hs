@@ -1,28 +1,16 @@
 module Language.TAPL.SimpleBool.Context where
 
 import Language.TAPL.SimpleBool.Types
-import Data.Maybe (isJust)
-import Control.Monad (liftM)
+import Language.TAPL.Common.Context
 
-type LCNames = [(String,Binding)]
-
-bind :: String -> Binding -> LCNames -> LCNames
-bind x b n = (x,b):n
+type LCNames = Names Binding
 
 addName :: LCNames -> String -> LCNames
 addName n x = bind x NameBind n
 
-isBound :: LCNames -> String -> Bool
-isBound n name = isJust $ Prelude.lookup name n
+addVar :: String -> Type -> LCNames -> LCNames
+addVar x ty n = bind x (VarBind ty) n
 
 pickFreshName :: LCNames -> String -> (String, LCNames)
 pickFreshName c name | isBound c name = pickFreshName c (name ++ "'")
 pickFreshName c name = (name, c') where c' = addName c name
-
-pickVar :: LCNames -> VarName -> Maybe (String, Binding)
-pickVar [] _ = Nothing
-pickVar names varname | length names > varname = Just $ names !! varname
-pickVar _ _ = Nothing
-
-nameFromContext :: LCNames -> VarName -> Maybe String
-nameFromContext n v = liftM fst $ pickVar n v

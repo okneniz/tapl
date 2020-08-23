@@ -9,6 +9,7 @@ import Control.Monad.Trans.Except
 
 import Language.TAPL.TypedArith.Types
 import Language.TAPL.TypedArith.Context
+import Language.TAPL.Common.Context (nameFromContext)
 
 type Printed a = ExceptT String (State LCNames) a
 

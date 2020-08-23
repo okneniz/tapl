@@ -4,6 +4,7 @@ import Language.TAPL.FullEquirec.Types
 import Language.TAPL.FullEquirec.Context
 import Language.TAPL.FullEquirec.Lexer
 import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Context (findVarName)
 
 import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map

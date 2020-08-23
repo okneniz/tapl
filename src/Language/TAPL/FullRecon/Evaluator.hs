@@ -6,6 +6,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Context (bind)
 import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Parser
 import Language.TAPL.FullRecon.Context
@@ -17,7 +18,7 @@ evalString code = do
     case parse "<stdin>" code of
         Left e -> Left $ show e
         Right ([], _) -> return ""
-        Right (commands, names) -> runExcept (evalStateT (f commands) (newState names))
+        Right (commands, ns) -> runExcept (evalStateT (f commands) (newState ns))
     where
         f cs = do
             cs' <- evalCommands cs
@@ -50,17 +51,17 @@ typeCheck (t:ts) = typeOf t >> typeCheck ts
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf info t1 t2 t3) = normalize t1 >>= \t1' -> return $ TIf info t1' t2 t3
-normalize (TSucc info t1) = TSucc info <$> normalize t1
-normalize (TPred _ (TZero info)) = return $ TZero info
+normalize (TIf p t1 t2 t3) = normalize t1 >>= \t1' -> return $ TIf p t1' t2 t3
+normalize (TSucc p t1) = TSucc p <$> normalize t1
+normalize (TPred _ (TZero p)) = return $ TZero p
 normalize (TPred _ (TSucc _ t)) | isNumerical  t = return t
-normalize (TPred info t) = TPred info <$> normalize t
-normalize (TIsZero _ (TZero info)) = return $ TTrue info
-normalize (TIsZero _ (TSucc info t)) | isNumerical t = return $ TFalse info
-normalize (TIsZero info t) = TIsZero info <$> normalize t
+normalize (TPred p t) = TPred p <$> normalize t
+normalize (TIsZero _ (TZero p)) = return $ TTrue p
+normalize (TIsZero _ (TSucc p t)) | isNumerical t = return $ TFalse p
+normalize (TIsZero p t) = TIsZero p <$> normalize t
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t
-normalize (TApp info t1 t2) | isVal t1 = TApp info t1 <$> normalize t2
-normalize (TApp info t1 t2) = normalize t1 >>= \t1' -> return $ TApp info t1' t2
-normalize (TLet info v t1 t2) | isVal t1 = return $ termSubstitutionTop t1 t2
-normalize (TLet info v t1 t2) = normalize t1 >>= \t1' -> return $ TLet info v t1' t2
+normalize (TApp p t1 t2) | isVal t1 = TApp p t1 <$> normalize t2
+normalize (TApp p t1 t2) = normalize t1 >>= \t1' -> return $ TApp p t1' t2
+normalize (TLet _ _ t1 t2) | isVal t1 = return $ termSubstitutionTop t1 t2
+normalize (TLet p v t1 t2) = normalize t1 >>= \t1' -> return $ TLet p v t1' t2
 normalize _ = Nothing

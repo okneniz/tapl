@@ -2,6 +2,7 @@ module Language.TAPL.RcdSubBot.Types where
 
 import Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
+import Language.TAPL.Common.Context
 
 import Text.Parsec (SourcePos)
 
@@ -16,8 +17,6 @@ data Term = TVar SourcePos VarName Depth
           | TKeyword SourcePos String
           deriving (Eq)
 
-type VarName = Int
-type Depth = Int
 type AST = [Term]
 
 data Binding = NameBind

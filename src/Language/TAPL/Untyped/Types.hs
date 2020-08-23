@@ -1,15 +1,12 @@
 module Language.TAPL.Untyped.Types where
 
 import Text.Parsec (SourcePos)
+import Language.TAPL.Common.Context (VarName, Depth)
 
 data Term = TVar SourcePos VarName Depth
           | TAbs SourcePos String Term
           | TApp SourcePos Term Term
           deriving (Show)
-
-type VarName = Int
-type Depth = Int
-type AST = [Term]
 
 data Binding = NameBind deriving (Show)
 

@@ -4,6 +4,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Class (lift)
 
+import Language.TAPL.Common.Context (pickVar)
 import Language.TAPL.Common.Helpers
 import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Context
@@ -63,7 +64,7 @@ recover (TApp _ t1 t2) = do
     appendConstraint (tyT1, TyArrow tyT2 (TyID tyX))
     return $ TyID tyX
 
-recover (TLet _ x t1 t2) | isVal t1 = recover $ termSubstitutionTop t1 t2
+recover (TLet _ _ t1 t2) | isVal t1 = recover $ termSubstitutionTop t1 t2
 
 recover (TLet _ x t1 t2) = do
     tyT1 <- recover t1
@@ -71,13 +72,13 @@ recover (TLet _ x t1 t2) = do
 
 newVar :: Eval String
 newVar = do
-    state <- get
-    let x = "x" ++ show (varIndex state)
-    put $ state { varIndex = ((varIndex state) + 1) }
+    s <- get
+    let x = "x" ++ show (varIndex s)
+    put $ s { varIndex = ((varIndex s) + 1) }
     return x
 
 prependConstraint :: (Type, Type) -> Eval ()
-prependConstraint c = modify $ \state -> state { constraints = [c] ++ (constraints state) }
+prependConstraint c = modify $ \s -> s { constraints = [c] ++ (constraints s) }
 
 appendConstraint :: (Type, Type) -> Eval ()
-appendConstraint c = modify $ \state -> state { constraints = (constraints state) ++ [c] }
+appendConstraint c = modify $ \s -> s { constraints = (constraints s) ++ [c] }

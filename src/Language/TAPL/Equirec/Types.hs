@@ -1,9 +1,7 @@
 module Language.TAPL.Equirec.Types where
 
+import Language.TAPL.Common.Context
 import Text.Parsec (SourcePos)
-import Data.List (all)
-import Data.Map.Lazy (Map)
-import qualified Data.Map.Lazy as Map
 
 data Command = Eval [Term]
              | Bind SourcePos String Binding
@@ -15,8 +13,6 @@ data Term = TVar SourcePos VarName Depth
           deriving (Show)
 
 type AST = [Term]
-type VarName = Int
-type Depth = Int
 
 isVal :: Term -> Bool
 isVal (TAbs _ _ _ _) = True

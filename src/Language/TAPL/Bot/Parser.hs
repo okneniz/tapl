@@ -3,6 +3,7 @@ module Language.TAPL.Bot.Parser (parse) where
 import Language.TAPL.Bot.Types
 import Language.TAPL.Bot.Context
 import Language.TAPL.Bot.Lexer
+import Language.TAPL.Common.Context (findVarName)
 import Language.TAPL.Common.Helpers (ucid)
 
 import Prelude hiding (abs, succ, pred)
@@ -64,7 +65,7 @@ abstraction = do
     _ <- dot
     optional space
     context <- getState
-    modifyState $ bind varName (VarBind varType)
+    modifyState $ addVar varName varType
     t <- term
     setState context
     return $ TAbs p varName varType t

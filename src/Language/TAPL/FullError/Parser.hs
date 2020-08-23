@@ -4,6 +4,7 @@ import Language.TAPL.FullError.Types
 import Language.TAPL.FullError.Context
 import Language.TAPL.FullError.Lexer
 import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Context (findVarName)
 
 import Prelude hiding (abs, succ, pred)
 

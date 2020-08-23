@@ -2,11 +2,12 @@ module Language.TAPL.Bot.Evaluator (evalString) where
 
 import Data.List (last)
 
-import Language.TAPL.Common.Helpers (whileJust)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
+import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Context (bind)
 import Language.TAPL.Bot.Types
 import Language.TAPL.Bot.Parser
 import Language.TAPL.Bot.Context

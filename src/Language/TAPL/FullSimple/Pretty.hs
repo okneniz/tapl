@@ -10,6 +10,7 @@ import Control.Monad.Trans.Except
 
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Context
+import Language.TAPL.Common.Context (nameFromContext)
 
 prettify :: Term -> Eval (Doc a)
 prettify (TTrue _) = return $ pretty "true"

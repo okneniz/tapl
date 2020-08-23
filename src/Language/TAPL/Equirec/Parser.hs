@@ -4,9 +4,9 @@ import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Context
 import Language.TAPL.Equirec.Lexer
 import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Context (findVarName)
 
 import Prelude hiding (abs, succ, pred)
-import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)

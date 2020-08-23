@@ -36,7 +36,7 @@ bindCommand = do
     pos <- getPosition
     x <- ucid <* spaces
     reserved "="
-    modifyState $ \c -> addName c x
+    modifyState $ addName x
     ty <- typeAnnotation
     return $ Bind pos x $ VarBind ty
 
@@ -79,7 +79,7 @@ let' = do
     reserved "in"
     optional spaces
     context <- getState
-    modifyState $ \c -> addName c v
+    modifyState $ addName v
     t2 <- term
     return $ TLet  p v t1 t2
 
@@ -99,7 +99,7 @@ abstraction = do
     dot
     optional spaces
     names <- getState
-    setState $ addName names name
+    modifyState $ addName name
     t <- notTypeBind
     setState names
     return $ TAbs  pos name ty t

@@ -3,12 +3,11 @@ module Language.TAPL.FullRef.TypeChecker where
 import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map
 import Data.Map.Merge.Strict (merge, mapMaybeMissing, zipWithMaybeMatched)
-import Data.List (tails, sort, intercalate, nub, (\\))
+import Data.List (sort, intercalate, (\\))
 
-import Control.Monad (when, unless, foldM)
+import Control.Monad (when, foldM)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
-import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 

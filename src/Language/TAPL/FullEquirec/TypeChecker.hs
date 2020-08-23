@@ -231,9 +231,7 @@ typeEq tyS tyT = do
           typeEq'' _ _ _ _ = False
 
 computeType :: Type -> Eval (Maybe Type)
-computeType ty@(TyRec _ tyS) = do
-    return $ Just $ typeSubstitutionTop ty tyS
-
+computeType ty@(TyRec _ tyS) = return $ Just $ typeSubstitutionTop ty tyS
 computeType (TyVar i _) = do
     n <- get
     if isTypeAbb n i

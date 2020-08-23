@@ -3,16 +3,16 @@ module Language.TAPL.FullRef.Evaluator where
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
 
-import Control.Monad (liftM, join, foldM)
+import Control.Monad (liftM)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
-import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.FullRef.Types
 import Language.TAPL.FullRef.Parser
 import Language.TAPL.FullRef.Context
 import Language.TAPL.FullRef.TypeChecker
 import Language.TAPL.FullRef.Pretty
+import Language.TAPL.Common.Context (bind)
 
 evalString :: String -> Either String String
 evalString code = do

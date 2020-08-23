@@ -1,9 +1,5 @@
 module Language.TAPL.Bot.TypeChecker where
 
-import qualified Data.Map.Lazy as Map
-import Data.List (tails, (\\), intercalate)
-
-import Control.Monad (when, unless)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy

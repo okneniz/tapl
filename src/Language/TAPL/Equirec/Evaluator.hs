@@ -1,14 +1,13 @@
 module Language.TAPL.Equirec.Evaluator (evalString) where
 
 import Data.List (last)
-import qualified Data.Map.Lazy as Map
 
-import Control.Monad (liftM)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Context (bind)
 import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Parser
 import Language.TAPL.Equirec.Context

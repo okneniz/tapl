@@ -7,6 +7,7 @@ import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Context
+import Language.TAPL.Common.Context (pickVar)
 
 reconstruct :: Term -> Eval Type
 reconstruct = recover
@@ -46,7 +47,7 @@ recover (TVar pos varName _) = do
          _ -> lift $ throwE $ show $ TypeMissmatch pos "Wrong type of binding"
 
 recover (TAbs _ x tyT1 t2) =
-    local (bind x (VarBind(tyT1))) $ do
+    local (addVar x tyT1) $ do
         tyT2 <- recover t2
         return $ TyArrow tyT1 tyT2
 

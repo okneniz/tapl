@@ -1,6 +1,7 @@
 module Language.TAPL.Bot.Types where
 
 import Text.Parsec (SourcePos)
+import Language.TAPL.Common.Context
 
 data Command = Eval [Term]
              | Bind SourcePos String Binding
@@ -11,8 +12,6 @@ data Term = TVar SourcePos VarName Depth
           | TApp SourcePos Term Term
           deriving (Show)
 
-type VarName = Int
-type Depth = Int
 type AST = [Term]
 
 data Binding = NameBind

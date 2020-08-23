@@ -1,6 +1,6 @@
 module Language.TAPL.FullEquirec.Lexer where
 
-import Text.Parsec (letter, alphaNum, lower, oneOf, (<|>))
+import Text.Parsec (alphaNum, lower, oneOf, (<|>))
 import Text.ParserCombinators.Parsec.Language (emptyDef)
 import qualified Text.ParserCombinators.Parsec.Token as Token
 

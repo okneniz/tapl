@@ -2,13 +2,13 @@ module Language.TAPL.FullError.Pretty (prettify, prettifyType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
-import qualified Data.Map.Lazy as Map
 
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
 import Language.TAPL.Common.Helpers (withTmpStateT)
+import Language.TAPL.Common.Context (nameFromContext, findName)
 import Language.TAPL.FullError.Types
 import Language.TAPL.FullError.Context
 

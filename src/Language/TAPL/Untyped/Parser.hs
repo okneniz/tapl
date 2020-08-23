@@ -11,10 +11,10 @@ import Data.List (findIndex)
 
 type LCParser = Parsec String LCNames Term
 
-parse :: String -> String -> Either ParseError (AST, LCNames)
+parse :: String -> String -> Either ParseError ([Term], LCNames)
 parse = runParser untypedParser []
 
-untypedParser :: Parsec String LCNames (AST, LCNames)
+untypedParser :: Parsec String LCNames ([Term], LCNames)
 untypedParser = do
     ast <- term `sepEndBy` semi
     eof
@@ -45,7 +45,7 @@ abstraction = do
     _ <- dot
     optional spaces
     context <- getState
-    modifyState $ \c -> addName c varName
+    modifyState $ addName varName
     t <- term
     setState context
     return $ TAbs pos varName t

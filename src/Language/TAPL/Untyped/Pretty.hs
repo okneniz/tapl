@@ -9,6 +9,7 @@ import Control.Monad.Trans.Except
 
 import Language.TAPL.Untyped.Types
 import Language.TAPL.Untyped.Context
+import Language.TAPL.Common.Context (nameFromContext)
 
 type Printed a = ExceptT String (State LCNames) a
 
@@ -33,8 +34,4 @@ prettify (TAbs _ name t) = do
   lift $ put names
   return $ parens $ pretty "lambda" <+> pretty newName <> dot <> doc
 
-prettify (TApp _ t1 t2) = do
-    doc1 <- prettify t1
-    doc2 <- prettify t2
-    return $ doc1 <+> doc2
-
+prettify (TApp _ t1 t2) = (<+>) <$> prettify t1 <*> prettify t2

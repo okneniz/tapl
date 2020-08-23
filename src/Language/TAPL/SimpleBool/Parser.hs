@@ -49,7 +49,7 @@ abstraction = do
     _ <- dot
     optional spaces
     context <- getState
-    modifyState $ bind varName (VarBind varType)
+    modifyState $ addVar varName varType
     t <- term
     setState context
     return $ TAbs pos varName varType t

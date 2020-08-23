@@ -1,5 +1,6 @@
 module Language.TAPL.FullError.Types where
 
+import Language.TAPL.Common.Context
 import Text.Parsec (SourcePos)
 
 data Command = Eval [Term]
@@ -16,8 +17,6 @@ data Term = TVar SourcePos VarName Depth
           | TTry SourcePos Term Term
           deriving (Show, Eq)
 
-type VarName = Int
-type Depth = Int
 type AST = [Term]
 
 isVal :: Term -> Bool

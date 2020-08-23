@@ -1,8 +1,8 @@
 module Language.TAPL.FullSimple.Context where
 
 import Language.TAPL.FullSimple.Types
+import Language.TAPL.Common.Context
 import Data.Maybe (isJust)
-import Control.Monad (liftM)
 
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
@@ -10,49 +10,35 @@ import Control.Monad.Trans.Except
 type LCNames = [(String,Binding)]
 type Eval a = StateT LCNames (Except String) a
 
-bind :: String -> Binding -> LCNames -> LCNames
-bind x b n = (x,b):n
-
 addName :: String -> LCNames -> LCNames
 addName x = bind x NameBind
 
 addVar :: String -> Type -> LCNames -> LCNames
 addVar x ty n = bind x (VarBind ty) n
 
-isBound :: String -> LCNames -> Bool
-isBound k n = isJust $ Prelude.lookup k n
-
 pickFreshName :: LCNames -> String -> (String, LCNames)
-pickFreshName c name | isBound name c = pickFreshName c (name ++ "'")
+pickFreshName c name | isBound c name = pickFreshName c (name ++ "'")
 pickFreshName c name = (name, c') where c' = addName name c
 
-pickVar :: LCNames -> VarName -> Maybe (String, Binding)
-pickVar [] _ = Nothing
-pickVar names varname | length names > varname = Just $ names !! varname
-pickVar _ _ = Nothing
-
-nameFromContext :: LCNames -> VarName -> Maybe String
-nameFromContext n v = liftM fst $ pickVar n v
-
-bindingType :: LCNames -> VarName -> Maybe Binding
-bindingType names varName = liftM snd $ pickVar names varName
-
+getBinding :: LCNames -> VarName -> Maybe Binding
 getBinding names varName =
     case bindingType names varName of
          (Just binding) -> return $ bindingShift (varName + 1) binding
          x -> x
 
+isTypeAbb :: LCNames -> VarName -> Bool
 isTypeAbb names varName = isJust $ getTypeAbb names varName
 
+getTypeAbb :: LCNames -> VarName -> Maybe Type
 getTypeAbb names varName =
     case getBinding names varName of
          (Just (TypeAddBind ty)) -> Just ty
-         x -> Nothing
+         _ -> Nothing
 
 bindingShift :: VarName -> Binding -> Binding
-bindingShift d NameBind = NameBind
+bindingShift _ NameBind = NameBind
 bindingShift d (VarBind ty) = VarBind (typeShift d ty)
-bindingShift d TypeVarBind = TypeVarBind
+bindingShift _ TypeVarBind = TypeVarBind
 bindingShift d (TypeAddBind ty) = TypeAddBind (typeShift d ty)
 
 computeType :: Type -> Eval (Maybe Type)
