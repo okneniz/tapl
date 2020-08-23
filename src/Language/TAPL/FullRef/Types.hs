@@ -5,6 +5,16 @@ import Text.Parsec (SourcePos)
 import Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 
+data Command = Eval [Term]
+             | Bind SourcePos String Binding
+             deriving (Show)
+
+data Binding = NameBind
+             | VarBind Type
+             | TypeVarBind
+             | TypeAddBind Type
+             deriving (Show)
+
 data Term = TTrue SourcePos
           | TFalse SourcePos
           | TString SourcePos String
@@ -32,7 +42,81 @@ data Term = TTrue SourcePos
           | TFix SourcePos Term
           | TTag SourcePos String Term Type
           | TCase SourcePos Term (Map String (String, Term))
+          | TTimesFloat SourcePos Term Term
           deriving (Show)
+
+type VarName = Int
+type Depth = Int
+type AST = [Term]
+type Location = Int
+
+isVal :: Term -> Bool
+isVal (TTrue _) = True
+isVal (TFalse _) = True
+isVal (TTag _ _ t _) = isVal t
+isVal (TString _ _) = True
+isVal (TUnit _) = True
+isVal (TLoc _ _) = True
+isVal (TFloat _ _) = True
+isVal t | isNumerical t = True
+isVal (TAbs _ _ _ _) = True
+isVal (TInt _ _) = True
+isVal (TPair _ t1 t2) = (isVal t1) && (isVal t2)
+isVal (TRecord _ ts) = all isVal $ Map.elems ts
+isVal _ = False
+
+isNumerical :: Term -> Bool
+isNumerical (TZero _) = True
+isNumerical (TSucc _ t) = isNumerical t
+isNumerical _ = False
+
+termMap :: (Int -> SourcePos -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
+termMap onVar onType s t = walk s t
+              where walk c (TVar p name depth) = onVar c p name depth
+                    walk c (TAbs p x ty t) = TAbs p x (onType c ty) (walk (c+1) t)
+                    walk c (TApp p t1 t2) = TApp p (walk c t1) (walk c t2)
+                    walk _ (TTrue p) = TTrue p
+                    walk _ (TFalse p) = TFalse p
+                    walk c (TIf p t1 t2 t3) = TIf p (walk c t1) (walk c t2) (walk c t3)
+                    walk c (TLet p v t1 t2) = TLet p v (walk c t1) (walk (c+1) t2)
+                    walk c (TFix p t1) = TFix p (walk c t1)
+                    walk c (TProj p t1 t2) = TProj p (walk c t1) (walk c t2)
+                    walk c (TRecord p fs) = TRecord p $ Map.map (walk c) fs
+                    walk c (TTag p k t ty) = TTag p k (walk c t) (onType c ty)
+                    walk c (TCase p t1 bs) = TCase p (walk c t1) $ Map.map f bs where f (x, y) = (x, walk (c+1) y)
+                    walk c (TAscribe p t ty) = TAscribe p (walk c t) (onType c ty)
+                    walk _ (TString p x) = TString p x
+                    walk _ (TUnit p) = TUnit p
+                    walk _ t1@(TLoc _ _) = t1
+                    walk c (TRef p t1) = TRef p (walk c t1)
+                    walk c (TDeref p t1) = TDeref p (walk c t1)
+                    walk c (TAssign p t1 t2) = TAssign p (walk c t1) (walk c t2)
+                    walk _ (TFloat p t1) = TFloat p t1
+                    walk c (TTimesFloat p t1 t2) = TTimesFloat p (walk c t1) (walk c t2)
+                    walk _ (TZero p) = TZero p
+                    walk c (TSucc p t1) = TSucc p (walk c t1)
+                    walk c (TPred p t1) = TPred p (walk c t1)
+                    walk c (TIsZero p t1) = TIsZero p (walk c t1)
+                    walk _ (TInt p t1) = TInt p t1
+                    walk c (TPair p t1 t2) = TPair p (walk c t1) (walk c t2)
+                    walk _ t1@(TKeyword _ _) = t1
+
+termShiftAbove :: Depth -> VarName -> Term -> Term
+termShiftAbove d c t = termMap onVar (typeShiftAbove d) c t
+                 where onVar c p name depth | name >= c = TVar p (name + d) (depth + d)
+                       onVar c p name depth = TVar p name (depth + d)
+
+termShift :: VarName -> Term -> Term
+termShift d t = termShiftAbove d 0 t
+
+termSubstitution :: VarName -> Term -> Term -> Term
+termSubstitution j s t = termMap onVar onType 0 t
+                   where onVar c p name depth | name == j + c = termShift c s
+                         onVar c p name depth = TVar p name depth
+                         onType j ty = ty
+
+termSubstitutionTop :: Term -> Term -> Term
+termSubstitutionTop s t = termShift (-1) (termSubstitution 0 (termShift 1 s) t)
 
 data Type = TyBool
           | TyString
@@ -42,6 +126,8 @@ data Type = TyBool
           | TyInt
           | TyArrow Type Type
           | TyRef Type
+          | TySource Type
+          | TySink Type
           | TyID String
           | TyTop
           | TyBot
@@ -49,133 +135,43 @@ data Type = TyBool
           | TyRecord (Map String Type)
           | TyKeyword
           | TyVariant (Map String Type)
+          | TyVar VarName Depth
           deriving (Show)
 
-type VarName = Int
-type Depth = Int
-type AST = [Term]
+typeMap :: (Int -> Depth -> VarName -> Type) -> Int -> Type -> Type
+typeMap onVar s ty = walk s ty
+               where walk c (TyVar x n) = onVar c x n
+                     walk _ (TyID x) = TyID x
+                     walk c (TyArrow ty1 ty2) = TyArrow (walk c ty1) (walk c ty2)
+                     walk _ TyTop = TyTop
+                     walk _ TyBool = TyBool
+                     walk c (TyRecord fs) = TyRecord $ Map.map (walk c) fs
+                     walk c (TyVariant fs) = TyVariant $ Map.map (walk c) fs
+                     walk _ TyBot = TyBot
+                     walk _ TyString = TyString
+                     walk _ TyFloat = TyFloat
+                     walk _ TyUnit = TyUnit
+                     walk c (TyRef ty1) = TyRef (walk c ty1)
+                     walk c (TyRef ty1) = TyRef (walk c ty1)
+                     walk c (TySource ty1) = TySource (walk c ty1)
+                     walk c (TySink ty1) = TySink (walk c ty1)
+                     walk _ TyNat = TyNat
+                     walk _ TyInt = TyInt
+                     walk _ TyKeyword = TyKeyword
+                     walk c (TyProduct ty1 ty2) = TyProduct (walk c ty1) (walk c ty2)
 
-instance Eq Type where
-  TyBool == TyBool = True
-  TyString == TyString = True
-  TyUnit == TyUnit = True
-  TyNat == TyNat = True
-  TyFloat == TyFloat = True
-  TyInt == TyInt = True
-  (TyID x) == (TyID y) = x == y
-  TyTop == TyTop = True
-  TyBot == TyBot = True
-  (TyRef tyT1) == (TyRef tyT2) = tyT1 == tyT2
-  (TyArrow tys1 tys2) == (TyArrow tyt1 tyt2) = (tys1 == tyt1) && (tys2 == tyt2)
-  (TyProduct tyT1 tyT2) == (TyProduct tyT1' tyT2') = (tyT1 == tyT2) && (tyT1' == tyT2')
-  (TyRecord tys1) == (TyRecord tys2) = tys1 == tys2
-  (TyVariant tys1) == (TyVariant tys2) = tys1 == tys2
-  _ == _ = False
+typeShiftAbove :: Depth -> VarName -> Type -> Type
+typeShiftAbove d c ty = typeMap onVar c ty
+                  where onVar c name depth | name >= c = TyVar (name + d) (depth + d)
+                        onVar c name depth = TyVar name (depth + d)
 
-(<:) :: Type -> Type -> Bool
-_ <: TyTop = True
-TyBot <: _ = True
-(TyArrow tys1 tys2) <: (TyArrow tyt1 tyt2) = (tyt1 <: tys1) && (tys2 <: tyt2)
-(TyRef tyT1) <: (TyRef tyT2) = (tyT1 <: tyT2) && (tyT2 <: tyT1)
-(TyProduct tyS1 tyS2) <: (TyProduct tyT1 tyT2) = (tyS1 <: tyT1) && (tyS2 <: tyT2)
+typeShift :: VarName -> Type -> Type
+typeShift d ty = typeShiftAbove d 0 ty
 
-(TyRecord ty1) <: (TyRecord ty2) =
-    all f $ Map.elems $ Map.intersectionWith (,) ty1 $ Map.filterWithKey (\k _ -> Map.member k ty1) ty2
-    where f (ty1', ty2') = ty1' <: ty2'
+typeSubstitution :: VarName -> Type -> Type -> Type
+typeSubstitution j s ty = typeMap onVar 0 ty
+                    where onVar c name depth | name == j + c = typeShift c s
+                          onVar c name depth = TyVar name depth
 
-(TyVariant ty1) <: (TyVariant ty2) =
-    all f $ Map.elems $ Map.intersectionWith (,) ty1 $ Map.filterWithKey (\k _ -> Map.member k ty1) ty2
-    where f (ty1', ty2') = ty1' <: ty2'
-
-x <: y | x == y = True
-_ <: _ = False
-
-type LCMemory = [Term]
-type Location = Int
-
-extend :: LCMemory -> Term -> (Location, LCMemory)
-extend s t = (size s, (s ++ [t]))
-
-lookup :: LCMemory -> Location -> Term
-lookup s l = s !! l
-
-update :: LCMemory -> Location -> Term -> LCMemory
-update s l t =
-    let f 0 (_:rest) = t:rest
-        f location (t':rest) = t':(f (location - 1) rest)
-        f _ _ = error "invalid location"
-    in f l s
-
-size :: LCMemory -> Int
-size = length
-
-
-isVal :: Term -> Bool
-isVal (TTrue _) = True
-isVal (TFalse _) = True
-isVal (TString _ _) = True
-isVal (TFloat _ _) = True
-isVal (TInt _ _) = True
-isVal (TUnit _) = True
-isVal (TZero _) = True
-isVal (TAscribe _ t _) = isVal t
-isVal t | isNumerical t = True
-isVal (TAbs _ _ _ _) = True
-isVal (TLoc _ _) = True
-isVal (TPair _ t1 t2) = (isVal t1) && (isVal t2)
-isVal (TRecord _ ts) = all isVal $ Map.elems ts
-isVal (TFix _ t) = isVal t
-isVal (TTag _ _ t _) = isVal t
-isVal _ = False
-
-isNumerical :: Term -> Bool
-isNumerical (TZero _) = True
-isNumerical (TSucc _ t) = isNumerical t
-isNumerical _ = False
-
-termMap :: (Int -> SourcePos -> Depth -> VarName -> Term) -> Int -> Term -> Term
-termMap onvar s t = walk s t
-              where walk c (TVar info name depth) = onvar c info name depth
-                    walk c (TAbs info x ty t1) = TAbs info x ty (walk (c+1) t1)
-                    walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
-                    walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
-                    walk _ (TTrue info) = TTrue info
-                    walk _ (TFalse info) = TFalse info
-                    walk _ (TString info x) = TString info x
-                    walk _ (TUnit info) = TUnit info
-                    walk _ (TZero info) = TZero info
-                    walk c (TIsZero info t1) = TIsZero info (walk c t1)
-                    walk c (TPred info t1) = TPred info (walk c t1)
-                    walk c (TSucc info t1) = TSucc info (walk c t1)
-                    walk _ (TFloat info t1) = TFloat info t1
-                    walk _ (TInt info t1) = TInt info t1
-                    walk c (TAssign info t1 t2) = TAssign info (walk c t1) (walk c t2)
-                    walk c (TRef info t1) = TRef info (walk c t1)
-                    walk c (TDeref info t1) = TDeref info (walk c t1)
-                    walk c (TLet info v t1 t2) = TLet info v (walk c t1) (walk (c + 1) t2)
-                    walk c (TAscribe info t1 ty) = TAscribe info (walk c t1) ty
-                    walk c (TPair info t1 t2) = TPair info (walk c t1) (walk c t2)
-                    walk c (TRecord info fields) = TRecord info $ Map.map (walk c) fields
-                    walk c (TProj info t1 t2) = TProj info (walk c t1) (walk c t2)
-                    walk c (TTag info k t1 ty) = TTag info k (walk c t1) ty
-                    walk c (TCase info t1 branches) = TCase info (walk c t1) $ Map.map walkBranch branches
-                                                where walkBranch (x, y) = (x, walk (c + 1) y)
-                    walk _ t1@(TKeyword _ _) = t1
-                    walk c (TFix info t1) = TFix info (walk c t1)
-                    walk _ t1@(TLoc _ _) = t1
-
-termShiftAbove :: Depth -> VarName -> Term -> Term
-termShiftAbove d s t = termMap onvar s t
-                 where onvar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onvar _ info name depth = TVar info name (depth + d)
-
-shift :: VarName -> Term -> Term
-shift d t = termShiftAbove d 0 t
-
-substitution :: VarName -> Term -> Term -> Term
-substitution j s t = termMap onvar 0 t
-               where onvar c _ name _ | name == j + c = shift c s
-                     onvar _ info name depth = TVar info name depth
-
-substitutionTop :: Term -> Term -> Term
-substitutionTop s t = shift (-1) (substitution 0 (shift 1 s) t)
+typeSubstitutionTop :: Type -> Type -> Type
+typeSubstitutionTop s ty = typeShift (-1) (typeSubstitution 0 (typeShift 1 s) ty)

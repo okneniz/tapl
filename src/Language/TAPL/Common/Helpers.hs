@@ -1,6 +1,6 @@
 module Language.TAPL.Common.Helpers where
 
-import Text.Parsec
+import Text.Parsec (Parsec, try, oneOf, many)
 import Control.Monad (unless)
 import Control.Monad.Trans.State.Lazy
 

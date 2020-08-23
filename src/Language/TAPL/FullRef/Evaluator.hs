@@ -1,118 +1,111 @@
-module Language.TAPL.FullRef.Evaluator (evalString) where
+module Language.TAPL.FullRef.Evaluator where
 
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
 
-import Control.Monad.Trans.State
+import Control.Monad (liftM, join, foldM)
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.FullRef.Types
 import Language.TAPL.FullRef.Parser
+import Language.TAPL.FullRef.Context
 import Language.TAPL.FullRef.TypeChecker
 import Language.TAPL.FullRef.Pretty
 
-type Eval a = StateT LCMemory Maybe a
-
 evalString :: String -> Either String String
 evalString code = do
-  case parse "<stdin>" code of
-    Left e -> Left $ show e
-    Right ([], _) -> return ""
-    Right (ast, names) -> do
-        let mem = [] :: LCMemory
-        _ <- sequence $ typeOf names mem <$> ast
-        let (ast', mem') = eval mem ast
-            result = last $ ast'
-        ty <- typeOf names mem' result
-        result' <- render names result
-        return $ result' ++ ":" ++ (show $ pretty ty)
+    case parse "<stdin>" code of
+         Left e -> Left $ show e
+         Right ([], _) -> return ""
+         Right (commands, names) -> runExcept $ evalStateT (f commands) (emptyState names)
+    where f cs = evalCommands cs >>= \x -> return $ if null x then [] else last x
 
-eval :: LCMemory -> AST -> (AST, LCMemory)
-eval mem ast = f [] mem ast
-    where f acc m [] = (reverse acc, m)
-          f acc m (t:ts) = f (t':acc) m' ts where (t', m') = fullNormalize m t
+evalCommands :: [Command] -> Eval [String]
+evalCommands [] = return []
 
-fullNormalize :: LCMemory -> Term -> (Term, LCMemory)
-fullNormalize m t =
-    case runStateT (normalize t) m of
-         Just (t', m') -> fullNormalize m' t'
-         Nothing -> (t, m)
+evalCommands ((Bind _ name b):cs) = do
+    modifyNames $ bind name b
+    shiftStore 1
+    evalCommands cs
 
-normalize :: Term -> Eval Term
-normalize (TIf _ (TTrue _) t _) = return t
-normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf info t1 t2 t3) = normalize t1 >>= \t1' -> return $ TIf info t1' t2 t3
+evalCommands ((Eval []):cs) = evalCommands cs
+evalCommands ((Eval (t:ts)):cs) = do
+    ty <- typeOf t
+    t' <- fullNormalize t
+    (:) <$> render t' ty <*> evalCommands ((Eval ts):cs)
 
-normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ substitutionTop v t
-normalize (TApp info t1 t2) | isVal t1 = TApp info t1 <$> normalize t2
-normalize (TApp info t1 t2) = normalize t1 >>= \t1' -> return $ TApp info t1' t2
+fullNormalize :: Term -> Eval Term
+fullNormalize t = do
+    t' <- normalize t
+    case t' of
+         Just x -> fullNormalize x
+         Nothing -> return t
 
-normalize (TSucc info t) = TSucc info <$> normalize t
+pack :: (Monad m1, Monad m2) => a -> m1 (m2 a)
+pack x = (return.return) x -- need better name
 
-normalize (TPred _ (TZero info)) = return $ TZero info
-normalize (TPred _ (TSucc _ t)) | isNumerical t = return t
-normalize (TPred info t) = TPred info <$> normalize t
+nvm :: Eval (Maybe Term)
+nvm = return Nothing
 
-normalize (TIsZero _ (TZero info)) = return $ TTrue info
-normalize (TIsZero _ (TSucc info t)) | isNumerical t = return $ TFalse info
-normalize (TIsZero info t) = TIsZero info <$> normalize t
+normalize :: Term -> Eval (Maybe Term)
+normalize (TIf _ (TTrue _) t _) = pack t
+normalize (TIf _ (TFalse _) _ t) = pack t
+normalize (TIf p t1 t2 t3) = liftM (\t1' -> TIf p t1' t2 t3 ) <$> normalize t1
 
-normalize (TRef info t) | isVal t = do
-    mem <- get
-    let (location, mem') = Language.TAPL.FullRef.Types.extend mem t
-    put mem'
-    return $ TLoc info location
+normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = pack $ termSubstitutionTop v t
+normalize (TApp p t1 t2) | isVal t1 = liftM(TApp p t1) <$> normalize t2
+normalize (TApp p t1 t2) = liftM(\t1' -> TApp p t1' t2) <$> normalize t1
 
-normalize (TRef info t) = TRef info <$> normalize t
+normalize (TSucc p t) = liftM(TSucc p) <$> normalize t
 
-normalize (TDeref _ (TLoc _ location)) = do
-    mem <- get
-    return $ Language.TAPL.FullRef.Types.lookup mem location
+normalize (TPred _ (TZero p)) = pack $ TZero p
+normalize (TPred _ (TSucc _ t)) | isNumerical t = pack t
+normalize (TPred p t) = liftM(TPred p) <$> normalize t
 
-normalize (TDeref info t) = TDeref info <$> normalize t
+normalize (TIsZero _ (TZero p)) = pack $ TTrue p
+normalize (TIsZero _ (TSucc p t)) | isNumerical t = pack $ TFalse p
+normalize (TIsZero p t) = liftM(TIsZero p) <$> normalize t
 
-normalize (TAssign info t1 t2) | not (isVal t1) = normalize t1 >>= \t1' -> return $ TAssign info t1' t2
-normalize (TAssign info t1 t2) | not $ isVal t2 = TAssign info t1 <$> normalize t2
-normalize (TAssign info (TLoc _ location) t2) = do
-    mem <- get
-    put $ update mem location t2
-    return $ TUnit info
+normalize (TRef p t) | isVal t = (\t' -> return $ TLoc p t') <$> extend t
+normalize (TRef p t) = liftM(TRef p) <$> normalize t
 
-normalize (TLet _ _ t1 t2) | isVal t1 = return $ substitutionTop t1 t2
-normalize (TLet info v t1 t2) = normalize t1 >>= \t1' -> return $ TLet info v t1' t2
+normalize (TDeref _ (TLoc _ l)) = pure <$> deref l
+normalize (TDeref p t) = liftM(TDeref p) <$> normalize t
 
-normalize (TAscribe _ t _) | isVal t = return t
+normalize (TAssign p (TLoc _ l) t2) | isVal t2 = assign l t2 >> (pack $ TUnit p)
+normalize (TAssign p t1 t2) | isVal t1 = liftM(TAssign p t1) <$> normalize t2
+normalize (TAssign p t1 t2)  = liftM(\t1' -> TAssign p t1' t2) <$> normalize t1
+
+normalize (TLet _ _ t1 t2) | isVal t1 = pack $ termSubstitutionTop t1 t2
+normalize (TLet p v t1 t2) = liftM(\t1' -> TLet p v t1' t2) <$> normalize t1
+
+normalize (TAscribe _ t _) | isVal t = pack t
 normalize (TAscribe _ t _) = normalize t
 
-normalize (TPair info t1 t2) | isVal t1 = TPair info t1 <$> normalize t2
-normalize (TPair info t1 t2) = normalize t1 >>= \t1' -> return $ TPair info t1' t2
+normalize t@(TPair _ _ _) | isVal t = nvm
+normalize (TPair p t1 t2) | isVal t1 = liftM(TPair p t1) <$> normalize t2
+normalize (TPair p t1 t2) = liftM(\t1' -> TPair p t1' t2) <$> normalize t1
 
-normalize (TRecord _ fields) | (Map.size fields) == 0 = lift Nothing
-normalize t@(TRecord _ _) | isVal t = lift Nothing
-normalize (TRecord info fields) = do
-    fields' <- sequence $ evalField <$> Map.toList fields
-    return $ TRecord info (Map.fromList fields')
-    where evalField (k, field) | isVal field = return (k, field)
-          evalField (k, field) = do
-            field' <- normalize field
-            return (k, field')
+normalize (TRecord _ fields) | (Map.size fields) == 0 = nvm
+normalize t@(TRecord _ _) | isVal t = nvm
 
-normalize (TProj _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = lift $ Map.lookup key fields
-normalize (TProj info t@(TRecord _ _) (TKeyword x key)) = do
-    t' <- normalize t
-    return $ (TProj info t' (TKeyword x key))
+normalize (TRecord p fs) = do
+    fs' <- mapM evalField $ Map.toList fs
+    pack $ TRecord p (Map.fromList fs')
+    where evalField (k,v) = (,) k <$> fullNormalize v
 
-normalize (TProj _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
-normalize (TProj _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
-normalize (TProj info t k) = normalize t >>= \t' -> return $ TProj info t' k
+normalize (TProj _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t = return $ Map.lookup k fs
+normalize (TProj p t@(TRecord _ _) (TKeyword x k)) = liftM(\t' -> TProj p t' (TKeyword x k)) <$> normalize t
 
-normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = return $ substitutionTop t1 t2
-normalize (TFix info t) = TFix info <$> normalize t
+normalize (TProj _ (TPair _ t _) (TInt _ 0)) | isVal t = pack t
+normalize (TProj _ (TPair _ _ t) (TInt _ 1)) | isVal t = pack t
+normalize (TProj p t k) = liftM(\t' -> TProj p t' k) <$> normalize t
 
-normalize (TCase _ (TTag _ key v _) branches) | isVal v = do
-    case Map.lookup key branches of
-         Just (_, t) -> return $ substitutionTop v t
-         Nothing -> lift Nothing
+normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = pack $ termSubstitutionTop t1 t2
+normalize (TFix p t) = liftM(TFix p) <$> normalize t
 
-normalize (TCase info t fields) = normalize t >>= \t' -> return $ TCase info t' fields
-normalize _ = lift Nothing
+normalize (TCase _ (TTag _ k v _) bs) | isVal v = return $ liftM (\(_, t) -> termSubstitutionTop v t) (Map.lookup k bs)
+normalize (TCase p t fields) = liftM(\t' -> TCase p t' fields) <$> normalize t
+normalize _ = nvm

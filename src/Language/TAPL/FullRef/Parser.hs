@@ -13,18 +13,29 @@ import Text.Parsec.Prim (try)
 import Data.List (findIndex)
 import qualified Data.Map.Lazy as Map
 
+type LCCommandParser = Parsec String LCNames Command
 type LCParser = Parsec String LCNames Term
 type LCTypeParser = Parsec String LCNames Type
 
-parse :: String -> String -> Either ParseError (AST, LCNames)
+parse :: String -> String -> Either ParseError ([Command], LCNames)
 parse = runParser fullRefParser []
 
-fullRefParser :: Parsec String LCNames (AST, LCNames)
-fullRefParser = do
-    ast <- term `sepEndBy` semi
-    eof
-    names <- getState
-    return (ast, names)
+fullRefParser :: Parsec String LCNames ([Command], LCNames)
+fullRefParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
+
+command :: Parsec String LCNames Command
+command =  (try bindCommand) <|> (try evalCommand)
+
+bindCommand :: LCCommandParser
+bindCommand = do
+    pos <- getPosition
+    x <- ucid <* spaces <* reserved "="
+    modifyState $ addName x
+    ty <- typeAnnotation
+    return $ Bind pos x $ TypeAddBind ty
+
+evalCommand :: LCCommandParser
+evalCommand = try $ Eval <$> term `sepEndBy` semi
 
 term :: LCParser
 term = try apply
@@ -61,34 +72,28 @@ ascribed t = do
     return $ TAscribe pos t ty
 
 apply :: LCParser
-apply = chainl1 notApply $ do
-            optional spaces
-            pos <- getPosition
-            return $ TApp pos
+apply = chainl1 notApply $ optional spaces >> TApp <$> getPosition
 
 notApply :: LCParser
 notApply = value
        <|> ((variant value) <?> "variant")
-       <|> try (assign <?> "assignment")
+       <|> try (assignT <?> "assignment")
        <|> (condition <?> "condition")
-       <|> (let' <?> "let")
-       <|> (deref <?> "deref")
+       <|> (letT <?> "let")
+       <|> (derefT <?> "deref")
        <|> (fix <?> "fix")
-       <|> (case' <?> "case")
+       <|> (caseT <?> "case")
        <|> (abstraction <?> "abstraction")
        <|> (variable <?> "variable")
        <|> (parens notApply)
 
-assign :: LCParser
-assign = chainl1 notAssign $ do
-           p <- getPosition
-           reservedOp ":="
-           return $ TAssign p
+assignT :: LCParser
+assignT = chainl1 notAssign $ reservedOp ":=" >> TAssign <$> getPosition
 
 notAssign :: LCParser
 notAssign = value
         <|> (condition <?> "condition")
-        <|> (deref <?> "deref")
+        <|> (derefT <?> "deref")
         <|> (ref <?> "ref")
         <|> (fix <?> "fix")
         <|> (variable <?> "variable")
@@ -110,8 +115,8 @@ value = anotated $ (boolean <?> "boolean")
 ref :: LCParser
 ref = fun "ref" TRef
 
-deref :: LCParser
-deref = TDeref <$> (reservedOp "!" >> getPosition) <*> term
+derefT :: LCParser
+derefT = TDeref <$> (reservedOp "!" >> getPosition) <*> term
 
 fix :: LCParser
 fix = TFix <$> (reserved "fix" *> getPosition) <*> term
@@ -157,8 +162,8 @@ condition = TIf <$> getPosition
                 <*> (reserved "then" *> term)
                 <*> (reserved "else" *> term)
 
-let' :: LCParser
-let' = do
+letT :: LCParser
+letT = do
     reserved "let"
     p <- getPosition
     v <- identifier
@@ -168,13 +173,13 @@ let' = do
     reserved "in"
     optional spaces
     context <- getState
-    modifyState $ \c -> addName c v
+    modifyState $ addName v
     t2 <- term
     setState context
     return $ TLet p v t1 t2
 
-case' :: LCParser
-case' = do
+caseT :: LCParser
+caseT = do
   reserved "case"
   t <- term
   optional spaces
@@ -187,7 +192,7 @@ case' = do
           (caseName, varName) <- pattern
           reservedOp "->"
           context <- getState
-          modifyState $ \c -> addName c varName
+          modifyState $ addName varName
           t2 <- term
           setState context
           return (caseName, (varName, t2))
@@ -220,7 +225,7 @@ abstraction = do
     _ <- dot
     optional spaces
     context <- getState
-    modifyState $ bind varName (VarBind varType)
+    modifyState $ addVar varName varType
     t <- term
     setState context
     return $ TAbs p varName varType t
@@ -313,9 +318,7 @@ refAnnotation :: LCTypeParser
 refAnnotation = TyRef <$> (reserved "Ref" *> typeAnnotation)
 
 productAnnotation :: LCTypeParser
-productAnnotation = braces $ chainl1 typeAnnotation $ do
-    reservedOp "*"
-    return $ TyProduct
+productAnnotation = braces $ chainl1 typeAnnotation $ reservedOp "*" >> return TyProduct
 
 recordAnnotation :: LCTypeParser
 recordAnnotation = braces $ do
