@@ -14,31 +14,23 @@ import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Context
 
 typeOf :: Term -> Eval Type
-typeOf = infer
-
-infer :: Term -> Eval Type
-infer (TRecord _ fields) = do
+typeOf (TRecord _ fields) = do
     tys <- sequence $ fmap tyField $ Map.toList fields
     return $ TyRecord $ Map.fromList tys
-    where tyField (k,v) = do
-            tyf <- infer v
-            return (k, tyf)
+    where tyField (k,v) = (,) k <$> typeOf v
 
-infer (TVar pos v _) = do
+typeOf (TVar pos v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
          (Just x) -> typeError pos $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
          Nothing -> typeError pos "var type error"
 
-infer (TAbs _ x tyT1 t2) = do
-    withTmpStateT (addVar x tyT1) $ do
-        tyT2 <- infer t2
-        return $ TyArrow tyT1 tyT2
+typeOf (TAbs _ x tyT1 t2) = withTmpStateT (addVar x tyT1) $ TyArrow tyT1 <$> typeOf t2
 
-infer (TApp pos t1 t2) = do
-    tyT1 <- infer t1
-    tyT2 <- infer t2
+typeOf (TApp pos t1 t2) = do
+    tyT1 <- typeOf t1
+    tyT2 <- typeOf t2
     case tyT1 of
          (TyArrow tyT11 tyT12) -> do
             unless (tyT2 <: tyT11)
@@ -47,8 +39,8 @@ infer (TApp pos t1 t2) = do
          TyBot -> return TyBot
          _ -> typeError pos $ "arrow type expected"
 
-infer (TProj pos t1 (TKeyword _ key)) = do
-    ty1 <- infer t1
+typeOf (TProj pos t1 (TKeyword _ key)) = do
+    ty1 <- typeOf t1
     case ty1 of
          (TyRecord fields) ->
             case Map.lookup key fields of

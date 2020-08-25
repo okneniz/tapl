@@ -62,9 +62,7 @@ normalize (TRecord pos fields) = do
     fields' <- sequence $ evalField <$> Map.toList fields -- не то!
     return $ TRecord pos (Map.fromList fields')
     where evalField (k, field) | isVal field = return (k, field)
-          evalField (k, field) = do
-            field' <- normalize field
-            return (k, field')
+          evalField (k, field) = (,) k <$> normalize field
 
 normalize (TProj _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = Map.lookup key fields
 normalize (TProj pos t@(TRecord _ _) (TKeyword x key)) = do

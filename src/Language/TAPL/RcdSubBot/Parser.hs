@@ -20,11 +20,7 @@ parse :: String -> String -> Either ParseError ([Command], LCNames)
 parse = runParser reconParser []
 
 reconParser :: Parsec String LCNames ([Command], LCNames)
-reconParser = do
-    commands <- command `sepEndBy` semi
-    eof
-    names <- getState
-    return $ (commands, names)
+reconParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
 command =  (try bindCommand) <|> (try evalCommand)
@@ -47,10 +43,7 @@ term = try apply
    <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ do
-            optional spaces
-            pos <- getPosition
-            return $ TApp pos
+apply = chainl1 notApply $ optional spaces >> TApp <$> getPosition
 
 notApply :: LCParser
 notApply = try value
