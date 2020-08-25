@@ -173,7 +173,47 @@ spec = do
                  ]
 
         describe "oop" $ do
-            tests evalString [
+            describe "Counter" $ do
+                let definitions = "\
+                \ let newCounter = (lambda c:Unit. \
+                \ let state = ref zero in \
+                \ let object = {get=(lambda u:Unit. !state), inc=(lambda u:Unit. state := (succ (!state)))} in \
+                \ object) in "
+
+                tests evalString [
+                      (
+                        definitions ++ "newCounter unit",
+                        pass "{get=(lambda u.!<0>), inc=(lambda u.<0> := succ !<0>)}:{get=(Unit -> Nat), inc=(Unit -> Unit)}"
+                      ),
+                      (
+                        definitions ++ "\
+                        \ let counter = newCounter unit in \
+                        \ let x1 = counter.inc unit in \
+                        \ let x2 = counter.inc unit in \
+                        \ let x3 = counter.inc unit in \
+                        \ counter.get unit",
+                        pass "succ succ succ zero:Nat"
+                      ),
+                      (
+                        definitions ++ "\
+                        \ let counter = newCounter unit in \
+                        \ let x1 = counter.inc unit in \
+                        \ let x2 = counter.inc unit in \
+                        \ counter.get unit",
+                        pass "succ succ zero:Nat"
+                      )
+                 ]
+
+            describe "ResetCounter" $ do
+                let definitions = "\
+                \ let newResetCounter = (lambda c:Unit.let state = ref zero in \
+                \ let object = {\
+                \ get=(lambda u:Unit. !state), \
+                \ inc=(lambda u:Unit. state := (succ (!state))), \
+                \ reset=(lambda u:Unit. state := zero)} \
+                \ in object) in "
+
+                tests evalString [
                   (
                     "let state = ref zero in \
                     \let counter = {get=(lambda u:Unit. !state), inc=(lambda u:Unit. state := (succ (!state)))} in \
@@ -182,34 +222,7 @@ spec = do
                     pass "succ zero:Nat"
                   ),
                   (
-                    "let newCounter = (lambda c:Unit.let state = ref zero in let object = {get=(lambda u:Unit. !state), inc=(lambda u:Unit. state := (succ (!state)))} in object) in \
-                    \ newCounter unit",
-                    pass "{get=(lambda u.!<0>), inc=(lambda u.<0> := succ !<0>)}:{get=(Unit -> Nat), inc=(Unit -> Unit)}"
-                  ),
-                  (
-                    "let newCounter = (lambda c:Unit.let state = ref zero in let object = {get=(lambda u:Unit. !state), inc=(lambda u:Unit. state := (succ (!state)))} in object) in \
-                    \ let counter = newCounter unit in \
-                    \ let x1 = counter.inc unit in \
-                    \ let x2 = counter.inc unit in \
-                    \ let x3 = counter.inc unit in \
-                    \ counter.get unit",
-                    pass "succ succ succ zero:Nat"
-                  ),
-                  (
-                    "let newCounter = (lambda c:Unit.let state = ref zero in let object = {get=(lambda u:Unit. !state), inc=(lambda u:Unit. state := (succ (!state)))} in object) in \
-                    \ let counter = newCounter unit in \
-                    \ let x1 = counter.inc unit in \
-                    \ let x2 = counter.inc unit in \
-                    \ counter.get unit",
-                    pass "succ succ zero:Nat"
-                  ),
-                  (
-                    "let newResetCounter = (lambda c:Unit.let state = ref zero in \
-                    \let object = {\
-                    \get=(lambda u:Unit. !state), \
-                    \inc=(lambda u:Unit. state := (succ (!state))), \
-                    \reset=(lambda u:Unit. state := zero)} \
-                    \in object) in \
+                    definitions ++ "\
                     \ let counter = newResetCounter unit in \
                     \ let x1 = counter.inc unit in \
                     \ let x2 = counter.inc unit in \
@@ -219,12 +232,7 @@ spec = do
                     pass "zero:Nat"
                   ),
                   (
-                    "let newResetCounter = (lambda c:Unit.let state = {x=ref zero} in \
-                    \let object = {\
-                    \get=(lambda u:Unit. !state.x), \
-                    \inc=(lambda u:Unit. state.x := (succ (!(state.x)))), \
-                    \reset=(lambda u:Unit. state.x := zero)} \
-                    \in object) in \
+                    definitions ++ "\
                     \ let counter = newResetCounter unit in \
                     \ let x1 = counter.inc unit in \
                     \ let x2 = counter.inc unit in \
@@ -233,12 +241,7 @@ spec = do
                     pass "succ succ succ zero:Nat"
                   ),
                   (
-                    "let newResetCounter = (lambda c:Unit.let state = {x=ref zero} in \
-                    \let object = {\
-                    \get=(lambda u:Unit. !state.x), \
-                    \inc=(lambda u:Unit. state.x := (succ (!(state.x)))), \
-                    \reset=(lambda u:Unit. state.x := zero)} \
-                    \in object) in \
+                    definitions ++ "\
                     \ let counter = newResetCounter unit in \
                     \ let x1 = counter.inc unit in \
                     \ let x2 = counter.inc unit in \
@@ -246,23 +249,30 @@ spec = do
                     \ let x4 = counter.reset unit in \
                     \ counter.get unit",
                     pass "zero:Nat"
-                  ),
+                  )
+                 ]
+
+            describe "ResetCounter -> BackupCounter" $ do
+                let definitions = "\
+                \ let resetCounterClass = (lambda state:{x:Ref Nat}.{\
+                \   get=(lambda u:Unit. !state.x), \
+                \   inc=(lambda u:Unit. state.x := (succ (!(state.x)))), \
+                \   reset=(lambda u:Unit. state.x := zero) \
+                \ }) in \
+                \ let backupCounterClass = (lambda r:{x:Ref Nat, b:Ref Nat}. \
+                \ let super = resetCounterClass r in {\
+                \   get=super.get,\
+                \   inc=super.inc,\
+                \   reset=(lambda u:Unit. r.x := !(r.b)),\
+                \   backup=(lambda u:Unit. r.b := !(r.x)) \
+                \ }) in \
+                \ let newBackupCounterClass = (lambda u:Unit.\
+                \ let backupCounterRep = {x=ref zero, b=ref zero} in backupCounterClass backupCounterRep \
+                \) in "
+
+                tests evalString [
                   (
-                    "let resetCounterClass = (lambda state:{x:Ref Nat}. \
-                    \ {get=(lambda u:Unit. !state.x), \
-                    \  inc=(lambda u:Unit. state.x := (succ (!(state.x)))), \
-                    \  reset=(lambda u:Unit. state.x := zero) }) in \
-                    \let backupCounterClass = (lambda r:{x:Ref Nat, b:Ref Nat}. \
-                    \  let super = resetCounterClass r in \
-                    \  {get=super.get,\
-                    \   inc=super.inc,\
-                    \   reset=(lambda u:Unit. r.x := !(r.b)),\
-                    \   backup=(lambda u:Unit. r.b := !(r.x))} \
-                    \) in \
-                    \let newBackupCounterClass = (lambda u:Unit.\
-                    \ let backupCounterRep = {x=ref zero, b=ref zero} in \
-                    \ backupCounterClass backupCounterRep \
-                    \) in \
+                    definitions ++ "\
                     \ let counter = newBackupCounterClass unit in \
                     \ let x1 = counter.inc unit in \
                     \ let x2 = counter.inc unit in \
@@ -275,21 +285,7 @@ spec = do
                     pass "succ succ succ succ succ zero:Nat"
                   ),
                   (
-                    "let newResetCounterClass = (lambda state:{x:Ref Nat}. \
-                    \ {get=(lambda u:Unit. !state.x), \
-                    \  inc=(lambda u:Unit. state.x := (succ (!(state.x)))), \
-                    \  reset=(lambda u:Unit. state.x := zero) }) in \
-                    \let backupCounterClass = (lambda r:{x:Ref Nat, b:Ref Nat}. \
-                    \  let super = newResetCounterClass r in \
-                    \  {get=super.get,\
-                    \   inc=super.inc,\
-                    \   reset=(lambda u:Unit. r.x := !(r.b)),\
-                    \   backup=(lambda u:Unit. r.b := !(r.x))} \
-                    \) in \
-                    \let newBackupCounterClass = (lambda u:Unit.\
-                    \ let backupCounterRep = {x=ref zero, b=ref zero} in \
-                    \ backupCounterClass backupCounterRep \
-                    \) in \
+                    definitions ++ "\
                     \ let counter = newBackupCounterClass unit in \
                     \ let x1 = counter.inc unit in \
                     \ let x2 = counter.inc unit in \
@@ -303,21 +299,7 @@ spec = do
                     pass "succ succ succ succ succ succ zero:Nat"
                   ),
                   (
-                    "let newResetCounterClass = (lambda state:{x:Ref Nat}. \
-                    \ {get=(lambda u:Unit. !state.x), \
-                    \  inc=(lambda u:Unit. state.x := (succ (!(state.x)))), \
-                    \  reset=(lambda u:Unit. state.x := zero) }) in \
-                    \let backupCounterClass = (lambda r:{x:Ref Nat, b:Ref Nat}. \
-                    \  let super = newResetCounterClass r in \
-                    \  {get=super.get,\
-                    \   inc=super.inc,\
-                    \   reset=(lambda u:Unit. r.x := !(r.b)),\
-                    \   backup=(lambda u:Unit. r.b := !(r.x))} \
-                    \) in \
-                    \let newBackupCounterClass = (lambda u:Unit.\
-                    \ let backupCounterRep = {x=ref zero, b=ref zero} in \
-                    \ backupCounterClass backupCounterRep \
-                    \) in \
+                    definitions ++ "\
                     \ let counter = newBackupCounterClass unit in \
                     \ let x1 = counter.inc unit in \
                     \ let x2 = counter.inc unit in \
@@ -333,9 +315,12 @@ spec = do
                     \ let x6 = counter.reset unit in \
                     \ counter.get unit",
                     pass "succ succ succ succ succ zero:Nat"
-                  ),
-                  (
-                    "let resetCounterClass = (lambda state:{x:Ref Nat}. \
+                  )
+                 ]
+
+            describe "ResetCounter -> BackupCounter -> DoubleBackupCounter" $ do
+                let definitions = "\
+                    \let resetCounterClass = (lambda state:{x:Ref Nat}. \
                     \ {get=(lambda u:Unit. !state.x), \
                     \  inc=(lambda u:Unit. state.x := (succ (!(state.x)))), \
                     \  reset=(lambda u:Unit. state.x := zero) }) in \
@@ -358,7 +343,11 @@ spec = do
                     \let newDoubleBackupCounterClass = (lambda u:Unit.\
                     \ let doubleBackupCounterRep = {x=ref zero, b=ref zero, b2=ref zero} in \
                     \ doubleBackupCounterClass doubleBackupCounterRep \
-                    \) in \
+                    \) in "
+
+                tests evalString [
+                  (
+                    definitions ++ "\
                     \ let counter = newDoubleBackupCounterClass unit in \
                     \ let x1 = counter.inc unit in \
                     \ let x2 = counter.inc unit in \
@@ -376,30 +365,7 @@ spec = do
                     pass "succ succ succ succ succ zero:Nat"
                   ),
                   (
-                    "let resetCounterClass = (lambda state:{x:Ref Nat}. \
-                    \ {get=(lambda u:Unit. !state.x), \
-                    \  inc=(lambda u:Unit. state.x := (succ (!(state.x)))), \
-                    \  reset=(lambda u:Unit. state.x := zero) }) in \
-                    \let backupCounterClass = (lambda r:{x:Ref Nat, b:Ref Nat}. \
-                    \  let super = resetCounterClass r in \
-                    \  {get=super.get,\
-                    \   inc=super.inc,\
-                    \   reset=(lambda u:Unit. r.x := !(r.b)),\
-                    \   backup=(lambda u:Unit. r.b := !(r.x))} \
-                    \) in \
-                    \let doubleBackupCounterClass = (lambda r:{x:Ref Nat, b:Ref Nat, b2:Ref Nat}. \
-                    \  let super = backupCounterClass r in \
-                    \  {get=super.get,\
-                    \   inc=super.inc,\
-                    \   reset=super.reset,\
-                    \   backup=super.backup, \
-                    \   reset2=(lambda u:Unit. r.x := !(r.b2)),\
-                    \   backup2=(lambda u:Unit. r.b2 := !(r.x))} \
-                    \) in \
-                    \let newDoubleBackupCounterClass = (lambda u:Unit.\
-                    \ let doubleBackupCounterRep = {x=ref zero, b=ref zero, b2=ref zero} in \
-                    \ doubleBackupCounterClass doubleBackupCounterRep \
-                    \) in \
+                    definitions ++ "\
                     \ let counter = newDoubleBackupCounterClass unit in \
                     \ let x1 = counter.inc unit in \
                     \ let x2 = counter.inc unit in \
@@ -418,17 +384,24 @@ spec = do
                     \ let x6 = counter.reset2 unit in \
                     \ counter.get unit",
                     pass "succ succ succ succ succ zero:Nat"
-                  ),
+                  )
+                 ]
+
+            describe "SetCounter" $ do
+                let definitions = "\
+                \ let setCounterClass = (lambda state:{x:Ref Nat}. \
+                \ {get=(lambda u:Unit. !state.x), \
+                \  set=(lambda v:Nat. state.x := v), \
+                \  reset=(lambda u:Unit. state.x := zero) } \
+                \) in \
+                \let newSetCounter = (lambda u:Unit.\
+                \ let setCounterRep = {x=ref zero} in \
+                \ setCounterClass setCounterRep \
+                \) in "
+
+                tests evalString [
                   (
-                    "let setCounterClass = (lambda state:{x:Ref Nat}. \
-                    \ {get=(lambda u:Unit. !state.x), \
-                    \  set=(lambda v:Nat. state.x := v), \
-                    \  reset=(lambda u:Unit. state.x := zero) } \
-                    \) in \
-                    \let newSetCounter = (lambda u:Unit.\
-                    \ let setCounterRep = {x=ref zero} in \
-                    \ setCounterClass setCounterRep \
-                    \) in \
+                    definitions ++ "\
                     \ let counter = newSetCounter unit in \
                     \ let x1 = counter.get unit in \
                     \ let x2 = counter.set (succ succ zero) in \
@@ -436,15 +409,7 @@ spec = do
                     pass "succ succ zero:Nat"
                   ),
                   (
-                    "let setCounterClass = (lambda state:{x:Ref Nat}. \
-                    \ {get=(lambda u:Unit. !state.x), \
-                    \  set=(lambda v:Nat. state.x := v), \
-                    \  reset=(lambda u:Unit. state.x := zero) } \
-                    \) in \
-                    \let newSetCounter = (lambda u:Unit.\
-                    \ let setCounterRep = {x=ref zero} in \
-                    \ setCounterClass setCounterRep \
-                    \) in \
+                    definitions ++ "\
                     \ let counter = newSetCounter unit in \
                     \ let x1 = counter.get unit in \
                     \ let x2 = counter.set (succ succ zero) in \
@@ -453,17 +418,7 @@ spec = do
                     pass "succ succ succ zero:Nat"
                   ),
                   (
-                    "let setCounterClass = (lambda state:{x:Ref Nat}. \
-                    \ fix (lambda self:{get:Unit->Nat,set:Nat->Unit}. \
-                    \       {get=(lambda u:Unit. !state.x), \
-                    \        set=(lambda v:Nat. state.x := v), \
-                    \        inc=(lambda u:Unit. self.set (succ (self.get unit)))} \
-                    \     )\
-                    \) in \
-                    \let newSetCounter = (lambda u:Unit.\
-                    \ let setCounterRep = {x=ref zero} in \
-                    \ setCounterClass setCounterRep \
-                    \) in \
+                    definitions ++ "\
                     \ let counter = newSetCounter unit in \
                     \ let x1 = counter.get unit in \
                     \ let x2 = counter.set (succ succ zero) in \
@@ -472,22 +427,33 @@ spec = do
                     pass "succ succ succ zero:Nat"
                   ),
                   (
-                    "let setCounterClass = (lambda state:{x:Ref Nat}. \
-                    \ (lambda self:{get:Unit->Nat,set:Nat->Unit}. \
-                    \       {get=(lambda u:Unit. !state.x), \
-                    \        set=(lambda v:Nat. state.x := v), \
-                    \        inc=(lambda u:Unit. self.set (succ (self.get unit)))} \
-                    \     )\
-                    \) in \
-                    \let newSetCounter = (lambda u:Unit.\
-                    \ let setCounterRep = {x=ref zero} in \
-                    \ fix (setCounterClass setCounterRep) \
-                    \) in \
+                    definitions ++ "\
                     \ let counter = newSetCounter unit in \
                     \ let x1 = counter.get unit in \
                     \ let x2 = counter.set (succ succ zero) in \
                     \ let x2 = counter.set (succ succ succ zero) in \
                     \ counter.get unit",
                     pass "succ succ succ zero:Nat"
+                  ),
+                  (
+                    definitions ++ "\
+                    \ let counter = newSetCounter unit in \
+                    \ let x1 = counter.get unit in \
+                    \ let x2 = counter.set (succ succ zero) in \
+                    \ let x2 = counter.set (succ succ succ zero) in \
+                    \ let x3 = counter.reset unit in \
+                    \ counter.get unit",
+                    pass "zero:Nat"
+                  ),
+                  (
+                    definitions ++ "\
+                    \ let counter = newSetCounter unit in \
+                    \ let x1 = counter.get unit in \
+                    \ let x2 = counter.set (succ succ zero) in \
+                    \ let x2 = counter.set (succ succ succ zero) in \
+                    \ let x3 = counter.reset unit in \
+                    \ let x4 = counter.set (succ succ zero) in \
+                    \ counter.get unit",
+                    pass "succ succ zero:Nat"
                   )
                  ]

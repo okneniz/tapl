@@ -24,7 +24,7 @@ fullRefParser :: Parsec String LCNames ([Command], LCNames)
 fullRefParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
-command =  (try bindCommand) <|> (try evalCommand)
+command =  (optional spaces) >> ((try bindCommand) <|> (try evalCommand))
 
 bindCommand :: LCCommandParser
 bindCommand = do
