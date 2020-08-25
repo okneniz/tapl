@@ -3,6 +3,7 @@ module Language.TAPL.TypedArith.Parser (parse) where
 import Language.TAPL.TypedArith.Types
 import Language.TAPL.TypedArith.Context
 import Language.TAPL.TypedArith.Lexer
+import Language.TAPL.Common.Helpers (ucid)
 
 import Prelude hiding (abs, succ, pred)
 
@@ -11,18 +12,30 @@ import Text.Parsec.Prim (try)
 
 import Data.List (findIndex)
 
+type LCCommandParser = Parsec String LCNames Command
 type LCParser = Parsec String LCNames Term
 type LCTypeParser = Parsec String LCNames Type
 
-parse :: String -> String -> Either ParseError (AST, LCNames)
+parse :: String -> String -> Either ParseError ([Command], LCNames)
 parse = runParser typedArithParser []
 
-typedArithParser :: Parsec String LCNames (AST, LCNames)
-typedArithParser = do
-    ast <- term `sepEndBy` semi
-    eof
-    names <- getState
-    return (ast, names)
+typedArithParser :: Parsec String LCNames ([Command], LCNames)
+typedArithParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
+
+command :: Parsec String LCNames Command
+command = (try evalCommand) <|> bindCommand
+
+bindCommand :: LCCommandParser
+bindCommand = do
+    pos <- getPosition
+    x <- ucid <* spaces
+    reserved "="
+    modifyState $ addName x
+    ty <- typeAnnotation
+    return $ Bind pos x $ VarBind ty
+
+evalCommand :: LCCommandParser
+evalCommand = try $ Eval <$> term `sepEndBy` semi
 
 term :: LCParser
 term = try apply
@@ -30,10 +43,7 @@ term = try apply
    <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ do
-            optional spaces
-            pos <- getPosition
-            return $ TApp pos
+apply = chainl1 notApply $ TApp <$> (optional spaces *> getPosition)
 
 notApply :: LCParser
 notApply = value

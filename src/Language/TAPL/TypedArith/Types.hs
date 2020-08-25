@@ -1,6 +1,11 @@
 module Language.TAPL.TypedArith.Types where
 
+import Language.TAPL.Common.Context
 import Text.Parsec (SourcePos)
+
+data Command = Eval [Term]
+             | Bind SourcePos String Binding
+             deriving (Show)
 
 data Term = TTrue SourcePos
           | TFalse SourcePos
@@ -19,8 +24,6 @@ data Type = TyBool
           | TyNat
           deriving (Eq)
 
-type VarName = Int
-type Depth = Int
 type AST = [Term]
 
 data Binding = NameBind | VarBind Type deriving (Show)
@@ -44,21 +47,21 @@ isNumerical _ = False
 
 tmmap :: (Int -> SourcePos -> Depth -> VarName -> Term) -> Int -> Term -> Term
 tmmap onvar s t = walk s t
-            where walk c (TVar info name depth) = onvar c info name depth
-                  walk c (TAbs info x ty t1) = TAbs info x ty (walk (c+1) t1)
-                  walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
-                  walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
-                  walk _ (TTrue info) = TTrue info
-                  walk _ (TFalse info) = TFalse info
-                  walk _ (TZero info) = TZero info
-                  walk c (TIsZero info t1) = TIsZero info (walk c t1)
-                  walk c (TPred info t1) = TPred info (walk c t1)
-                  walk c (TSucc info t1) = TSucc info (walk c t1)
+            where walk c (TVar p name depth) = onvar c p name depth
+                  walk c (TAbs p x ty t1) = TAbs p x ty (walk (c+1) t1)
+                  walk c (TApp p t1 t2) = TApp p (walk c t1) (walk c t2)
+                  walk c (TIf p t1 t2 t3) = TIf p (walk c t1) (walk c t2) (walk c t3)
+                  walk _ (TTrue p) = TTrue p
+                  walk _ (TFalse p) = TFalse p
+                  walk _ (TZero p) = TZero p
+                  walk c (TIsZero p t1) = TIsZero p (walk c t1)
+                  walk c (TPred p t1) = TPred p (walk c t1)
+                  walk c (TSucc p t1) = TSucc p (walk c t1)
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d s t = tmmap onvar s t
-                 where onvar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onvar _ info name depth = TVar info name (depth + d)
+                 where onvar c p name depth | name >= c = TVar p (name + d) (depth + d)
+                       onvar _ p name depth = TVar p name (depth + d)
 
 shift :: VarName -> Term -> Term
 shift d t = termShiftAbove d 0 t
@@ -66,7 +69,7 @@ shift d t = termShiftAbove d 0 t
 substitution :: VarName -> Term -> Term -> Term
 substitution j s t = tmmap onvar 0 t
                where onvar c _ name _ | name == j + c = shift c s
-                     onvar _ info name depth = TVar info name depth
+                     onvar _ p name depth = TVar p name depth
 
 substitutionTop :: Term -> Term -> Term
 substitutionTop s t = shift (-1) (substitution 0 (shift 1 s) t)
