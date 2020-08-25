@@ -1,26 +1,52 @@
 module Language.TAPL.SimpleBool.Evaluator (evalString) where
 
-import Language.TAPL.Common.Helpers (whileJust)
-import Language.TAPL.SimpleBool.Types
-import Language.TAPL.SimpleBool.Parser
-import Language.TAPL.SimpleBool.TypeChecker
-import Language.TAPL.SimpleBool.Pretty
 
-import Data.List (last)
+import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Context
+import Language.TAPL.TypedArith.Context
+import Language.TAPL.TypedArith.Types
+import Language.TAPL.TypedArith.Parser
+import Language.TAPL.TypedArith.TypeChecker
+import Language.TAPL.TypedArith.Pretty
+
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Except
 
 evalString :: String -> Either String String
 evalString code = do
-  case parse "<stdin>" code of
-    Left e -> Left $ show e
-    Right (ast, names) -> do
-      _ <- sequence $ typeOf names <$> ast
-      let result = last $ eval ast
-      ty <- typeOf names result
-      result' <- render names result
-      return $ result' ++ ":" ++ (show $ pretty ty)
+    case parse "<stdin>" code of
+        Left e -> Left $ show e
+        Right ([], _) -> return ""
+        Right (commands, names) -> runExcept (evalStateT (f commands) names)
+    where
+        f cs = do
+            cs' <- evalCommands cs
+            if null cs'
+            then return ""
+            else do let t = last cs'
+                    ty <- typeOf t
+                    t' <- prettify t
+                    ty' <- prettifyType ty
+                    return $ show t' ++ ":" ++ show ty'
 
-eval :: AST -> AST
-eval ast = whileJust normalize <$> ast
+evalCommands :: [Command] -> Eval AST
+evalCommands [] = return []
+evalCommands ((Bind _ name binding):cs) = do
+   modify $ bind name binding
+   evalCommands cs
+
+evalCommands ((Eval []):cs) = evalCommands cs
+evalCommands ((Eval ts):cs) = do
+    _ <- typeCheck ts
+    let ts' = whileJust normalize <$> ts
+    cs' <- evalCommands cs
+    return $ ts' ++ cs'
+
+typeCheck :: AST -> Eval Type
+typeCheck [] = lift $ throwE "attempt to check empty AST"
+typeCheck [t] = typeOf t
+typeCheck (t:ts) = typeOf t >> typeCheck ts
 
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _ ) = return t

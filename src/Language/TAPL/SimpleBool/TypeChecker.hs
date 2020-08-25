@@ -1,62 +1,59 @@
 module Language.TAPL.SimpleBool.TypeChecker where
 
+import Text.Parsec (SourcePos)
+
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
-import Text.Parsec (SourcePos)
-
+import Language.TAPL.Common.Context
 import Language.TAPL.SimpleBool.Types
+import Language.TAPL.SimpleBool.Pretty
 import Language.TAPL.SimpleBool.Context
-import Language.TAPL.Common.Context (bindingType)
 
-type Inferred a = ExceptT TypeError (State LCNames) a
-data TypeError = TypeMissmatch SourcePos String
+typeOf :: Term -> Eval Type
+typeOf (TTrue _) = return TyBool
+typeOf (TFalse _) = return TyBool
 
-typeOf :: LCNames -> Term -> Either String Type
-typeOf names term =
-    case evalState (runExceptT (infer term)) names of
-         Left x -> Left $ show x
-         Right x -> return x
-
-infer :: Term -> Inferred Type
-infer (TTrue _) = return TyBool
-infer (TFalse _) = return TyBool
-
-infer (TIf pos t1 t2 t3) = do
-  ty1 <- infer t1
+typeOf (TIf pos t1 t2 t3) = do
+  ty1 <- typeOf t1
   case ty1 of
        TyBool -> do
-          ty2 <- infer t2
-          ty3 <- infer t3
+          ty2 <- typeOf t2
+          ty3 <- typeOf t3
           if ty2 == ty3
           then return ty2
-          else throwE $ TypeMissmatch pos $ "branches of condition have different types (" ++ show ty2 ++ " and " ++ show ty3 ++ ")"
-       ty -> throwE $ TypeMissmatch pos $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty ++ ")"
+          else typeError pos $ "branches of condition have different types (" ++ show ty2 ++ " and " ++ show ty3 ++ ")"
+       ty -> typeError pos $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty ++ ")"
 
-infer (TVar pos v _) = do
-  names <- lift $ get
+typeOf (TVar pos v _) = do
+  names <-get
   case bindingType names v of
        Just (VarBind ty') -> return ty'
-       Just x -> throwE $ TypeMissmatch pos $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
-       Nothing -> throwE $ TypeMissmatch pos $ "var type error"
+       Just x -> typeError pos $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
+       Nothing -> typeError pos $ "var type error"
 
-infer (TApp pos t1 t2) = do
-  ty1 <- infer t1
-  ty2 <- infer t2
+typeOf (TApp pos t1 t2) = do
+  ty1 <- typeOf t1
+  ty2 <- typeOf t2
   case ty1 of
        (TyArrow ty1' ty2') ->
           if ty2 == ty1'
           then return ty2'
-          else throwE $ TypeMissmatch pos $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
-       _ -> throwE $ TypeMissmatch pos $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
+          else typeError pos $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
+       _ -> typeError pos $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
 
-infer (TAbs _ name ty t) = do
-  names <- lift $ get
-  lift $ modify $ addVar name ty
-  ty' <- infer t
-  lift $ put names
+typeOf (TAbs _ name ty t) = do
+  names <-get
+  modify $ addVar name ty
+  ty' <- typeOf t
+  put names
   return $ TyArrow ty ty'
+
+typeError :: SourcePos -> String -> Eval a
+typeError p message = lift $ throwE $ show p ++ ":" ++ message
+
+data TypeError = TypeMissmatch SourcePos String
 
 instance Show TypeError where
     show (TypeMissmatch pos message) = message ++ " in " ++ show pos

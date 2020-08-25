@@ -1,4 +1,4 @@
-module Language.TAPL.SimpleBool.Pretty (render, pretty) where
+module Language.TAPL.SimpleBool.Pretty (prettify, prettifyType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
@@ -7,19 +7,11 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
-import Language.TAPL.SimpleBool.Types
-import Language.TAPL.SimpleBool.Context
+import Language.TAPL.TypedArith.Types
+import Language.TAPL.TypedArith.Context
 import Language.TAPL.Common.Context (nameFromContext)
 
-type Printed a = ExceptT String (State LCNames) a
-
-render :: LCNames -> Term -> Either String String
-render names term =
-    case evalState (runExceptT (prettify term)) names of
-         Left x -> Left x
-         Right x -> return $ show x
-
-prettify :: Term -> Printed (Doc a)
+prettify :: Term -> Eval (Doc a)
 prettify (TTrue _) = return $ pretty "true"
 prettify (TFalse _) = return $ pretty "false"
 
@@ -34,24 +26,24 @@ prettify (TIf _ t1 t2 t3) = do
                      ]
 
 prettify (TVar _ varname _) = do
-    c <- lift $ get
+    c <- get
     case nameFromContext c varname of
          Just name -> return $ pretty name
-         Nothing -> throwE $ "[bad index " ++ show varname ++ " in context " ++ show c  ++ "]"
+         Nothing -> lift $ throwE $ "[bad index " ++ show varname ++ " in context " ++ show c  ++ "]"
 
 prettify (TAbs _ name _ t) = do
-  names <- lift $ get
+  names <- get
   let (newName, names') = pickFreshName names name
-  lift $ put names'
+  put names'
   doc <- prettify t
-  lift $ put names
+  put names
   return $ parens $ pretty "lambda" <+> pretty newName <> dot <> doc
 
-prettify (TApp _ t1 t2) = do
-    doc1 <- prettify t1
-    doc2 <- prettify t2
-    return $ doc1 <+> doc2
+prettify (TApp _ t1 t2) = (<+>) <$> prettify t1 <*> prettify t2
 
-instance Pretty Type where
-    pretty TyBool = pretty "Bool"
-    pretty (TyArrow ty1 ty2) = parens (pretty ty1 <+> pretty "->" <+> pretty ty2)
+prettifyType :: Type -> Eval (Doc a)
+prettifyType TyBool = return $ pretty "Bool"
+prettifyType (TyArrow ty1 ty2) = do
+    doc1 <- prettifyType ty1
+    doc2 <- prettifyType ty2
+    return $ parens (doc1 <+> pretty "->" <+> doc2)
