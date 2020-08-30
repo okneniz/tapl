@@ -40,11 +40,11 @@ recover (TIf _ t1 t2 t3) = do
     prependConstraint (tyT1,TyBool)
     return tyT3
 
-recover (TVar info varName _) = do
+recover (TVar p varName _) = do
     n <- getNames
     case pickVar n varName of
          Just (_, VarBind ty) -> return ty
-         _ -> lift $ throwE $ show $ TypeMissmatch info "Wrong type of binding"
+         _ -> lift $ throwE $ show $ TypeMissmatch p "Wrong type of binding"
 
 recover (TAbs _ x tyT1 t2) =
     withTmpStateT (putVar x tyT1) $ do

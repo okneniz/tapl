@@ -14,34 +14,34 @@ typeOf :: Term -> Eval Type
 typeOf (TTrue _) = return TyBool
 typeOf (TFalse _) = return TyBool
 
-typeOf (TVar info v _) = do
+typeOf (TVar p v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError info $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
-         Nothing -> typeError info "var type error"
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         Nothing -> typeError p "var type error"
 
 typeOf (TAbs _ x tyT1 t2) = do
     withTmpStateT (addVar x tyT1) $ do
         tyT2 <- typeOf t2
         return $ TyArrow tyT1 (typeShift (-1) tyT2)
 
-typeOf (TApp info t1 t2) = do
+typeOf (TApp p t1 t2) = do
     tyT1 <- typeOf t1
     tyT2 <- typeOf t2
     tyT1' <- simplifyType tyT1
     case tyT1' of
          (TyArrow tyT11 tyT12) -> do
             unlessM (tyT2 <: tyT11)
-                    (typeError info $ "incorrect application of abstraction " ++ show tyT2 ++ " to " ++ show tyT11)
+                    (typeError p $ "incorrect application of abstraction " ++ show tyT2 ++ " to " ++ show tyT11)
             return tyT12
          TyBot -> return TyBot
-         _ -> typeError info $ "arrow type expected"
+         _ -> typeError p $ "arrow type expected"
 
-typeOf (TIf info t1 t2 t3) = do
+typeOf (TIf p t1 t2 t3) = do
     ty1 <- typeOf t1
     unlessM (ty1 <: TyBool)
-            (typeError info $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")")
+            (typeError p $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")")
     ty2 <- typeOf t2
     ty3 <- typeOf t3
     joinTypes ty2 ty3
@@ -53,7 +53,7 @@ typeOf (TTry _ t1 t2) = do
     joinTypes ty1 ty2
 
 typeError :: SourcePos -> String -> Eval a
-typeError info message = lift $ throwE $ show info ++ ":" ++ message
+typeError p message = lift $ throwE $ show p ++ ":" ++ message
 
 typeEq :: Type -> Type -> Eval Bool
 typeEq ty1 ty2 = do

@@ -42,22 +42,22 @@ isNumerical _ = False
 
 termMap :: (Int -> SourcePos -> VarName -> Depth -> Term) -> Int -> Term -> Term
 termMap onVar s t = walk s t
-              where walk c (TVar info name depth) = onVar c info name depth
-                    walk c (TAbs info x ty t1) = TAbs info x ty (walk (c+1) t1)
-                    walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
-                    walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
-                    walk _ (TTrue info) = TTrue info
-                    walk _ (TFalse info) = TFalse info
-                    walk _ (TZero info) = TZero info
-                    walk c (TIsZero info t1) = TIsZero info (walk c t1)
-                    walk c (TPred info t1) = TPred info (walk c t1)
-                    walk c (TSucc info t1) = TSucc info (walk c t1)
-                    walk c (TLet info x t1 t2) = TLet info x (walk c t1) (walk (c+1) t2)
+              where walk c (TVar p name depth) = onVar c p name depth
+                    walk c (TAbs p x ty t1) = TAbs p x ty (walk (c+1) t1)
+                    walk c (TApp p t1 t2) = TApp p (walk c t1) (walk c t2)
+                    walk c (TIf p t1 t2 t3) = TIf p (walk c t1) (walk c t2) (walk c t3)
+                    walk _ (TTrue p) = TTrue p
+                    walk _ (TFalse p) = TFalse p
+                    walk _ (TZero p) = TZero p
+                    walk c (TIsZero p t1) = TIsZero p (walk c t1)
+                    walk c (TPred p t1) = TPred p (walk c t1)
+                    walk c (TSucc p t1) = TSucc p (walk c t1)
+                    walk c (TLet p x t1 t2) = TLet p x (walk c t1) (walk (c+1) t2)
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d s t = termMap onVar s t
-                 where onVar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onVar _ info name depth = TVar info name (depth + d)
+                 where onVar c p name depth | name >= c = TVar p (name + d) (depth + d)
+                       onVar _ p name depth = TVar p name (depth + d)
 
 termShift :: VarName -> Term -> Term
 termShift d t = termShiftAbove d 0 t

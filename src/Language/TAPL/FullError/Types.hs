@@ -27,27 +27,27 @@ isVal _ = False
 
 termMap :: (Int -> SourcePos -> VarName -> Depth -> Term) -> (Int -> Type -> Type) -> Int -> Term -> Term
 termMap onVar onType s t = walk s t
-                     where walk c (TVar info name depth) = onVar c info name depth
-                           walk c (TAbs info x ty t) = TAbs info x (onType c ty) (walk (c+1) t)
-                           walk c (TApp info t1 t2) = TApp info (walk c t1) (walk c t2)
-                           walk c (TIf info t1 t2 t3) = TIf info (walk c t1) (walk c t2) (walk c t3)
-                           walk _ (TTrue info) = TTrue info
-                           walk _ (TFalse info) = TFalse info
-                           walk _ (TError info) = TError info
-                           walk c (TTry info t1 t2) = TTry info (walk c t1) (walk c t2)
+                     where walk c (TVar p name depth) = onVar c p name depth
+                           walk c (TAbs p x ty t) = TAbs p x (onType c ty) (walk (c+1) t)
+                           walk c (TApp p t1 t2) = TApp p (walk c t1) (walk c t2)
+                           walk c (TIf p t1 t2 t3) = TIf p (walk c t1) (walk c t2) (walk c t3)
+                           walk _ (TTrue p) = TTrue p
+                           walk _ (TFalse p) = TFalse p
+                           walk _ (TError p) = TError p
+                           walk c (TTry p t1 t2) = TTry p (walk c t1) (walk c t2)
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d c t = termMap onVar (typeShiftAbove d) c t
-                 where onVar c info name depth | name >= c = TVar info (name + d) (depth + d)
-                       onVar c info name depth = TVar info name (depth + d)
+                 where onVar c p name depth | name >= c = TVar p (name + d) (depth + d)
+                       onVar c p name depth = TVar p name (depth + d)
 
 termShift :: VarName -> Term -> Term
 termShift d t = termShiftAbove d 0 t
 
 termSubstitution :: VarName -> Term -> Term -> Term
 termSubstitution j s t = termMap onVar onType 0 t
-                   where onVar c info name depth | name == j + c = termShift c s
-                         onVar c info name depth = TVar info name depth
+                   where onVar c p name depth | name == j + c = termShift c s
+                         onVar c p name depth = TVar p name depth
                          onType j ty = ty
 
 termSubstitutionTop :: Term -> Term -> Term
