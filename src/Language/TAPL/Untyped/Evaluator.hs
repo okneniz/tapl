@@ -5,14 +5,17 @@ import Language.TAPL.Untyped.Types
 import Language.TAPL.Untyped.Parser
 import Language.TAPL.Untyped.Pretty
 
+import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.Except
+
 evalString :: String  -> Either String String
 evalString code = do
-  case parse "<stdin>" code of
-    Left e -> Left $ show e
-    Right (ast, names) -> do
-        let result = last $ whileJust normalize <$> ast
-        result' <- render names result
-        return result'
+    case parse "<stdin>" code of
+        Left e -> Left $ show e
+        Right ([], _) -> return ""
+        Right (ast, names) -> runExcept (evalStateT (f ast) names)
+    where
+        f ast = fmap show $ prettify $ last $ whileJust normalize <$> ast
 
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ t) v) | isVal v = return $ substitutionTop v t
