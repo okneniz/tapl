@@ -1,7 +1,6 @@
 # tapl
 
 ? fullpoly
-? fullisorec
 
 - fomega
 - fomsub
