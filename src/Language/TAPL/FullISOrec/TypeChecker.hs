@@ -14,8 +14,6 @@ import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
 import Language.TAPL.FullISOrec.Types
 import Language.TAPL.FullISOrec.Context
 
-import Debug.Trace
-
 typeOf :: Term -> Eval Type
 typeOf (TVar p v _) = do
     n <- get
@@ -205,7 +203,6 @@ typeEq :: Type -> Type -> Eval Bool
 typeEq ty1 ty2 = do
     ty1' <- simplifyType ty1
     ty2' <- simplifyType ty2
-    traceShowM $ "compare " ++ show ty1' ++ " and " ++ show ty2'
     n <- get
     case (ty1', ty2') of
       (TyString, TyString) -> return True
@@ -232,7 +229,7 @@ typeEq ty1 ty2 = do
       (TyNat, TyNat) -> return True
 
       (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
-      (TyRecord f1, TyRecord f2) | traceShow ("compare " ++ show f1 ++ " and " ++ show f2 ++ " -> " ++ show (Map.elems $ Map.intersectionWith (,) f1 f2)) True ->
+      (TyRecord f1, TyRecord f2) ->
         all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
       (TyVariant f1, TyVariant f2) | (Map.keys f1) /= (Map.keys f2) -> return False
