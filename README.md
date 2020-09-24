@@ -1,7 +1,5 @@
 # tapl
 
-? fullpoly
-
 - fomega
 - fomsub
 - fullfomsub
