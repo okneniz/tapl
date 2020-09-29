@@ -6,9 +6,9 @@
 - fullfomsubref
 - fullfsub
 - fullfsubref
+- purefsub
 - fullomega
-- fullsub
 - fullupdate
+
 - joinexercise
 - letexercise
-- purefsub
