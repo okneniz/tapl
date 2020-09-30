@@ -21,7 +21,6 @@ import Language.TAPL.FullSub.Context
 data TypeError = TypeMissmatch SourcePos String
 
 typeOf :: Term -> Eval Type
---  | TmVar(fi,i,_) -> getTypeFromContext fi ctx i
 typeOf (TVar p v _) = do
     n <- get
     case getBinding n v of
@@ -29,24 +28,10 @@ typeOf (TVar p v _) = do
          (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
          Nothing -> typeError p "var type error"
 
---  | TmAbs(fi,x,tyT1,t2) ->
---      let ctx' = addbinding ctx x (VarBind(tyT1)) in
---      let tyT2 = typeof ctx' t2 in
---      TyArr(tyT1, typeShift (-1) tyT2)
-
 typeOf (TAbs _ x tyT1 t2) = do
     withTmpStateT (addVar x tyT1) $ do
         tyT2 <- typeOf t2
         return $ TyArrow tyT1 (typeShift (-1) tyT2)
-
---  | TmApp(fi,t1,t2) ->
---      let tyT1 = typeof ctx t1 in
---      let tyT2 = typeof ctx t2 in
---      (match simplifyty ctx tyT1 with
---          TyArr(tyT11,tyT12) ->
---            if subtype ctx tyT2 tyT11 then tyT12
---            else error fi "parameter type mismatch"
---        | _ -> error fi "arrow type expected")
 
 typeOf (TApp p t1 t2) = do
     ty1 <- simplifyType =<< typeOf t1
@@ -62,18 +47,8 @@ typeOf (TApp p t1 t2) = do
             ty1p <- prettifyType ty1
             typeError p $ "arrow type expected, insted" ++ show ty1p
 
---  | TmTrue(fi) ->
---      TyBool
---  | TmFalse(fi) ->
---      TyBool
-
 typeOf (TTrue _) = return TyBool
 typeOf (TFalse _) = return TyBool
-
---  | TmIf(fi,t1,t2,t3) ->
---      if subtype ctx (typeof ctx t1) TyBool then
---        join ctx (typeof ctx t2) (typeof ctx t3)
---      else error fi "guard of conditional not a boolean"
 
 typeOf (TIf p t1 t2 t3) = do
     ty1 <- typeOf t1
@@ -83,22 +58,10 @@ typeOf (TIf p t1 t2 t3) = do
     ty3 <- typeOf t3
     joinTypes ty2 ty3
 
---  | TmRecord(fi, fields) ->
---      let fieldtys =
---        List.map (fun (li,ti) -> (li, typeof ctx ti)) fields in
---      TyRecord(fieldtys)
-
 typeOf (TRecord _ fields) = do
     tys <- sequence $ fmap tyField $ Map.toList fields
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = (,) <$> return k <*> typeOf v
-
---  | TmProj(fi, t1, l) ->
---      (match simplifyty ctx (typeof ctx t1) with
---          TyRecord(fieldtys) ->
---            (try List.assoc l fieldtys
---             with Not_found -> error fi ("label "^l^" not found"))
---        | _ -> error fi "Expected record type")
 
 typeOf (TProj _ t (TKeyword p key)) = do
     ty <- simplifyType =<< typeOf t
@@ -111,24 +74,11 @@ typeOf (TProj _ t (TKeyword p key)) = do
 
 typeOf (TProj p _ _) = typeError p "invalid projection"
 
---  | TmLet(fi,x,t1,t2) ->
---     let tyT1 = typeof ctx t1 in
---     let ctx' = addbinding ctx x (VarBind(tyT1)) in
---     typeShift (-1) (typeof ctx' t2)
-
 typeOf (TLet _ x t1 t2) = do
     ty1 <- typeOf t1
     withTmpStateT (addVar x ty1) $ do
         ty2 <- typeOf t2
         return $ typeShift (-1) ty2
-
---  | TmFix(fi, t1) ->
---      let tyT1 = typeof ctx t1 in
---      (match simplifyty ctx tyT1 with
---           TyArr(tyT11,tyT12) ->
---             if subtype ctx tyT12 tyT11 then tyT12
---             else error fi "result of body not compatible with domain"
---         | _ -> error fi "arrow type expected")
 
 typeOf (TFix p t1) = do
     tyT1 <- simplifyType =<< typeOf t1
@@ -139,33 +89,15 @@ typeOf (TFix p t1) = do
             return tyT12
          _ -> typeError p  "arrow type expected"
 
---  | TmString _ -> TyString
-
 typeOf (TString _ _) = return TyString
-
---  | TmUnit(fi) -> TyUnit
-
 typeOf (TUnit _) = return TyUnit
-
---  | TmAscribe(fi,t1,tyT) ->
---     if subtype ctx (typeof ctx t1) tyT then
---       tyT
---     else
---       error fi "body of as-term does not have the expected type"
 
 typeOf (TAscribe p t ty) = do
     ty' <- typeOf t
     unlessM (ty' <: ty) (typeError p "body of as-term does not have the expected type")
     return ty
 
---  | TmFloat _ -> TyFloat
-
 typeOf (TFloat _ _) = return TyFloat
-
---  | TmTimesfloat(fi,t1,t2) ->
---      if subtype ctx (typeof ctx t1) TyFloat
---      && subtype ctx (typeof ctx t2) TyFloat then TyFloat
---      else error fi "argument of timesfloat is not a number"
 
 typeOf (TTimesFloat p t1 t2) = do
     ty1 <- typeOf t1
@@ -174,32 +106,17 @@ typeOf (TTimesFloat p t1 t2) = do
     unlessM (ty2 <: TyFloat) (unexpectedType p TyFloat ty2)
     return TyFloat
 
---  | TmZero(fi) ->
---      TyNat
-
 typeOf (TZero _) = return TyNat
-
---  | TmSucc(fi,t1) ->
---      if subtype ctx (typeof ctx t1) TyNat then TyNat
---      else error fi "argument of succ is not a number"
 
 typeOf (TSucc p t) = do
   ty <- typeOf t
   unlessM (ty <: TyNat) (unexpectedType p TyNat ty)
   return TyNat
 
---  | TmPred(fi,t1) ->
---      if subtype ctx (typeof ctx t1) TyNat then TyNat
---      else error fi "argument of pred is not a number"
-
 typeOf (TPred p t) = do
   ty <- typeOf t
   unlessM (ty <: TyNat) (unexpectedType p TyNat ty)
   return TyNat
-
---  | TmIsZero(fi,t1) ->
---      if subtype ctx (typeof ctx t1) TyNat then TyBool
---      else error fi "argument of iszero is not a number"
 
 typeOf (TIsZero p t) = do
   ty <- typeOf t
@@ -252,25 +169,6 @@ typeEq ty1 ty2 = do
 
       _ -> return False
 
---let rec subtype ctx tyS tyT =
---   tyeqv ctx tyS tyT ||
---   let tyS = simplifyty ctx tyS in
---   let tyT = simplifyty ctx tyT in
---   match (tyS,tyT) with
---     (_,TyTop) ->
---       true
---   | (TyArr(tyS1,tyS2),TyArr(tyT1,tyT2)) ->
---       (subtype ctx tyT1 tyS1) && (subtype ctx tyS2 tyT2)
---   | (TyRecord(fS), TyRecord(fT)) ->
---       List.for_all
---         (fun (li,tyTi) ->
---            try let tySi = List.assoc li fS in
---                subtype ctx tySi tyTi
---            with Not_found -> false)
---         fT
---   | (_,_) ->
---       false
-
 (<:) :: Type -> Type -> Eval Bool
 (<:) tyS tyT = do
     x <- typeEq tyS tyT
@@ -287,30 +185,6 @@ typeEq ty1 ty2 = do
               _ -> return False
     where subs f1 f2 = uncurry (<:) <$> fs f1 f2
           fs f1 f2 = Map.elems $ Map.intersectionWith (,) f1 f2
-
---let rec join ctx tyS tyT =
---  if subtype ctx tyS tyT then tyT else
---  if subtype ctx tyT tyS then tyS else
---  let tyS = simplifyty ctx tyS in
---  let tyT = simplifyty ctx tyT in
---  match (tyS,tyT) with
---    (TyRecord(fS), TyRecord(fT)) ->
---      let labelsS = List.map (fun (li,_) -> li) fS in
---      let labelsT = List.map (fun (li,_) -> li) fT in
---      let commonLabels =
---        List.find_all (fun l -> List.mem l labelsT) labelsS in
---      let commonFields =
---        List.map (fun li ->
---                    let tySi = List.assoc li fS in
---                    let tyTi = List.assoc li fT in
---                    (li, join ctx tySi tyTi))
---                 commonLabels in
---      TyRecord(commonFields)
---  | (TyArr(tyS1,tyS2),TyArr(tyT1,tyT2)) ->
---      (try TyArr(meet ctx tyS1 tyT1, join ctx tyS2 tyT2)
---        with Not_found -> TyTop)
---  | _ ->
---      TyTop
 
 joinTypes :: Type -> Type -> Eval Type
 joinTypes tyS tyT = do
@@ -335,37 +209,6 @@ joinTypes tyS tyT = do
 
                          _ -> return TyTop
 
---meet ctx tyS tyT =
---  if subtype ctx tyS tyT then tyS else
---  if subtype ctx tyT tyS then tyT else
---  let tyS = simplifyty ctx tyS in
---  let tyT = simplifyty ctx tyT in
---  match (tyS,tyT) with
---    (TyRecord(fS), TyRecord(fT)) ->
---      let labelsS = List.map (fun (li,_) -> li) fS in
---      let labelsT = List.map (fun (li,_) -> li) fT in
---      let allLabels =
---        List.append
---          labelsS
---          (List.find_all
---            (fun l -> not (List.mem l labelsS)) labelsT) in
---      let allFields =
---        List.map (fun li ->
---                    if List.mem li allLabels then
---                      let tySi = List.assoc li fS in
---                      let tyTi = List.assoc li fT in
---                      (li, meet ctx tySi tyTi)
---                    else if List.mem li labelsS then
---                      (li, List.assoc li fS)
---                    else
---                      (li, List.assoc li fT))
---                 allLabels in
---      TyRecord(allFields)
---  | (TyArr(tyS1,tyS2),TyArr(tyT1,tyT2)) ->
---      TyArr(join ctx tyS1 tyT1, meet ctx tyS2 tyT2)
---  | _ ->
---      raise Not_found
-
 ok x = (return.return) x
 nvm = return Nothing
 
@@ -387,7 +230,7 @@ meetTypes tyS tyT = do
                                                     (zipWithMaybeMatched $ \k tySi tyTi -> return (Just tySi, Just tyTi))
                                                     fS fT
                              -- TODO : WTF ? https://github.com/enaudon/TAPL/blob/master/source/fullsub/core.ml#L240
-                             -- what is Nothing (not found in original implementation) in this case?
+                             -- what is Nothing (not found in original implementation) in this context?
                              -- how to handle it?
                             ok $ TyRecord $ Map.fromList $ catMaybes fST
                             where f k (Just tySi, Just tyTi) = liftM ((,) k) <$> meetTypes tySi tyTi
