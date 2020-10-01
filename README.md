@@ -1,13 +1,15 @@
 # tapl
 
+- fullfsub
+- fullfsubref
+
 - fomega
+- fullomega
+
 - fomsub
 - fullfomsub
 - fullfomsubref
-- fullfsub
-- fullfsubref
-- purefsub
-- fullomega
+
 - fullupdate
 
 - joinexercise
