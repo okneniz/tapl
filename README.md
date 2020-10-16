@@ -1,8 +1,5 @@
 # tapl
 
-- fullfsub
-- fullfsubref
-
 - fomega
 - fullomega
 

@@ -10,8 +10,9 @@ whileJust f x = case f x of
                      Nothing -> x
 
 ucid :: Parsec String a String
-ucid = (:) <$> (try $ oneOf ['A'..'Z'])
-           <*> (try $ many $ oneOf ['a'..'z'])
+ucid = (:) <$> (try x) <*> (try $ many y)
+    where x = oneOf ['A'..'Z']
+          y = oneOf $ ['A'..'Z'] ++ ['a'..'z']
 
 unlessM :: Monad m => m Bool -> m () -> m ()
 unlessM p s = do
@@ -25,3 +26,6 @@ withTmpStateT f g = do
     x <- g
     put s
     return x
+
+(<=<) :: Monad m => (b -> m c) -> (a -> m b) -> (a -> m c)
+(g <=< f) a = f a >>= g
