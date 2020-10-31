@@ -12,7 +12,7 @@ import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, (<=<))
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
 import Language.TAPL.FullFSubRef.Types
 import Language.TAPL.FullFSubRef.Context
 

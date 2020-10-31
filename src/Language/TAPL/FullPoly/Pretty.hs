@@ -108,6 +108,8 @@ prettify (TPack _ ty1 t ty2) = do
                   <+> pretty "as"
                   <+> doc3
 
+--prettify x = error $ show x
+
 prettifyType :: Type -> Eval (Doc a)
 prettifyType TyBool = return $ pretty "Bool"
 prettifyType TyInt = return $ pretty "Int"
