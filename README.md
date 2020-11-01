@@ -1,7 +1,5 @@
 # tapl
 
-- fomega
-
 - fomsub
 - fullfomsub
 - fullfomsubref
