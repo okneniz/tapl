@@ -1,6 +1,5 @@
 # tapl
 
-- fomsub
 - fullfomsub
 - fullfomsubref
 
