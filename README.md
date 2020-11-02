@@ -1,6 +1,5 @@
 # tapl
 
-- fullfomsub
 - fullfomsubref
 
 - fullupdate
