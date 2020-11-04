@@ -81,11 +81,11 @@ normalize (TRecord p fields) = do
     where evalField (k, v) | isVal v = return (k, v)
           evalField (k, v) = ((,) k) <$> normalize v
 
-normalize (TProj _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = Map.lookup key fields
-normalize (TProj p t@(TRecord _ _) (TKeyword x key)) = normalize t >>= \t' -> return $ TProj p t' (TKeyword x key)
+normalize (TProj _ t@(TRecord _ fields) key) | isVal t = Map.lookup key fields
+normalize (TProj p t@(TRecord _ _) key) = normalize t >>= \t' -> return $ TProj p t' key
 
-normalize (TProj _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
-normalize (TProj _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
+normalize (TProj _ (TPair _ t _) "0") | isVal t = return t
+normalize (TProj _ (TPair _ _ t) "1") | isVal t = return t
 
 normalize (TProj p t k) = normalize t >>= \t' -> return $ TProj p t' k
 

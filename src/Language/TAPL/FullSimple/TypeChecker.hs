@@ -132,26 +132,20 @@ typeOf (TRecord _ fields) = do
 typeOf (TPair _ t1 t2) = TyProduct <$> (simplifyType =<< typeOf t1)
                                    <*> (simplifyType =<< typeOf t2)
 
-typeOf (TProj _ t (TKeyword p key)) = do
+typeOf (TProj p t key) = do
     ty <- simplifyType =<< typeOf t
-    case ty of
-         (TyRecord fields) ->
+    case (ty, key) of
+         (TyRecord fields, _) ->
             case Map.lookup key fields of
                  Just x -> return x
                  _ -> typeError p $ "label " ++ show key ++ " not found"
-         _ -> typeError p "expected record type"
-
-typeOf (TProj _ t (TInt p i)) = do
-    ty <- simplifyType =<< typeOf t
-    case (ty, i) of
-         ((TyProduct x _), 0) -> return x
-         ((TyProduct _ x), 1) -> return x
+         ((TyProduct x _), "0") -> return x
+         ((TyProduct _ x), "1") -> return x
          ((TyProduct _ _), _) -> typeError p "invalid index for pair"
-         (_, _)               -> typeError p "invalid lookup operation"
+         _ -> typeError p "expected record or pair types"
 
 typeOf (TProj p _ _) = typeError p "invalid projection"
 typeOf (TFloat _ _) = return TyFloat
-typeOf (TInt _ _) = return TyInt
 
 typeOf (TTimesFloat p t1 t2) = do
     ty1 <- typeOf t1
@@ -199,7 +193,6 @@ typeEq ty1 ty2 = do
       (TyUnit, TyUnit) -> return True
       ((TyID x), (TyID y)) -> return $ x == y
       (TyFloat, TyFloat) -> return True
-      (TyInt, TyInt) -> return True
 
       (TyVar _ i, _) | isTypeAbb n i -> do
             case (getTypeAbb n i) of

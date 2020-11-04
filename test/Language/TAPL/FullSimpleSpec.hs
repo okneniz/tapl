@@ -14,7 +14,6 @@ spec = do
               ("\"foo\"", pass "\"foo\":String"),
               ("unit", pass "unit:Unit"),
               ("1.1", pass "1.1:Float"),
-              ("1", pass "1:Int"),
               ("1.1000001", pass "1.1000001:Float")
             ]
 

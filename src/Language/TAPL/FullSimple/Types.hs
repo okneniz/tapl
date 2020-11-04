@@ -13,7 +13,6 @@ data Term = TTrue SourcePos
           | TFalse SourcePos
           | TIf SourcePos Term Term Term
           | TVar SourcePos VarName Depth
-          | TInt SourcePos Integer
           | TAbs SourcePos String Type Term
           | TApp SourcePos Term Term
           | TString SourcePos String
@@ -25,12 +24,11 @@ data Term = TTrue SourcePos
           | TIsZero SourcePos Term
           | TPair SourcePos Term Term
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TLet SourcePos String Term Term
           | TAscribe SourcePos Term Type
           | TCase SourcePos Term (Map String (String, Term))
           | TTag SourcePos String Term Type
-          | TKeyword SourcePos String
           | TFix SourcePos Term
           | TTimesFloat SourcePos Term Term
           deriving (Show)
@@ -78,7 +76,6 @@ tmmap onvar s t = walk s t
                   walk c (TPred p t1) = TPred p (walk c t1)
                   walk c (TSucc p t1) = TSucc p (walk c t1)
                   walk _ (TFloat p t1) = TFloat p t1
-                  walk _ (TInt p t1) = TInt p t1
                   walk c (TPair p t1 t2) = TPair p (walk c t1) (walk c t2)
                   walk c (TRecord p fields) = TRecord p $ Map.map (walk c) fields
                   walk c (TTag p k t1 ty) = TTag p k (walk c t1) ty
@@ -88,7 +85,6 @@ tmmap onvar s t = walk s t
                   walk c (TCase p t1 branches) = TCase p (walk c t1) $ Map.map walkBranch branches
                                               where walkBranch (x, y) = (x, walk (c + 1) y)
                   walk c (TFix p t1) = TFix p (walk c t1)
-                  walk _ t1@(TKeyword _ _) = t1
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d s t = tmmap onvar s t
@@ -112,12 +108,10 @@ data Type = TyBool
           | TyUnit
           | TyNat
           | TyFloat
-          | TyInt
           | TyProduct Type Type
           | TyRecord (Map String Type)
           | TyID String
           | TyVariant (Map String Type)
-          | TyKeyword
           | TyVar VarName Depth
           deriving (Show)
 
