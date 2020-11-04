@@ -54,7 +54,7 @@ typeOf (TRecord _ fields) = do
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = ((,) k) <$> typeOf v
 
-typeOf (TProj _ t (TKeyword p key)) = do
+typeOf (TProj p t key) = do
     ty <- lcst =<< typeOf t
     case ty of
          (TyRecord fields) ->
@@ -62,8 +62,6 @@ typeOf (TProj _ t (TKeyword p key)) = do
                  Just x -> return x
                  _ -> typeError p $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
          _ -> typeError p "Expected record type"
-
-typeOf (TProj p _ _) = typeError p "invalid lookup operation"
 
 typeOf (TLet _ x t1 t2) = do
     ty1 <- typeOf t1
@@ -177,7 +175,6 @@ typeEq ty1 ty2 = do
 
       (TyBool, TyBool) -> return True
       (TyNat, TyNat) -> return True
-      (TyInt, TyInt) -> return True
 
       (TySome tyX1 tyS1 tyS2, TySome _ tyT1 tyT2) -> withTmpStateT (addName tyX1) $ do
         (&&) <$> typeEq tyS1 tyT1 <*> typeEq tyS2 tyT2

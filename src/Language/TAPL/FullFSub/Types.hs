@@ -19,7 +19,7 @@ data Term = TVar SourcePos VarName Depth
           | TFalse SourcePos
           | TIf SourcePos Term Term Term
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TLet SourcePos String Term Term
           | TFix SourcePos Term
           | TString SourcePos String
@@ -35,8 +35,6 @@ data Term = TVar SourcePos VarName Depth
           | TIsZero SourcePos Term
           | TPack SourcePos Type Term Type
           | TUnpack SourcePos String String Term Term
-          | TInt SourcePos Integer
-          | TKeyword SourcePos String
           deriving (Show)
 
 type AST = [Term]
@@ -89,8 +87,6 @@ termMap onVar onType s t = walk s t
                            walk c (TIsZero p t) = TIsZero p (walk c t)
                            walk c (TPack p ty1 t ty2) = TPack p (onType c ty1) (walk c t) (onType c ty2)
                            walk c (TUnpack p ty x t1 t2) = TUnpack p ty x (walk c t1) (walk (c+2) t2)
-                           walk c (TInt p t) = TInt p t
-                           walk c (TKeyword p t) = TKeyword p t
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d c t = termMap onVar (typeShiftAbove d) c t
@@ -121,8 +117,6 @@ data Type = TyVar VarName Depth
           | TyAll String Type Type
           | TyNat
           | TySome String Type Type
-          | TyKeyword
-          | TyInt
           deriving (Show, Eq)
 
 typeMap :: (Int -> VarName -> Depth -> Type) -> Int -> Type -> Type
@@ -139,8 +133,6 @@ typeMap onVar s ty = walk s ty
                      walk c (TyAll x ty1 ty2) = TyAll x (walk c ty1) (walk (c+1) ty2)
                      walk _ TyNat = TyNat
                      walk c (TySome x ty1 ty2) = TySome x (walk c ty1) (walk (c+1) ty2)
-                     walk _ TyInt = TyInt
-                     walk _ TyKeyword = TyKeyword
 
 typeShiftAbove :: Depth -> VarName -> Type -> Type
 typeShiftAbove d c ty = typeMap onVar c ty

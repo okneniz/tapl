@@ -70,7 +70,7 @@ termApply = chainl1 (notApply <|> parens termApply) $ TApp <$> (optional spaces 
 
 notApply :: LCParser
 notApply = optionalAscribed
-         $ projection (try keyword <|> integer)
+         $ optionalProjection identifier
          $ try value <|> try stdFuncs
                      <|> try (condition <?> "condition")
                      <|> try (pack <?> "pack")
@@ -95,7 +95,6 @@ value = nat
     <|> (unit <?> "unit")
     <|> (stringT <?> "string")
     <|> (float <?> "float")
-    <|> (integer <?> "integer")
     <|> (record <?> "record")
     <|> (parens value)
 
@@ -177,9 +176,6 @@ isZero = fun "zero?" TIsZero
 float :: LCParser
 float = TFloat <$> getPosition <*> floatNum
 
-integer :: LCParser
-integer = TInt <$> getPosition <*> natural
-
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = reserved name >> (t <$> getPosition)
 
@@ -195,18 +191,16 @@ condition = TIf <$> getPosition
                 <*> (reserved "then" *> notTypeBind)
                 <*> (reserved "else" *> notTypeBind)
 
-projection :: LCParser -> LCParser -> LCParser
-projection key tm = do
+optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
+optionalProjection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
-
-dotRef :: LCParser -> Term -> LCParser
-dotRef key t = do
-    pos <- dot *> getPosition
-    i <- key
-    t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-    return t'
+    where dotRef k t = do
+            pos <- dot *> getPosition
+            i <- k
+            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
+            return t'
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
@@ -223,9 +217,6 @@ optionalAscribed e = do
 
 record :: LCParser
 record = braces $ TRecord <$> getPosition <*> (Map.fromList <$> (keyValue (reservedOp "=") notTypeBind) `sepBy` comma)
-
-keyword :: LCParser
-keyword = TKeyword <$> getPosition <*> identifier
 
 letT :: LCParser
 letT = do
