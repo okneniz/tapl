@@ -29,8 +29,6 @@ prettify (TString _ s) = return $ dquotes $ pretty s
 prettify (TUnit _) = return $ pretty "unit"
 prettify (TZero _) = return $ pretty "zero"
 prettify (TFloat _ t) = return $ pretty t
-prettify (TInt _ x) = return $ pretty x
-prettify (TKeyword _ x) = return $ pretty x
 
 prettify (TSucc _ t) = do
     doc <- prettify t
@@ -83,8 +81,7 @@ prettify (TRecord _ ts) = do
 
 prettify (TProj _ t k) = do
     doc1 <- prettify t
-    doc2 <- prettify k
-    return $ doc1 <> dot <> doc2
+    return $ doc1 <> dot <> pretty k
 
 prettify (TLet _ v t1 t2) = do
     doc1 <- prettify t1
