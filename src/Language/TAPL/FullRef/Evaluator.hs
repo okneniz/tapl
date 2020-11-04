@@ -96,11 +96,11 @@ normalize (TRecord p fs) = do
     pack $ TRecord p (Map.fromList fs')
     where evalField (k,v) = (,) k <$> fullNormalize v
 
-normalize (TProj _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t = return $ Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) (TKeyword x k)) = liftM(\t' -> TProj p t' (TKeyword x k)) <$> normalize t
+normalize (TProj _ t@(TRecord _ fs) k) | isVal t = return $ Map.lookup k fs
+normalize (TProj p t@(TRecord _ _) k) = liftM(\t' -> TProj p t' k) <$> normalize t
 
-normalize (TProj _ (TPair _ t _) (TInt _ 0)) | isVal t = pack t
-normalize (TProj _ (TPair _ _ t) (TInt _ 1)) | isVal t = pack t
+normalize (TProj _ (TPair _ t _) "0") | isVal t = pack t
+normalize (TProj _ (TPair _ _ t) "1") | isVal t = pack t
 normalize (TProj p t k) = liftM(\t' -> TProj p t' k) <$> normalize t
 
 normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = pack $ termSubstitutionTop t1 t2

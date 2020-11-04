@@ -20,7 +20,6 @@ data Term = TTrue SourcePos
           | TFalse SourcePos
           | TString SourcePos String
           | TFloat SourcePos Double
-          | TInt SourcePos Integer
           | TUnit SourcePos
           | TZero SourcePos
           | TSucc SourcePos Term
@@ -37,9 +36,8 @@ data Term = TTrue SourcePos
           | TLet SourcePos String Term Term
           | TAscribe SourcePos Term Type
           | TPair SourcePos Term Term
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TRecord SourcePos (Map String Term)
-          | TKeyword SourcePos String
           | TFix SourcePos Term
           | TTag SourcePos String Term Type
           | TCase SourcePos Term (Map String (String, Term))
@@ -59,7 +57,6 @@ isVal (TLoc _ _) = True
 isVal (TFloat _ _) = True
 isVal t | isNumerical t = True
 isVal (TAbs _ _ _ _) = True
-isVal (TInt _ _) = True
 isVal (TPair _ t1 t2) = (isVal t1) && (isVal t2)
 isVal (TRecord _ ts) = all isVal $ Map.elems ts
 isVal _ = False
@@ -79,7 +76,7 @@ termMap onVar onType s t = walk s t
                     walk c (TIf p t1 t2 t3) = TIf p (walk c t1) (walk c t2) (walk c t3)
                     walk c (TLet p v t1 t2) = TLet p v (walk c t1) (walk (c+1) t2)
                     walk c (TFix p t1) = TFix p (walk c t1)
-                    walk c (TProj p t1 t2) = TProj p (walk c t1) (walk c t2)
+                    walk c (TProj p t1 k) = TProj p (walk c t1) k
                     walk c (TRecord p fs) = TRecord p $ Map.map (walk c) fs
                     walk c (TTag p k t ty) = TTag p k (walk c t) (onType c ty)
                     walk c (TCase p t1 bs) = TCase p (walk c t1) $ Map.map f bs where f (x, y) = (x, walk (c+1) y)
@@ -96,9 +93,7 @@ termMap onVar onType s t = walk s t
                     walk c (TSucc p t1) = TSucc p (walk c t1)
                     walk c (TPred p t1) = TPred p (walk c t1)
                     walk c (TIsZero p t1) = TIsZero p (walk c t1)
-                    walk _ (TInt p t1) = TInt p t1
                     walk c (TPair p t1 t2) = TPair p (walk c t1) (walk c t2)
-                    walk _ t1@(TKeyword _ _) = t1
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d c t = termMap onVar (typeShiftAbove d) c t
@@ -122,7 +117,6 @@ data Type = TyBool
           | TyUnit
           | TyNat
           | TyFloat
-          | TyInt
           | TyArrow Type Type
           | TyRef Type
           | TySource Type
@@ -132,7 +126,6 @@ data Type = TyBool
           | TyBot
           | TyProduct Type Type
           | TyRecord (Map String Type)
-          | TyKeyword
           | TyVariant (Map String Type)
           | TyVar VarName Depth
           deriving (Show)
@@ -154,8 +147,6 @@ typeMap onVar s ty = walk s ty
                      walk c (TySource ty1) = TySource (walk c ty1)
                      walk c (TySink ty1) = TySink (walk c ty1)
                      walk _ TyNat = TyNat
-                     walk _ TyInt = TyInt
-                     walk _ TyKeyword = TyKeyword
                      walk c (TyProduct ty1 ty2) = TyProduct (walk c ty1) (walk c ty2)
 
 typeShiftAbove :: Depth -> VarName -> Type -> Type

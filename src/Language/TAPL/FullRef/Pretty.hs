@@ -27,8 +27,6 @@ prettify (TString _ s) = return $ dquotes $ pretty s
 prettify (TUnit _) = return $ pretty "unit"
 prettify (TZero _) = return $ pretty "zero"
 prettify (TFloat _ t) = return $ pretty t
-prettify (TInt _ x) = return $ pretty x
-prettify (TKeyword _ x) = return $ pretty x
 
 prettify (TSucc _ t) = do
     doc <- prettify t
@@ -82,8 +80,7 @@ prettify (TRecord _ ts) = do
 
 prettify (TProj _ t k) = do
     doc1 <- prettify t
-    doc2 <- prettify k
-    return $ doc1 <> dot <> doc2
+    return $ doc1 <> dot <> pretty k
 
 prettify (TLet _ v t1 t2) = do
     doc1 <- prettify t1
@@ -129,12 +126,10 @@ prettifyType :: Type -> Eval (Doc a)
 prettifyType TyTop = return $ pretty "Top"
 prettifyType TyBot = return $ pretty "Bot"
 prettifyType TyBool = return $ pretty "Bool"
-prettifyType TyInt = return $ pretty "Int"
 prettifyType TyString = return $ pretty "String"
 prettifyType TyUnit = return $ pretty "Unit"
 prettifyType TyNat = return $ pretty "Nat"
 prettifyType TyFloat = return $ pretty "Float"
-prettifyType TyKeyword = return $ pretty "Keyword"
 prettifyType (TyID s) = return $ pretty s
 
 prettifyType (TyArrow ty1 ty2) = do

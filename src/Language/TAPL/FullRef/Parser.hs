@@ -42,19 +42,17 @@ term = try apply
    <|> try notApply
    <|> parens term
 
-projection :: LCParser -> LCParser -> LCParser
-projection key tm = do
+optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
+optionalProjection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
-
-dotRef :: LCParser -> Term -> LCParser
-dotRef key t = do
-    _ <- dot
-    pos <- getPosition
-    i <- key
-    t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-    return t'
+    where dotRef key t = do
+            _ <- dot
+            pos <- getPosition
+            i <- key
+            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
+            return t'
 
 anotated :: LCParser -> LCParser
 anotated e = do
@@ -107,7 +105,6 @@ value = anotated $ (boolean <?> "boolean")
                <|> (isZero <?> "isZero?")
                <|> (zero <?> "zero")
                <|> (float <?> "float")
-               <|> (integer <?> "integer")
                <|> (unit <?> "unit")
                <|> try (record <?> "record")
                <|> try (pair <?> "pair")
@@ -146,9 +143,6 @@ zero = constant "zero" TZero
 
 float :: LCParser
 float = TFloat <$> getPosition <*> floatNum
-
-integer :: LCParser
-integer = TInt <$> getPosition <*> natural
 
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = reserved name >> (t <$> getPosition)
@@ -203,18 +197,16 @@ caseT = do
           return (caseName, varName)
 
 pair :: LCParser
-pair = projection integer $ braces $ TPair <$> getPosition
-                                           <*> (term <* comma)
-                                           <*> term
+pair = optionalProjection pairIndexes $ braces $ TPair <$> getPosition <*> (term <* comma) <*> term
+
+pairIndexes :: Parsec String LCNames String
+pairIndexes = flip(:) [] <$> oneOf "01"
 
 record :: LCParser
-record = projection keyword $ braces $ do
+record = optionalProjection identifier $ braces $ do
     ts <- (keyValue (reservedOp "=") term) `sepBy` comma
     p <- getPosition
     return $ TRecord p $ Map.fromList ts
-
-keyword :: LCParser
-keyword = TKeyword <$> getPosition <*> identifier
 
 abstraction :: LCParser
 abstraction = do
@@ -231,7 +223,7 @@ abstraction = do
     return $ TAbs p varName varType t
 
 variable :: LCParser
-variable = anotated $ projection (try integer <|> try keyword) $ do
+variable = anotated $ optionalProjection (pairIndexes <|> identifier) $ do
     name <- identifier
     p <- getPosition
     ns <- getState

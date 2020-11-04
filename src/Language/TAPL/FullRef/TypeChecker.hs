@@ -68,14 +68,13 @@ typeOf (TRecord _ fields) = do
 typeOf (TProj p t k) = do
     ty <- simplifyType =<< typeOf t
     case (ty, k) of
-         (TyRecord fs, TKeyword p key) ->
-            case Map.lookup key fs of
+         (TyRecord fs, _) ->
+            case Map.lookup k fs of
                  Just x -> return x
-                 _ -> typeError p $ "label " ++ show key ++ " not found"
+                 _ -> typeError p $ "label " ++ show k ++ " not found"
          (TyRecord fs, _) -> typeError p "invalid keyword for record"
-
-         (TyProduct x _, TInt _ 0) -> return x
-         (TyProduct _ x, TInt _ 1) -> return x
+         (TyProduct x _, "0") -> return x
+         (TyProduct _ x, "1") -> return x
          (TyProduct _ _, _) -> typeError p "invalid index for pair"
          _ -> typeError p "invalid projection"
 
@@ -182,7 +181,6 @@ typeOf (TIsZero p t) = do
   return TyBool
 
 typeOf (TPair _ t1 t2) = TyProduct <$> (typeOf t1) <*> (typeOf t2)
-typeOf (TInt _ _) = return TyInt
 
 typeError :: SourcePos -> String -> Eval a
 typeError p message = lift $ throwE $ show p ++ ":" ++ message
@@ -260,7 +258,6 @@ typeEq ty1 ty2 = do
         (TyVariant f1, TyVariant f2) ->
           all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
-        (TyInt, TyInt) -> return True
         _ -> return False
 
 joinTypes :: Type -> Type -> Eval Type
