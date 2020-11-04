@@ -13,8 +13,7 @@ data Term = TVar SourcePos VarName Depth
           | TAbs SourcePos String Type Term
           | TApp SourcePos Term Term
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
-          | TKeyword SourcePos String
+          | TProj SourcePos Term String
           deriving (Eq)
 
 type AST = [Term]

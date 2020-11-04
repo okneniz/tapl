@@ -40,10 +40,7 @@ prettify (TRecord _ ts) = do
 
 prettify (TProj _ t k) = do
     doc1 <- prettify t
-    doc2 <- prettify k
-    return $ doc1 <> dot <> doc2
-
-prettify (TKeyword _ k) = return $ pretty k
+    return $ doc1 <> dot <> pretty k
 
 prettifyType :: Type -> Eval (Doc a)
 prettifyType TyTop = return $ pretty "Top"

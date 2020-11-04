@@ -39,7 +39,7 @@ typeOf (TApp pos t1 t2) = do
          TyBot -> return TyBot
          _ -> typeError pos $ "arrow type expected"
 
-typeOf (TProj pos t1 (TKeyword _ key)) = do
+typeOf (TProj pos t1 key) = do
     ty1 <- typeOf t1
     case ty1 of
          (TyRecord fields) ->
