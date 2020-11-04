@@ -63,7 +63,7 @@ typeOf (TRecord _ fields) = do
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = (,) <$> return k <*> typeOf v
 
-typeOf (TProj _ t (TKeyword p key)) = do
+typeOf (TProj p t key) = do
     ty <- simplifyType =<< typeOf t
     case ty of
          (TyRecord fields) ->

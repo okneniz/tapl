@@ -67,8 +67,8 @@ normalize (TRecord p fields) = do
     where evalField (k, v) | isVal v = return (k, v)
           evalField (k, v) = ((,) k) <$> normalize v
 
-normalize (TProj _ t@(TRecord _ fields) (TKeyword _ key)) | isVal t = Map.lookup key fields
-normalize (TProj p t@(TRecord _ _) (TKeyword x key)) = flip(TProj p) (TKeyword x key) <$> normalize t
+normalize (TProj _ t@(TRecord _ fields) key) | isVal t = Map.lookup key fields
+normalize (TProj p t@(TRecord _ _) key) = flip(TProj p) key <$> normalize t
 normalize (TProj p t k) = flip(TProj p) k <$> normalize t
 
 normalize (TLet _ _ t1 t2) | isVal t1 = return $ termSubstitutionTop t1 t2

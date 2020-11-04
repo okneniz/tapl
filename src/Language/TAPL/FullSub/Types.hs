@@ -16,7 +16,7 @@ data Term = TVar SourcePos VarName Depth
           | TFalse SourcePos
           | TIf SourcePos Term Term Term
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TLet SourcePos String Term Term
           | TFix SourcePos Term
           | TString SourcePos String
@@ -28,7 +28,6 @@ data Term = TVar SourcePos VarName Depth
           | TSucc SourcePos Term
           | TPred SourcePos Term
           | TIsZero SourcePos Term
-          | TKeyword SourcePos String
           deriving (Show)
 
 type Location = Int
@@ -82,7 +81,6 @@ termMap onVar onType s t = walk s t
            walk c (TSucc p t) = TSucc p (walk c t)
            walk c (TPred p t) = TPred p (walk c t)
            walk c (TIsZero p t) = TIsZero p (walk c t)
-           walk c (TKeyword p t) = TKeyword p t
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d c t = termMap onVar (typeShiftAbove d) c t
@@ -111,7 +109,6 @@ data Type = TyVar VarName Depth
           | TyUnit
           | TyFloat
           | TyNat
-          | TyKeyword
           deriving (Show)
 
 typeMap :: (Int -> Depth -> VarName -> Type) -> Int -> Type -> Type
@@ -126,7 +123,6 @@ typeMap onVar s ty = walk s ty
                      walk _ TyUnit = TyUnit
                      walk _ TyFloat = TyFloat
                      walk _ TyNat = TyNat
-                     walk _ TyKeyword = TyKeyword
 
 typeShiftAbove :: Depth -> VarName -> Type -> Type
 typeShiftAbove d c ty = typeMap onVar c ty

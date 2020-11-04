@@ -85,7 +85,7 @@ abstraction = do
     return $ TAbs p varName varType t
 
 variable :: LCParser
-variable = optionalAscribed $ projection keyword $ do
+variable = optionalAscribed $ optionalProjection identifier $ do
     name <- identifier
     names <- getState
     p <- getPosition
@@ -131,19 +131,17 @@ condition = TIf <$> getPosition
                 <*> (reserved "then" *> notTypeBind)
                 <*> (reserved "else" *> notTypeBind)
 
-projection :: LCParser -> LCParser -> LCParser
-projection key tm = do
+optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
+optionalProjection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
-
-dotRef :: LCParser -> Term -> LCParser
-dotRef key t = do
-    _ <- dot
-    pos <- getPosition
-    i <- key
-    t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-    return t'
+    where dotRef key t = do
+            _ <- dot
+            pos <- getPosition
+            i <- key
+            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
+            return t'
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
@@ -159,13 +157,10 @@ optionalAscribed e = do
           return $ TAscribe pos t ty
 
 record :: LCParser
-record = projection keyword $ braces $ do
+record = optionalProjection identifier $ braces $ do
     p <- getPosition
     ts <- keyValue (reservedOp "=") notTypeBind `sepBy` comma
     return $ TRecord p $ Map.fromList ts
-
-keyword :: LCParser
-keyword = TKeyword <$> getPosition <*> identifier
 
 letT :: LCParser
 letT = do
