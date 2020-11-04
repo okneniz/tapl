@@ -37,11 +37,6 @@ getBinding p names varName =
          (Just binding) -> Just <$> bindingShift p (varName + 1) binding
          x -> return x
 
---let gettyabb ctx i =
---  match getbinding dummyinfo ctx i with
---    TyAbbBind(tyT,_) -> tyT
---  | _ -> raise NoRuleApplies
-
 getTypeAbb :: SourcePos -> LCNames -> VarName -> Eval (Maybe Type)
 getTypeAbb p names varName = do
     b <- getBinding p names varName
@@ -49,41 +44,18 @@ getTypeAbb p names varName = do
          (Just (TypeAddBind ty _)) -> return $ Just ty
          _ -> return Nothing
 
---let istyabb ctx i =
---  match getbinding dummyinfo ctx i with
---    TyAbbBind(tyT,_) -> true
---  | _ -> false
-
 isTypeAdd :: SourcePos -> LCNames -> VarName -> Eval Bool
 isTypeAdd p names varName = isJust <$> getTypeAbb p names varName
 
---let bindingshift d bind =
---  match bind with
---    NameBind -> NameBind
---  | TyVarBind(tyS) -> TyVarBind(typeShift d tyS)
---  | VarBind(tyT) -> VarBind(typeShift d tyT)
---  | TyAbbBind(tyT,opt) -> TyAbbBind(typeShift d tyT,opt)
---  | TmAbbBind(t,tyT_opt) ->
---     let tyT_opt' = match tyT_opt with
---                      None->None
---                    | Some(tyT) -> Some(typeShift d tyT) in
---     TmAbbBind(termShift d t, tyT_opt')
 bindingShift :: SourcePos -> VarName -> Binding -> Eval Binding
 bindingShift _ _ NameBind = return NameBind
 bindingShift _ _ (TypeVarBind k) = return $ TypeVarBind k
 bindingShift p d (VarBind ty) = VarBind <$> typeShift p d ty
 bindingShift p d (TypeAddBind ty k) = flip(TypeAddBind) k <$> typeShift p d ty
 
-----
-
 makeTop :: Kind -> Type
 makeTop Star = TyTop
 makeTop (Arrow k1 k2) = TyAbs "_" k1 $ makeTop k2
-
-----
-
---let tytermSubstTop tyS t =
---  termShift (-1) (tytermSubst (typeShift 1 tyS) 0 t)
 
 typeTermSubstitutionTop :: SourcePos -> Type -> Term -> Eval Term
 typeTermSubstitutionTop p tyS t = do
@@ -91,41 +63,10 @@ typeTermSubstitutionTop p tyS t = do
     y <- typeTermSubstitution p x 0 t
     termShift p (-1) y
 
---let rec tytermSubst tyS j t =
---  tmmap (fun fi c x n -> TmVar(fi,x,n))
---        (fun j tyT -> typeSubst tyS j tyT) j t
 typeTermSubstitution p tyS j t =
     termMap (\p _ x n -> return $ TVar p x n)
             (\j tyT -> typeSubstitution p tyS j tyT) j t
 
-
---let tmmap onvar ontype c t =
---  let rec walk c t = match t with
---  | TmVar(fi,x,n) -> onvar fi c x n
---  | TmAbs(fi,x,tyT1,t2) -> TmAbs(fi,x,ontype c tyT1,walk (c+1) t2)
---  | TmApp(fi,t1,t2) -> TmApp(fi,walk c t1,walk c t2)
---  | TmTrue(fi) as t -> t
---  | TmFalse(fi) as t -> t
---  | TmIf(fi,t1,t2,t3) -> TmIf(fi,walk c t1,walk c t2,walk c t3)
---  | TmProj(fi,t1,l) -> TmProj(fi,walk c t1,l)
---  | TmRecord(fi,fields) -> TmRecord(fi,List.map (fun (li,ti) -> (li,walk c ti)) fields)
---  | TmLet(fi,x,t1,t2) -> TmLet(fi,x,walk c t1,walk (c+1) t2)
---  | TmFix(fi,t1) -> TmFix(fi,walk c t1)
---  | TmString _ as t -> t
---  | TmUnit(fi) as t -> t
---  | TmAscribe(fi,t1,tyT1) -> TmAscribe(fi,walk c t1,ontype c tyT1)
---  | TmFloat _ as t -> t
---  | TmTimesfloat(fi,t1,t2) -> TmTimesfloat(fi, walk c t1, walk c t2)
---  | TmTAbs(fi,tyX,tyT1,t2) -> TmTAbs(fi,tyX,ontype c tyT1,walk (c+1) t2)
---  | TmTApp(fi,t1,tyT2) -> TmTApp(fi,walk c t1,ontype c tyT2)
---  | TmZero(fi)      -> TmZero(fi)
---  | TmSucc(fi,t1)   -> TmSucc(fi, walk c t1)
---  | TmPred(fi,t1)   -> TmPred(fi, walk c t1)
---  | TmIsZero(fi,t1) -> TmIsZero(fi, walk c t1)
---  | TmPack(fi,tyT1,t2,tyT3) -> TmPack(fi,ontype c tyT1,walk c t2,ontype c tyT3)
---  | TmUnpack(fi,tyX,x,t1,t2) -> TmUnpack(fi,tyX,x,walk c t1,walk (c+2) t2)
---  in walk c t
---
 termMap :: (SourcePos -> Int -> VarName -> Depth -> Eval Term) -> (Int -> Type -> Eval Type) -> Int -> Term -> Eval Term
 termMap onVar onType s t = walk s t
                      where walk c (TVar p name depth) = onVar p c name depth
@@ -158,58 +99,26 @@ termMap onVar onType s t = walk s t
                            walk c (TUnpack p ty x t1 t2) = liftM2 (TUnpack p ty x) (walk c t1) (walk (c + 2) t2)
                            walk c (TKeyword p t) = return $ TKeyword p t
 
---let termShiftAbove d c t =
---  tmmap
---    (fun fi c x n -> if x>=c then TmVar(fi,x+d,n+d)
---                     else TmVar(fi,x,n+d))
---    (typeShiftAbove d)
---    c t
-
 termShiftAbove :: SourcePos -> Depth -> VarName -> Term -> Eval Term
 termShiftAbove p d c t = termMap onVar (typeShiftAbove p d) c t
                    where onVar p c x n | x >= c = return $ TVar p (x + d) (n + d)
                          onVar p c x n = return $ TVar p x (n + d)
 
---let termShift d t = termShiftAbove d 0 t
 termShift :: SourcePos -> VarName -> Term -> Eval Term
 termShift p d t = termShiftAbove p d 0 t
 
---let termSubst j s t =
---  tmmap
---    (fun fi j x n -> if x=j then termShift j s else TmVar(fi,x,n))
---    (fun j tyT -> tyT)
---    j t
 termSubstitution :: VarName -> Term -> Term -> Eval Term
 termSubstitution j s t = termMap onVar onType j t
                    where onVar p j x n | x == j = termShift p j s
                          onVar p j x n = return $ TVar p x n
                          onType j ty = return ty
 
---let termSubstTop s t =
---  termShift (-1) (termSubst 0 (termShift 1 s) t)
 termSubstitutionTop :: SourcePos -> Term -> Term -> Eval Term
 termSubstitutionTop p s t = do
     x <- termShift p 1 s
     y <- termSubstitution 0 x t
     termShift p (-1) y
 
---let tymap onvar c tyT =
---  let rec walk c tyT = match tyT with
---    TyVar(x,n) -> onvar c x n
---  | TyId(b) as tyT -> tyT
---  | TyArr(tyT1,tyT2) -> TyArr(walk c tyT1,walk c tyT2)
---  | TyTop -> TyTop
---  | TyBool -> TyBool
---  | TyRecord(fieldtys) -> TyRecord(List.map (fun (li,tyTi) -> (li, walk c tyTi)) fieldtys)
---  | TyString -> TyString
---  | TyUnit -> TyUnit
---  | TyFloat -> TyFloat
---  | TyAll(tyX,tyT1,tyT2) -> TyAll(tyX,walk c tyT1,walk (c+1) tyT2)
---  | TyNat -> TyNat
---  | TySome(tyX,tyT1,tyT2) -> TySome(tyX,walk c tyT1,walk (c+1) tyT2)
---  | TyAbs(tyX,knK1,tyT2) -> TyAbs(tyX,knK1,walk (c+1) tyT2)
---  | TyApp(tyT1,tyT2) -> TyApp(walk c tyT1,walk c tyT2)
---  in walk c tyT
 typeMap :: (Int -> VarName -> Depth -> Eval Type) -> Int -> Type -> Eval Type
 typeMap onVar s g = walk s g
               where walk c (TyVar x n) = onVar c x n
@@ -233,17 +142,10 @@ typeMap onVar s g = walk s g
                     walk c (TyApp ty1 ty2) = liftM2 TyApp (walk c ty1) (walk c ty2)
                     walk _ TyKeyword = return TyKeyword
 
---let typeSubst tyS j tyT =
---  tymap
---    (fun j x n -> if x=j then (typeShift j tyS) else (TyVar(x,n)))
---    j tyT
 typeSubstitution :: SourcePos -> Type -> VarName -> Type -> Eval Type
 typeSubstitution p tyS j tyT = typeMap onVar j tyT
                     where onVar j x n | x == j = typeShift p j tyS
                           onVar j x n = return $ TyVar x n
-
---let typeSubstTop tyS tyT =
---  typeShift (-1) (typeSubst (typeShift 1 tyS) 0 tyT)
 
 typeSubstitutionTop :: SourcePos -> Type -> Type -> Eval Type
 typeSubstitutionTop p tyS tyT = do
@@ -251,14 +153,8 @@ typeSubstitutionTop p tyS tyT = do
     y <- typeSubstitution p x 0 tyT
     typeShift p (-1) y
 
---let typeShift d tyT = typeShiftAbove d 0 tyT
 typeShift :: SourcePos -> VarName -> Type -> Eval Type
 typeShift p d tyT = typeShiftAbove p d 0 tyT
-
---let typeShiftAbove d c tyT =
---  tymap
---    (fun c x n -> if x>=c then TyVar(x+d,n+d) else TyVar(x,n+d))
---    c tyT
 
 typeShiftAbove :: SourcePos -> Depth -> VarName -> Type -> Eval Type
 typeShiftAbove p d c ty = typeMap onVar c ty
