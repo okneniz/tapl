@@ -10,7 +10,6 @@ data Term = TTrue SourcePos
           | TFalse SourcePos
           | TIf SourcePos Term Term Term
           | TVar SourcePos VarName Depth
-          | TInt SourcePos Integer
           | TAbs SourcePos String Term
           | TApp SourcePos Term Term
           | TString SourcePos String
@@ -22,9 +21,8 @@ data Term = TTrue SourcePos
           | TIsZero SourcePos Term
           | TPair SourcePos Term Term
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TLet SourcePos String Term Term
-          | TKeyword SourcePos String
           | TTimesFloat SourcePos Term Term
           deriving (Show)
 
@@ -67,13 +65,11 @@ tmmap onvar s t = walk s t
                   walk c (TPred p t1) = TPred p (walk c t1)
                   walk c (TSucc p t1) = TSucc p (walk c t1)
                   walk _ (TFloat p t1) = TFloat p t1
-                  walk _ (TInt p t1) = TInt p t1
                   walk c (TPair p t1 t2) = TPair p (walk c t1) (walk c t2)
                   walk c (TRecord p fields) = TRecord p $ Map.map (walk c) fields
                   walk c (TProj p r k) = TProj p (walk c r) k
                   walk c (TLet p x t1 t2) = TLet p x (walk c t1) (walk (c+1) t2)
                   walk c (TTimesFloat p t1 t2) = TTimesFloat p (walk c t1) (walk c t2)
-                  walk _ t1@(TKeyword _ _) = t1
 
 termShiftAbove :: Depth -> VarName -> Term -> Term
 termShiftAbove d s t = tmmap onvar s t

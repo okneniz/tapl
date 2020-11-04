@@ -49,7 +49,6 @@ value = (boolean <?> "boolean")
     <|> (zero <?> "zero")
     <|> (unit <?> "unit")
     <|> try (float <?> "float")
-    <|> try (integer <?> "integer")
     <|> try (record <?> "record")
     <|> try (pair <?> "pair")
 
@@ -67,13 +66,16 @@ abstraction = do
     return $ TAbs p varName t
 
 variable :: LCParser
-variable = projection (integer <|> keyword) $ do
+variable = optionalProjection (pairIndexes <|> identifier) $ do
     name <- identifier
     names <- getState
     p <- getPosition
     case findIndex ((== name) . fst) names of
          Just n -> return $ TVar p n (length names)
          Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
+
+pairIndexes :: Parsec String LCNames String
+pairIndexes = flip(:) [] <$> oneOf "01"
 
 string' :: LCParser
 string' = TString <$> getPosition <*> try stringLiteral
@@ -98,9 +100,6 @@ isZero = fun "zero?" TIsZero
 float :: LCParser
 float = TFloat <$> getPosition <*> floatNum
 
-integer :: LCParser
-integer = TInt <$> getPosition <*> natural
-
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = reserved name *> (t <$> getPosition)
 
@@ -117,32 +116,25 @@ condition = TIf <$> getPosition
                 <*> (reserved "else" *> term)
 
 pair :: LCParser
-pair = projection integer $ braces $ TPair <$> getPosition
-                                           <*> (term <* comma)
-                                           <*> term
+pair = optionalProjection pairIndexes $ braces $ TPair <$> getPosition <*> (term <* comma) <*> term
 
-projection :: LCParser -> LCParser -> LCParser
-projection key tm = do
+optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
+optionalProjection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
-
-dotRef :: LCParser -> Term -> LCParser
-dotRef key t = do
-    _ <- dot
-    pos <- getPosition
-    i <- key
-    t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-    return t'
+    where dotRef k t = do
+            _ <- dot
+            pos <- getPosition
+            i <- k
+            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
+            return t'
 
 record :: LCParser
-record = projection keyword $ braces $ do
+record = optionalProjection identifier $ braces $ do
     ts <- keyValue (reservedOp "=") term `sepBy` comma
     p <- getPosition
     return $ TRecord p $ Map.fromList ts
-
-keyword :: LCParser
-keyword = TKeyword <$> getPosition <*> identifier
 
 let' :: LCParser
 let' = do

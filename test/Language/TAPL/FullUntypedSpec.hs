@@ -14,7 +14,6 @@ spec = do
               ("\"foo\"", pass "\"foo\""),
               ("unit", pass "unit"),
               ("1.1", pass "1.1"),
-              ("1", pass "1"),
               ("1.1000001", pass "1.1000001")
             ]
 
