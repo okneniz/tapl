@@ -78,8 +78,8 @@ normalize (TRecord p fs) = do
     where evalField (k, v) | isVal v = return (k, v)
           evalField (k, v) = ((,) k) <$> normalize v
 
-normalize (TProj _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t = Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) (TKeyword x k)) = flip (TProj p) (TKeyword x k) <$> normalize t
+normalize (TProj _ t@(TRecord _ fs) k) | isVal t = Map.lookup k fs
+normalize (TProj p t@(TRecord _ _) k) = flip (TProj p) k <$> normalize t
 
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t

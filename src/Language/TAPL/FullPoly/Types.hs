@@ -21,7 +21,7 @@ data Term = TVar SourcePos VarName Depth
           | TUnit SourcePos
           | TAscribe SourcePos Term Type
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TTrue SourcePos
           | TFalse SourcePos
           | TIf SourcePos Term Term Term
@@ -31,8 +31,6 @@ data Term = TVar SourcePos VarName Depth
           | TSucc SourcePos Term
           | TPred SourcePos Term
           | TIsZero SourcePos Term
-          | TInt SourcePos Integer
-          | TKeyword SourcePos String
           | TPack SourcePos Type Term Type
           | TUnpack SourcePos String String Term Term
           | TTAbs SourcePos String Term
@@ -83,8 +81,6 @@ termMap onVar onType s t = walk s t
                            walk c (TSucc p t) = TSucc p (walk c t)
                            walk c (TPred p t) = TPred p (walk c t)
                            walk c (TIsZero p t) = TIsZero p (walk c t)
-                           walk c (TInt p t) = TInt p t
-                           walk c (TKeyword p t) = TKeyword p t
                            walk c (TRecord p fields) = TRecord p $ Map.map (walk c) fields
                            walk c (TProj p r k) = TProj p (walk c r) k
                            walk c (TPack p ty1 t ty2) = TPack p (onType c ty1) (walk c t) (onType c ty2)
@@ -120,8 +116,6 @@ data Type = TyVar VarName Depth
           | TyNat
           | TySome String Type
           | TyAll String Type
-          | TyKeyword
-          | TyInt
           deriving (Show, Eq)
 
 typeMap :: (Int -> VarName -> Depth -> Type) -> Int -> Type -> Type
@@ -137,8 +131,6 @@ typeMap onVar s ty = walk s ty
                      walk c (TySome x ty) = TySome x $ walk (c+1) ty
                      walk c (TyAll x ty) = TyAll x $ walk (c+1) ty
                      walk c (TyRecord fs) = TyRecord $ Map.map (walk c) fs
-                     walk _ TyInt = TyInt
-                     walk _ TyKeyword = TyKeyword
 
 typeShiftAbove :: Depth -> VarName -> Type -> Type
 typeShiftAbove d c ty = typeMap onVar c ty

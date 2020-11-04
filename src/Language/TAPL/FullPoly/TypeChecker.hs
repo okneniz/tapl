@@ -66,7 +66,7 @@ typeOf (TRecord _ fields) = do
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = ((,) k) <$> typeOf v
 
-typeOf (TProj _ t (TKeyword p key)) = do
+typeOf (TProj p t key) = do
     ty <- simplifyType =<< typeOf t
     case ty of
          (TyRecord fields) ->
@@ -178,7 +178,6 @@ typeEq ty1 ty2 = do
       (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> (&&) <$> typeEq tyS1 tyT1 <*> typeEq tyS2 tyT2
       (TyBool, TyBool) -> return True
       (TyNat, TyNat) -> return True
-      (TyInt, TyInt) -> return True
 
       (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
       (TyRecord f1, TyRecord f2) -> all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
