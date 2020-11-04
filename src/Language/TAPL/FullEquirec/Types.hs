@@ -15,7 +15,6 @@ data Term = TTrue SourcePos
           | TFalse SourcePos
           | TIf SourcePos Term Term Term
           | TVar SourcePos VarName Depth
-          | TInt SourcePos Integer
           | TAbs SourcePos String Type Term
           | TApp SourcePos Term Term
           | TString SourcePos String
@@ -27,12 +26,11 @@ data Term = TTrue SourcePos
           | TIsZero SourcePos Term
           | TPair SourcePos Term Term
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TLet SourcePos String Term Term
           | TAscribe SourcePos Term Type
           | TCase SourcePos Term (Map String (String, Term))
           | TTag SourcePos String Term Type
-          | TKeyword SourcePos String
           | TFix SourcePos Term
           | TTimesFloat SourcePos Term Term
            deriving (Show)
@@ -69,8 +67,6 @@ termMap onVar onType s t = walk s t
                            walk c (TString p s) = TString p s
                            walk c (TUnit p) = TUnit p
                            walk c (TZero p) = TZero p
-                           walk c (TInt p t) = TInt p t
-                           walk c (TKeyword p t) = TKeyword p t
                            walk c (TIsZero p t) = TIsZero p (walk c t)
                            walk c (TPred p t) = TPred p (walk c t)
                            walk c (TSucc p t) = TSucc p (walk c t)
