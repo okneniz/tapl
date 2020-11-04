@@ -73,8 +73,8 @@ normalize (TRecord p fs) = do
     where evalField (k, v) | isVal v = return (k, v)
           evalField (k, v) = ((,) k) <$> normalize v
 
-normalize (TProj _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t = Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) (TKeyword x k)) = normalize t >>= \t' -> return $ (TProj p t' (TKeyword x k))
+normalize (TProj _ t@(TRecord _ fs) k) | isVal t = Map.lookup k fs
+normalize (TProj p t@(TRecord _ _) k) = normalize t >>= \t' -> return $ (TProj p t' k)
 
 normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = return $ TFloat p (t1 * t2)
 normalize (TTimesFloat p t1 t2) | isVal t1 = TTimesFloat p t1 <$> normalize t2
@@ -98,8 +98,8 @@ normalize (TIsZero _ (TSucc p t)) | isNumerical t = return $ TFalse p
 
 normalize (TIsZero p t) = TIsZero p <$> normalize t
 
-normalize (TProj _ (TPair _ t _) (TInt _ 0)) | isVal t = return t
-normalize (TProj _ (TPair _ _ t) (TInt _ 1)) | isVal t = return t
+normalize (TProj _ (TPair _ t _) "0") | isVal t = return t
+normalize (TProj _ (TPair _ _ t) "1") | isVal t = return t
 normalize (TProj p t k) = normalize t >>= \t' -> return $ TProj p t' k
 
 normalize (TTag p x t ty) = normalize t >>= \t' -> return $ TTag p x t' ty

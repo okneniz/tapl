@@ -23,7 +23,7 @@ data Term = TVar SourcePos VarName Depth
           | TUnit SourcePos
           | TAscribe SourcePos Term Type
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TFloat SourcePos Double
           | TTimesFloat SourcePos Term Term
           | TFold SourcePos Type
@@ -35,9 +35,7 @@ data Term = TVar SourcePos VarName Depth
           | TCase SourcePos Term (Map String (String, Term))
           | TTag SourcePos String Term Type
           | TPair SourcePos Term Term
-          | TInt SourcePos Integer
-          | TKeyword SourcePos String
-           deriving (Show)
+          deriving (Show)
 
 type AST = [Term]
 
@@ -72,8 +70,6 @@ termMap onVar onType s t = walk s t
                            walk c (TString p s) = TString p s
                            walk c (TUnit p) = TUnit p
                            walk c (TZero p) = TZero p
-                           walk c (TInt p t) = TInt p t
-                           walk c (TKeyword p t) = TKeyword p t
                            walk c (TIsZero p t) = TIsZero p (walk c t)
                            walk c (TPred p t) = TPred p (walk c t)
                            walk c (TSucc p t) = TSucc p (walk c t)
@@ -119,9 +115,7 @@ data Type = TyVar VarName Depth
           | TyVariant (Map String Type)
           | TyString
           | TyBool
-          | TyInt
           | TyProduct Type Type
-          | TyKeyword
           deriving (Show, Eq)
 
 typeMap :: (Int -> Depth -> VarName -> Type) -> Int -> Type -> Type
@@ -138,8 +132,6 @@ typeMap onVar s ty = walk s ty
                      walk _ TyNat = TyNat
                      walk c (TyVariant fs) = TyVariant $ Map.map (walk c) fs
                      walk c (TyProduct ty1 ty2) = TyProduct (walk c ty1) (walk c ty2)
-                     walk _ TyInt = TyInt
-                     walk _ TyKeyword = TyKeyword
 
 typeShiftAbove :: Depth -> VarName -> Type -> Type
 typeShiftAbove d c ty = typeMap onVar c ty

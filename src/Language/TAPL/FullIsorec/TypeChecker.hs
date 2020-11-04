@@ -66,24 +66,18 @@ typeOf (TRecord _ fields) = do
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = ((,) k) <$> typeOf v
 
-typeOf (TProj _ t (TKeyword p key)) = do
+typeOf (TProj p t key) = do
     ty <- typeOf t
     ty' <- simplifyType ty
-    case ty' of
-         (TyRecord fields) ->
+    case (ty', key) of
+         ((TyRecord fields), k) ->
             case Map.lookup key fields of
                  Just x -> return x
                  _ -> typeError p $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
-         _ -> typeError p "invalid lookup operation"
-
-typeOf (TProj _ t (TInt p i)) = do
-    ty <- typeOf t
-    ty' <- simplifyType ty
-    case (ty', i) of
-         ((TyProduct x _), 0) -> return x
-         ((TyProduct _ x), 1) -> return x
+         ((TyProduct x _), "0") -> return x
+         ((TyProduct _ x), "1") -> return x
          ((TyProduct _ _), _) -> typeError p "invalid index for pair"
-         (_, _)               -> typeError p "invalid lookup operation"
+         _ -> typeError p "invalid lookup operation"
 
 typeOf (TProj p _ _) = typeError p "invalid lookup operation"
 
@@ -237,7 +231,6 @@ typeEq ty1 ty2 = do
         all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
       (TyProduct tyS1 tyS2, TyProduct tyT1 tyT2) -> (&&) <$> typeEq tyS1 tyT1 <*> typeEq tyS2 tyT2
-      (TyInt, TyInt) -> return True
       _ -> return False
 
 computeType :: Type -> Eval (Maybe Type)
