@@ -1,8 +1,8 @@
-module Language.TAPL.FullISOrec.Parser (parse) where
+module Language.TAPL.FullIsorec.Parser (parse) where
 
-import Language.TAPL.FullISOrec.Types
-import Language.TAPL.FullISOrec.Context
-import Language.TAPL.FullISOrec.Lexer
+import Language.TAPL.FullIsorec.Types
+import Language.TAPL.FullIsorec.Context
+import Language.TAPL.FullIsorec.Lexer
 import Language.TAPL.Common.Helpers (ucid)
 import Language.TAPL.Common.Context (findVarName)
 

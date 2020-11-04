@@ -1,8 +1,8 @@
-module Language.TAPL.FullISOrecSpec where
+module Language.TAPL.FullIsorecSpec where
 
 import Test.Hspec
 import Language.TAPL.TestHelpers
-import Language.TAPL.FullISOrec.Evaluator (evalString)
+import Language.TAPL.FullIsorec.Evaluator (evalString)
 
 spec :: Spec
 spec = do

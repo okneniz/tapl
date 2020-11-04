@@ -1,4 +1,4 @@
-module Language.TAPL.FullISOrec.Pretty (prettify, prettifyType) where
+module Language.TAPL.FullIsorec.Pretty (prettify, prettifyType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
@@ -10,8 +10,8 @@ import Control.Monad.Trans.Except
 
 import Language.TAPL.Common.Helpers (withTmpStateT)
 import Language.TAPL.Common.Context (nameFromContext, findName)
-import Language.TAPL.FullISOrec.Types
-import Language.TAPL.FullISOrec.Context
+import Language.TAPL.FullIsorec.Types
+import Language.TAPL.FullIsorec.Context
 
 prettify :: Term -> Eval (Doc a)
 prettify (TTrue _) = return $ pretty "true"

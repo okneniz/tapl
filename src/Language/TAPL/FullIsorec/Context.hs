@@ -1,11 +1,11 @@
-module Language.TAPL.FullISOrec.Context where
+module Language.TAPL.FullIsorec.Context where
 
 import Data.Maybe (isJust)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
 import Language.TAPL.Common.Context
-import Language.TAPL.FullISOrec.Types
+import Language.TAPL.FullIsorec.Types
 
 type LCNames = Names Binding
 type Eval a = StateT LCNames (Except String) a

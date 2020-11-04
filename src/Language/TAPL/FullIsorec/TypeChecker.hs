@@ -1,4 +1,4 @@
-module Language.TAPL.FullISOrec.TypeChecker (typeOf) where
+module Language.TAPL.FullIsorec.TypeChecker (typeOf) where
 
 import qualified Data.Map.Lazy as Map
 import Data.List (tails, (\\), intercalate, sort)
@@ -11,8 +11,8 @@ import Control.Monad.Trans.State.Lazy
 import Text.Parsec (SourcePos)
 
 import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
-import Language.TAPL.FullISOrec.Types
-import Language.TAPL.FullISOrec.Context
+import Language.TAPL.FullIsorec.Types
+import Language.TAPL.FullIsorec.Context
 
 typeOf :: Term -> Eval Type
 typeOf (TVar p v _) = do

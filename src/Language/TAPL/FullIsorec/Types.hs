@@ -1,4 +1,4 @@
-module Language.TAPL.FullISOrec.Types where
+module Language.TAPL.FullIsorec.Types where
 
 import Text.Parsec (SourcePos)
 

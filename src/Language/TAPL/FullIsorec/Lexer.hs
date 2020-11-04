@@ -1,4 +1,4 @@
-module Language.TAPL.FullISOrec.Lexer where
+module Language.TAPL.FullIsorec.Lexer where
 
 import Text.Parsec (alphaNum, lower, oneOf, (<|>))
 import Text.ParserCombinators.Parsec.Language (emptyDef)

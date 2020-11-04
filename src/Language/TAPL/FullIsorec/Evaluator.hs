@@ -1,4 +1,4 @@
-module Language.TAPL.FullISOrec.Evaluator (evalString) where
+module Language.TAPL.FullIsorec.Evaluator (evalString) where
 
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
@@ -10,11 +10,11 @@ import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.Common.Context (bind)
-import Language.TAPL.FullISOrec.Types
-import Language.TAPL.FullISOrec.Parser
-import Language.TAPL.FullISOrec.Context
-import Language.TAPL.FullISOrec.TypeChecker
-import Language.TAPL.FullISOrec.Pretty
+import Language.TAPL.FullIsorec.Types
+import Language.TAPL.FullIsorec.Parser
+import Language.TAPL.FullIsorec.Context
+import Language.TAPL.FullIsorec.TypeChecker
+import Language.TAPL.FullIsorec.Pretty
 
 evalString :: String -> Either String String
 evalString code = do
