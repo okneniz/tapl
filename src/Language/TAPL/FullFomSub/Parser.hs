@@ -68,7 +68,7 @@ notApply = stdFuncs
 notTypeBind :: LCParser
 notTypeBind = termApply
           <|> notApply
-          <|> (optionalProjection keyword (parens notTypeBind))
+          <|> (optionalProjection identifier (parens notTypeBind))
 
 stdFuncs :: LCParser
 stdFuncs = (timesFloat <?> "timesfloat")
@@ -88,7 +88,7 @@ value = optionalAscribed $ nat <|> (boolean <?> "boolean")
                                <|> (stringT <?> "string")
                                <|> (float <?> "float")
                                <|> (boolean <?> "boolean")
-                               <|> ((optionalProjection keyword record) <?> "record")
+                               <|> ((optionalProjection identifier record) <?> "record")
                                <|> (typeAbstraction <?> "type abstraction")
                                <|> (abstraction <?> "abstraction")
                                <|> (parens value)
@@ -150,7 +150,7 @@ abstraction = try $ optionalParens $ do
     return $ TAbs pos name ty t
 
 variable :: LCParser
-variable = try $ optionalProjection keyword $ do
+variable = try $ optionalProjection identifier $ do
     name <- identifier
     names <- getState
     pos <- getPosition
@@ -199,21 +199,16 @@ letT = do
     setState names
     return $ TLet p name t1 t2
 
-keyword :: LCParser
-keyword = TKeyword <$> getPosition <*> identifier
-
-optionalProjection :: LCParser -> LCParser -> LCParser
+optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
-
-dotRef :: LCParser -> Term -> LCParser
-dotRef key t = do
-    pos <- dot *> getPosition
-    i <- key
-    t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-    return t'
+    where dotRef k t = do
+            pos <- dot *> getPosition
+            i <- key
+            t' <- (try $ dotRef k (TProj pos t i)) <|> (return $ TProj pos t i)
+            return t'
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do

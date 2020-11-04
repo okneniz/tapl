@@ -3,7 +3,7 @@ module Language.TAPL.FullFomSub.Evaluator (evalString) where
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
 
-import Control.Monad (liftM, liftM2, unless)
+import Control.Monad (liftM, unless)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
@@ -22,7 +22,7 @@ evalString code = do
     case parse "<stdin>" code of
          Left e -> Left $ show e
          Right ([], _) -> return ""
-         Right (commands, names) -> runExcept $ evalStateT (f commands) []
+         Right (commands, names) -> runExcept $ evalStateT (f commands) names
     where f cs = evalCommands cs >>= \x -> return $ if null x then [] else last x
 
 evalCommands :: [Command] -> Eval [String]
@@ -62,7 +62,7 @@ nvm :: Eval (Maybe Term)
 nvm = return Nothing
 
 normalize :: Term -> Eval (Maybe Term)
-normalize (TApp p (TAbs _ _ tyT11 t12) v2) | isVal v2 = Just <$> termSubstitutionTop p v2 t12
+normalize (TApp p (TAbs _ _ _ t12) v2) | isVal v2 = Just <$> termSubstitutionTop p v2 t12
 normalize (TApp p v1 t2) | isVal v1 = liftM(TApp p v1) <$> normalize t2
 normalize (TApp p t1 t2) = liftM(flip (TApp p) t2) <$> normalize t1
 
@@ -77,8 +77,8 @@ normalize (TRecord p fs) = do
     continue $ TRecord p (Map.fromList fs')
     where evalField (k,v) = (,) k <$> fullNormalize v
 
-normalize (TProj _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t = return $ Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) (TKeyword x k)) = liftM(\t' -> TProj p t' (TKeyword x k)) <$> normalize t
+normalize (TProj _ t@(TRecord _ fs) k) | isVal t = return $ Map.lookup k fs
+normalize (TProj p t@(TRecord _ _) k) = liftM(\t' -> TProj p t' k) <$> normalize t
 
 normalize (TLet p _ t1 t2) | isVal t1 = Just <$> termSubstitutionTop p t1 t2
 normalize (TLet p v t1 t2) = liftM(flip(TLet p v) t2) <$> normalize t1
@@ -106,7 +106,7 @@ normalize (TIsZero _ (TZero p)) = continue $ TTrue p
 normalize (TIsZero _ (TSucc p t)) | isNumerical t = continue $ TFalse p
 normalize (TIsZero p t) = liftM(TIsZero p) <$> normalize t
 
-normalize (TUnpack p1 _ _ (TPack p2 tyT11 v12 _) t2) | isVal v12 = do
+normalize (TUnpack _ _ _ (TPack p2 tyT11 v12 _) t2) | isVal v12 = do
     x <- termShift p2 1 v12
     y <- termSubstitutionTop p2 x t2
     Just <$> typeTermSubstitutionTop p2 tyT11 y

@@ -9,7 +9,6 @@ import Language.TAPL.Common.Context
 
 data Command = Eval [Term]
              | Bind SourcePos String Binding
-             | SomeBind SourcePos String String Term
              deriving (Show)
 
 data Kind = Star | Arrow Kind Kind deriving (Show, Eq)
@@ -21,7 +20,7 @@ data Term = TVar SourcePos VarName Depth
           | TFalse SourcePos
           | TIf SourcePos Term Term Term
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TLet SourcePos String Term Term
           | TFix SourcePos Term
           | TString SourcePos String
@@ -37,7 +36,6 @@ data Term = TVar SourcePos VarName Depth
           | TIsZero SourcePos Term
           | TPack SourcePos Type Term Type
           | TUnpack SourcePos String String Term Term
-          | TKeyword SourcePos String
           deriving (Show)
 
 type AST = [Term]
@@ -75,7 +73,6 @@ data Type = TyVar VarName Depth
           | TySome String Type Type
           | TyAbs String Kind Type
           | TyApp Type Type
-          | TyKeyword
           deriving (Show, Eq)
 
 data Binding = NameBind
