@@ -76,7 +76,7 @@ typeOf (TRecord _ fields) = do
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = (,) k <$> typeOf v
 
-typeOf s@(TProj _ t (TKeyword p key)) = do
+typeOf s@(TProj p t key) = do
     ty <- simplifyType p =<< typeOf t
     case ty of
          (TyRecord fields) ->
@@ -274,8 +274,6 @@ typeEq p t1 t2 = do
       (TyAbs x k1 ty1, TyAbs _ k2 ty2) -> return False
 
       (TyApp tyS1 tyS2, TyApp tyT1 tyT2) -> (&&) <$> typeEq p tyS1 tyT1 <*> typeEq p tyS2 tyT2
-      (TyInt, TyInt) -> return True
-      (TyKeyword, TyKeyword) -> return True
       _ -> return False
 
 computeType :: SourcePos -> Type -> Eval (Maybe Type)

@@ -145,8 +145,6 @@ termMap onVar onType s t = walk s t
                            walk c (TTApp p t ty) = liftM2 (TTApp p) (walk c t) (onType c ty)
                            walk c (TPack p ty1 t ty2) = liftM3 (TPack p) (onType c ty1) (walk c t) (onType c ty2)
                            walk c (TUnpack p ty x t1 t2) = liftM2 (TUnpack p ty x) (walk c t1) (walk (c + 2) t2)
-                           walk c (TInt p t) = return $ TInt p t
-                           walk c (TKeyword p t) = return $ TKeyword p t
 
 termShiftAbove :: SourcePos -> Depth -> VarName -> Term -> Eval Term
 termShiftAbove p d c t = termMap onVar (typeShiftAbove p d) c t
@@ -189,8 +187,6 @@ typeMap onVar s g = walk s g
                     walk c (TySome x k ty1) = TySome x k <$> walk (c+1) ty1
                     walk c (TyAbs x k ty1) = TyAbs x k <$> walk (c+1) ty1
                     walk c (TyApp ty1 ty2) = liftM2 TyApp (walk c ty1) (walk c ty2)
-                    walk _ TyInt = return TyInt
-                    walk _ TyKeyword = return TyKeyword
 
 typeSubstitution :: SourcePos -> Type -> VarName -> Type -> Eval Type
 typeSubstitution p tyS j tyT = typeMap onVar j tyT

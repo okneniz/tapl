@@ -69,7 +69,7 @@ notApply = value
 notTypeBind :: LCParser
 notTypeBind = termApply
           <|> notApply
-          <|> (optionalProjection keyword (parens notTypeBind))
+          <|> (optionalProjection identifier (parens notTypeBind))
 
 assignT :: LCParser
 assignT = chainl1 (notAssign <|> parens notAssign) $ (padded $ reservedOp ":=") >> TAssign <$> getPosition
@@ -100,8 +100,7 @@ value = optionalAscribed $ nat <|> (boolean <?> "boolean")
                                <|> (unit <?> "unit")
                                <|> (stringT <?> "string")
                                <|> (float <?> "float")
-                               <|> (integer <?> "integer")
-                               <|> ((optionalProjection keyword record) <?> "record")
+                               <|> ((optionalProjection identifier record) <?> "record")
                                <|> (typeAbstraction <?> "type abstraction")
                                <|> (abstraction <?> "abstraction")
 
@@ -168,7 +167,7 @@ abstraction = try $ optionalParens $ do
     return $ TAbs pos name ty t
 
 variable :: LCParser
-variable = try $ optionalProjection keyword $ do
+variable = try $ optionalProjection identifier $ do
     name <- identifier
     names <- getState
     pos <- getPosition
@@ -194,9 +193,6 @@ boolean = true <|> false
 float :: LCParser
 float = TFloat <$> getPosition <*> try floatNum
 
-integer :: LCParser
-integer = TInt <$> getPosition <*> try natural
-
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = reserved name >> (t <$> getPosition)
 
@@ -220,21 +216,16 @@ letT = do
     setState names
     return $ TLet p name t1 t2
 
-keyword :: LCParser
-keyword = TKeyword <$> getPosition <*> identifier
-
-optionalProjection :: LCParser -> LCParser -> LCParser
+optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
     t' <- (try $ dotRef key t) <|> (return t)
     return t'
-
-dotRef :: LCParser -> Term -> LCParser
-dotRef key t = do
-    pos <- dot *> getPosition
-    i <- key
-    t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-    return t'
+    where dotRef key t = do
+            pos <- dot *> getPosition
+            i <- key
+            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
+            return t'
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do

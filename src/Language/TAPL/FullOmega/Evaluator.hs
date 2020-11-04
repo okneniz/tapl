@@ -77,8 +77,8 @@ normalize (TRecord p fs) = do
     continue $ TRecord p (Map.fromList fs')
     where evalField (k,v) = (,) k <$> fullNormalize v
 
-normalize (TProj _ t@(TRecord _ fs) (TKeyword _ k)) | isVal t = return $ Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) (TKeyword x k)) = liftM(\t' -> TProj p t' (TKeyword x k)) <$> normalize t
+normalize (TProj _ t@(TRecord _ fs) k) | isVal t = return $ Map.lookup k fs
+normalize (TProj p t@(TRecord _ _) k) = liftM(\t' -> TProj p t' k) <$> normalize t
 
 normalize (TRef p t) | isVal t = (\x -> return $ TLoc p x) <$> extend t
 normalize (TRef p t) = liftM(TRef p) <$> normalize t

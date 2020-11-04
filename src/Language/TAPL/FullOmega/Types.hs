@@ -19,7 +19,7 @@ data Term = TAscribe SourcePos Term Type
           | TAbs SourcePos String Type Term
           | TApp SourcePos Term Term
           | TRecord SourcePos (Map String Term)
-          | TProj SourcePos Term Term
+          | TProj SourcePos Term String
           | TString SourcePos String
           | TUnit SourcePos
           | TLoc SourcePos Location
@@ -41,8 +41,6 @@ data Term = TAscribe SourcePos Term Type
           | TTApp SourcePos Term Type
           | TPack SourcePos Type Term Type
           | TUnpack SourcePos String String Term Term
-          | TKeyword SourcePos String
-          | TInt SourcePos Integer
           deriving (Show)
 
 type AST = [Term]
@@ -81,8 +79,6 @@ data Type = TyVar VarName Depth
           | TySome String Kind Type
           | TyAbs String Kind Type
           | TyApp Type Type
-          | TyKeyword
-          | TyInt
           deriving (Show, Eq)
 
 data Binding = NameBind
