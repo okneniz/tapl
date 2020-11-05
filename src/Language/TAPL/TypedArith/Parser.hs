@@ -3,7 +3,7 @@ module Language.TAPL.TypedArith.Parser (parse) where
 import Language.TAPL.TypedArith.Types
 import Language.TAPL.TypedArith.Context
 import Language.TAPL.TypedArith.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
 
 import Prelude hiding (abs, succ, pred)
 
@@ -130,6 +130,3 @@ natAnnotation = primitiveType "Nat" TyNat
 
 primitiveType :: String -> Type -> LCTypeParser
 primitiveType name ty = reserved name >> return ty
-
-padded :: Parsec String u a -> Parsec String u a
-padded x = optional spaces *> x <* optional spaces

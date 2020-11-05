@@ -3,7 +3,7 @@ module Language.TAPL.FullSimple.Parser (parse) where
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Context
 import Language.TAPL.FullSimple.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
 
 import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map
@@ -297,6 +297,3 @@ typeVarOrID = do
     return $ case findIndex ((== name) . fst) names of
                   Just x -> TyVar x (length names)
                   Nothing -> TyID name
-
-padded :: Parsec String LCNames a -> Parsec String LCNames a
-padded x = optional spaces *> x <* optional spaces

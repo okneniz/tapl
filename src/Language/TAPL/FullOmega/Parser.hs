@@ -3,7 +3,7 @@ module Language.TAPL.FullOmega.Parser (parse) where
 import Language.TAPL.FullOmega.Types
 import Language.TAPL.FullOmega.Context
 import Language.TAPL.FullOmega.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
 import Language.TAPL.Common.Context (findVarName)
 
 import Prelude hiding (abs, succ, pred)
@@ -358,9 +358,6 @@ startKind = reservedOp "*" >> return Star
 
 arrowKind :: LCKindParser
 arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ (padded $ reservedOp "->") *> return Arrow
-
-padded :: Parsec String u a -> Parsec String u a
-padded x = optional spaces *> x <* optional spaces
 
 optionalParens :: Parsec String u a -> Parsec String u a
 optionalParens f = try (parens f) <|> try f

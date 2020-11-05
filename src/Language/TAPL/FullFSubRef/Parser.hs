@@ -3,7 +3,7 @@ module Language.TAPL.FullFSubRef.Parser (parse) where
 import Language.TAPL.FullFSubRef.Types
 import Language.TAPL.FullFSubRef.Context
 import Language.TAPL.FullFSubRef.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
 import Language.TAPL.Common.Context (findVarName)
 
 import Prelude hiding (abs, succ, pred)
@@ -334,6 +334,3 @@ typeVarOrID = do
     return $ case findVarName names name of
                   Just varName -> TyVar varName (length names)
                   Nothing -> TyID name
-
-padded :: Parsec String u a -> Parsec String u a
-padded x = optional spaces *> x <* optional spaces

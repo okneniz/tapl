@@ -161,6 +161,3 @@ timesFloat = try $ do
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = (,) <$> (identifier <* devider) <*> val
-
-padded :: Parsec String LCNames a -> Parsec String LCNames a
-padded x = optional spaces *> x <* optional spaces

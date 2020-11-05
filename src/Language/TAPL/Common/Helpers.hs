@@ -1,6 +1,6 @@
 module Language.TAPL.Common.Helpers where
 
-import Text.Parsec (Parsec, try, oneOf, many)
+import Text.Parsec (Parsec, try, oneOf, many, spaces, optional)
 import Control.Monad (unless)
 import Control.Monad.Trans.State.Lazy
 
@@ -29,3 +29,6 @@ withTmpStateT f g = do
 
 (<=<) :: Monad m => (b -> m c) -> (a -> m b) -> (a -> m c)
 (g <=< f) a = f a >>= g
+
+padded :: Parsec String u a -> Parsec String u a
+padded x = optional spaces *> x <* optional spaces
