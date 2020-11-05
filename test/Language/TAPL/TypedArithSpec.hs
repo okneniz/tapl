@@ -12,7 +12,11 @@ spec = do
             tests evalString [
                   ("true", pass "true:Bool"),
                   ("false", pass "false:Bool"),
-                  ("zero", pass "zero:Nat")
+                  ("zero", pass "zero:Nat"),
+                  ("0", pass "zero:Nat"),
+                  ("5", pass "succ succ succ succ succ zero:Nat"),
+                  ("pred 5", pass "succ succ succ succ zero:Nat"),
+                  ("4", pass "succ succ succ succ zero:Nat")
                 ]
 
         describe "abstractions" $ do
@@ -37,5 +41,13 @@ spec = do
                   (
                     "(lambda x:Bool.lambda y:(Bool -> (Bool -> Bool)). if x then y true else y false) true",
                     pass "(lambda y.if true then y true else y false):((Bool -> (Bool -> Bool)) -> (Bool -> Bool))"
+                  ),
+                  (
+                    "(lambda x:Nat.if zero? x then succ x else x) 0",
+                    pass "succ zero:Nat"
+                  ),
+                  (
+                    "(lambda x:Nat.if zero? x then succ x else x) 3",
+                    pass "succ succ succ zero:Nat"
                   )
                  ]

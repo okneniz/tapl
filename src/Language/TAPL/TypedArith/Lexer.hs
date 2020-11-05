@@ -60,3 +60,6 @@ dot = Token.dot lexer
 
 colon :: Parsec String u String
 colon = Token.colon lexer
+
+natural :: Parsec String u Integer
+natural = Token.natural lexer

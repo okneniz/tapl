@@ -47,26 +47,21 @@ apply = chainl1 notApply $ TApp <$> (optional spaces *> getPosition)
 
 notApply :: LCParser
 notApply = value
+       <|> (isZero <?> "zero?")
        <|> (condition <?> "condition")
        <|> (abstraction <?> "abstraction")
        <|> (variable <?> "variable")
        <|> (parens notApply)
 
 value :: LCParser
-value = (boolean <?> "boolean")
-    <|> (succ <?> "succ")
-    <|> (pred <?> "pred")
-    <|> (isZero <?> "zero?")
-    <|> (zero <?> "zero")
+value = nat <|> (boolean <?> "boolean")
 
 abstraction :: LCParser
 abstraction = do
     pos <- getPosition
     reserved "lambda"
     varName <- identifier
-    varType <- termType
-    _ <- dot
-    optional spaces
+    varType <- termType <* dot
     context <- getState
     modifyState $ addVar varName varType
     t <- term
@@ -87,23 +82,27 @@ boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
 
-fun :: String -> (SourcePos -> Term -> Term) -> LCParser
-fun name tm = tm <$> (reserved name *> getPosition) <*> term
-
-succ :: LCParser
-succ = fun "succ" TSucc
-
-pred :: LCParser
-pred = fun "pred" TPred
-
-isZero :: LCParser
-isZero = fun "zero?" TIsZero
+nat :: LCParser
+nat = succ <|> pred <|> zero <|> integer
+    where succ = fun "succ" TSucc
+          pred = fun "pred" TPred
+          zero = constant "zero" TZero
+          integer = do
+            p <- getPosition
+            i <- try natural
+            toNat p i (TZero p)
+          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ 0 t = return t
+          toNat p i t = toNat p (i - 1) (TSucc p t)
 
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = reserved name >> (t <$> getPosition)
 
-zero :: LCParser
-zero = constant "zero" TZero
+fun :: String -> (SourcePos -> Term -> Term) -> LCParser
+fun name tm = tm <$> (reserved name *> getPosition) <*> term
+
+isZero :: LCParser
+isZero = fun "zero?" TIsZero
 
 condition :: LCParser
 condition = TIf <$> getPosition
@@ -119,9 +118,7 @@ typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-    optional spaces
-    reservedOp "->"
-    optional spaces
+    padded $ reservedOp "->"
     return TyArrow
 
 notArrowAnnotation :: LCTypeParser
@@ -135,3 +132,6 @@ natAnnotation = primitiveType "Nat" TyNat
 
 primitiveType :: String -> Type -> LCTypeParser
 primitiveType name ty = reserved name >> return ty
+
+padded :: Parsec String u a -> Parsec String u a
+padded x = optional spaces *> x <* optional spaces
