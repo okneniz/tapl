@@ -1,4 +1,4 @@
-module Language.TAPL.FOmega.Types where
+module Language.TAPL.Fomega.Types where
 
 import Text.Parsec (SourcePos)
 

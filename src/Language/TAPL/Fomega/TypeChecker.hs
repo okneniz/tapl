@@ -1,4 +1,4 @@
-module Language.TAPL.FOmega.TypeChecker (typeOf, kindOf) where
+module Language.TAPL.Fomega.TypeChecker (typeOf, kindOf) where
 
 import qualified Data.Map.Lazy as Map
 import Data.List (tails, (\\), intercalate, sort)
@@ -9,14 +9,14 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy
 
-import Language.TAPL.FOmega.Pretty (render, renderType)
+import Language.TAPL.Fomega.Pretty (render, renderType)
 
 import Text.Parsec (SourcePos)
 
 import Language.TAPL.Common.Context
 import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
-import Language.TAPL.FOmega.Types
-import Language.TAPL.FOmega.Context
+import Language.TAPL.Fomega.Types
+import Language.TAPL.Fomega.Context
 
 typeOf :: Term -> Eval Type
 typeOf (TVar p v _) = do

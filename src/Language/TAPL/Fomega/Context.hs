@@ -1,4 +1,4 @@
-module Language.TAPL.FOmega.Context where
+module Language.TAPL.Fomega.Context where
 
 import Data.Maybe (isJust)
 import qualified Data.Map.Lazy as Map
@@ -11,7 +11,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Common.Context
-import Language.TAPL.FOmega.Types
+import Language.TAPL.Fomega.Types
 
 type LCNames = Names Binding
 type Eval a = StateT LCNames (Except String) a

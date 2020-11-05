@@ -1,4 +1,4 @@
-module Language.TAPL.FOmega.Pretty (render, renderType) where
+module Language.TAPL.Fomega.Pretty (render, renderType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
@@ -10,8 +10,8 @@ import Control.Monad.Trans.Except
 
 import Language.TAPL.Common.Helpers (withTmpStateT)
 import Language.TAPL.Common.Context (nameFromContext, findName)
-import Language.TAPL.FOmega.Types
-import Language.TAPL.FOmega.Context
+import Language.TAPL.Fomega.Types
+import Language.TAPL.Fomega.Context
 
 render :: Term -> Type -> Eval String
 render t ty = do

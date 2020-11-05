@@ -1,7 +1,7 @@
-module Language.TAPL.FOmegaSpec where
+module Language.TAPL.FomegaSpec where
 import Test.Hspec
 import Language.TAPL.TestHelpers
-import Language.TAPL.FOmega.Evaluator (evalString)
+import Language.TAPL.Fomega.Evaluator (evalString)
 
 spec :: Spec
 spec = do

@@ -1,4 +1,4 @@
-module Language.TAPL.FOmega.Lexer where
+module Language.TAPL.Fomega.Lexer where
 
 import Text.Parsec (alphaNum, lower, oneOf, (<|>))
 import Text.ParserCombinators.Parsec.Language (emptyDef)

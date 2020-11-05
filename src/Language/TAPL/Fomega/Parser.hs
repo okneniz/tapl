@@ -1,8 +1,8 @@
-module Language.TAPL.FOmega.Parser (parse) where
+module Language.TAPL.Fomega.Parser (parse) where
 
-import Language.TAPL.FOmega.Types
-import Language.TAPL.FOmega.Context
-import Language.TAPL.FOmega.Lexer
+import Language.TAPL.Fomega.Types
+import Language.TAPL.Fomega.Context
+import Language.TAPL.Fomega.Lexer
 import Language.TAPL.Common.Helpers (ucid, padded)
 import Language.TAPL.Common.Context (findVarName)
 

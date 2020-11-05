@@ -1,4 +1,4 @@
-module Language.TAPL.FOmega.Evaluator (evalString) where
+module Language.TAPL.Fomega.Evaluator (evalString) where
 
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
@@ -10,11 +10,11 @@ import Control.Monad.Trans.Except
 
 import Text.Parsec (SourcePos)
 
-import Language.TAPL.FOmega.Types
-import Language.TAPL.FOmega.Parser
-import Language.TAPL.FOmega.Context
-import Language.TAPL.FOmega.TypeChecker
-import Language.TAPL.FOmega.Pretty
+import Language.TAPL.Fomega.Types
+import Language.TAPL.Fomega.Parser
+import Language.TAPL.Fomega.Context
+import Language.TAPL.Fomega.TypeChecker
+import Language.TAPL.Fomega.Pretty
 import Language.TAPL.Common.Context (bind)
 
 evalString :: String -> Either String String
