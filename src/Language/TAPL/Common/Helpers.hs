@@ -27,8 +27,5 @@ withTmpStateT f g = do
     put s
     return x
 
-(<=<) :: Monad m => (b -> m c) -> (a -> m b) -> (a -> m c)
-(g <=< f) a = f a >>= g
-
 padded :: Parsec String u a -> Parsec String u a
 padded x = optional spaces *> x <* optional spaces
