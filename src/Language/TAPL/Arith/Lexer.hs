@@ -1,4 +1,4 @@
-module Language.TAPL.Arith.Lexer (reserved, parens, semi) where
+module Language.TAPL.Arith.Lexer (reserved, parens, semi, natural) where
 
 import Data.Functor.Identity (Identity)
 import Text.Parsec (alphaNum, lower, oneOf, (<|>), Parsec)
@@ -36,3 +36,6 @@ parens = Token.parens lexer
 
 semi :: Parsec String u String
 semi = Token.semi lexer
+
+natural :: Parsec String u Integer
+natural = Token.natural lexer

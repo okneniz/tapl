@@ -11,7 +11,11 @@ spec = do
        tests evalString [
           ("true", pass "true"),
           ("false", pass "false"),
-          ("zero", pass "zero")
+          ("zero", pass "zero"),
+          ("0", pass "zero"),
+          ("5", pass "succ succ succ succ succ zero"),
+          ("pred 5", pass "succ succ succ succ zero"),
+          ("4", pass "succ succ succ succ zero")
         ]
 
     describe "condition" $ do

@@ -15,11 +15,10 @@ arithParser :: Parsec String () [Term]
 arithParser = term `sepEndBy` semi <* eof
 
 term :: LCParser
-term = condition
-   <|> isZero
-   <|> boolean
-   <|> nat
-   <|> parens term
+term = value <|> isZero <|> condition <|> parens term
+
+value :: LCParser
+value = boolean <|> nat
 
 boolean :: LCParser
 boolean = true <|> false
@@ -27,19 +26,19 @@ boolean = true <|> false
           false = constant "false" TFalse
 
 nat :: LCParser
-nat = zero <|> succ <|> pred
-
-succ :: LCParser
-succ = fun "succ" TSucc
-
-pred :: LCParser
-pred = fun "pred" TPred
+nat = succ <|> pred <|> zero <|> integer
+    where succ = fun "succ" TSucc
+          pred = fun "pred" TPred
+          zero = constant "zero" TZero
+          integer = do
+            i <- try natural
+            toNat i TZero
+          toNat i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat 0 t = return t
+          toNat i t = toNat (i - 1) (TSucc t)
 
 isZero :: LCParser
 isZero = fun "zero?" TIsZero
-
-zero :: LCParser
-zero = constant "zero" TZero
 
 condition :: LCParser
 condition = TIf <$> (reserved "if"   *> term)
