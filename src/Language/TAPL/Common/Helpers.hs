@@ -15,15 +15,12 @@ ucid = (:) <$> (try x) <*> (try $ many y)
           y = oneOf $ ['A'..'Z'] ++ ['a'..'z']
 
 unlessM :: Monad m => m Bool -> m () -> m ()
-unlessM p s = do
-    x <- p
-    unless x s
+unlessM p s = flip(unless) s =<< p
 
 withTmpStateT :: Monad m => (s -> s) -> StateT s m b -> StateT s m b
 withTmpStateT f g = do
     s <- get
-    modify f
-    x <- g
+    x <- modify f >> g
     put s
     return x
 
