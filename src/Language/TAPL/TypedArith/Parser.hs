@@ -23,7 +23,7 @@ typedArithParser :: Parsec String LCNames ([Command], LCNames)
 typedArithParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
-command = (try evalCommand) <|> bindCommand
+command = evalCommand <|> bindCommand
 
 bindCommand :: LCCommandParser
 bindCommand = do
@@ -35,12 +35,10 @@ bindCommand = do
     return $ Bind pos x $ VarBind ty
 
 evalCommand :: LCCommandParser
-evalCommand = try $ Eval <$> term `sepEndBy` semi
+evalCommand = Eval <$> term `sepEndBy` semi
 
 term :: LCParser
-term = try apply
-   <|> try notApply
-   <|> parens term
+term = apply <|> notApply <|> parens term
 
 apply :: LCParser
 apply = chainl1 notApply $ TApp <$> (optional spaces *> getPosition)
@@ -114,7 +112,7 @@ termType :: LCTypeParser
 termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
-typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
+typeAnnotation = arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
