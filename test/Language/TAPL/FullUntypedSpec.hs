@@ -13,6 +13,10 @@ spec = do
               ("false", pass "false"),
               ("\"foo\"", pass "\"foo\""),
               ("unit", pass "unit"),
+              ("0", pass "zero"),
+              ("5", pass "succ succ succ succ succ zero"),
+              ("pred 5", pass "succ succ succ succ zero"),
+              ("4", pass "succ succ succ succ zero"),
               ("1.1", pass "1.1"),
               ("1.1000001", pass "1.1000001")
             ]
@@ -76,7 +80,7 @@ spec = do
         describe "apply" $ do
            tests evalString [
                   ("(lambda x.if x then false else true) true", pass "false"),
-                  ("(lambda x.succ x) zero", pass "succ zero"),
+                  ("(lambda x.succ x) 0", pass "succ zero"),
                   ("(lambda x.lambda y. x true)", pass "(lambda x.(lambda y.x true))"),
                   ("(lambda x.succ x) succ zero", pass "succ succ zero"),
                   ("(lambda x.lambda y.lambda z.if zero? x then y else z) pred zero", pass "(lambda y.(lambda z.if zero? zero then y else z))"),
