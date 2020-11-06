@@ -11,7 +11,11 @@ spec = do
         describe "primitive values" $ do
             tests evalString [
                   ("true", pass "true:Bool"),
-                  ("false", pass "false:Bool")
+                  ("false", pass "false:Bool"),
+                  ("0", pass "zero:Nat"),
+                  ("5", pass "succ succ succ succ succ zero:Nat"),
+                  ("pred 5", pass "succ succ succ succ zero:Nat"),
+                  ("4", pass "succ succ succ succ zero:Nat")
                 ]
 
         describe "abstractions" $ do
@@ -83,7 +87,7 @@ spec = do
         describe "let" $ do
             tests evalString [
                   ("let x = true in x", pass "true:Bool"),
-                  ("let x = (lambda x:Nat.x) in x", pass "(lambda x'.x'):(Nat -> Nat)"),
+                  ("let x = (lambda x:Nat.x) in x", pass "(lambda x.x):(Nat -> Nat)"),
                   ("let f = (lambda x.x) in (f f) (f zero)", pass "zero:Nat"),
                   ("let g = (lambda x. succ zero) in g (g g)", pass "succ zero:Nat")
                  ]
