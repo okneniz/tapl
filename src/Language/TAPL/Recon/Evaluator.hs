@@ -53,9 +53,7 @@ typeCheck (t:ts) = typeOf t >> typeCheck ts
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf pos t1 t2 t3) = do
-    t1' <- normalize t1
-    return $ TIf pos t1' t2 t3
+normalize (TIf pos t1 t2 t3) = TIf pos <$> normalize t1 <*> return t2 <*> return t3
 
 normalize (TSucc pos t1) = TSucc pos <$> normalize t1
 
@@ -69,10 +67,7 @@ normalize (TIsZero pos t) = TIsZero pos <$> normalize t
 
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t
 normalize (TApp pos t1 t2) | isVal t1 = TApp pos t1 <$> normalize t2
-normalize (TApp pos t1 t2) = do
-    t1' <- normalize t1
-    return $ TApp pos t1' t2
-
+normalize (TApp pos t1 t2) = flip(TApp pos) t2 <$> normalize t1
 normalize _ = Nothing
 
 isVal :: Term -> Bool

@@ -3,7 +3,7 @@ module Language.TAPL.Recon.Parser (parse) where
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Context
 import Language.TAPL.Recon.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
 
 import Prelude hiding (abs, succ, pred)
 
@@ -20,14 +20,10 @@ parse :: String -> String -> Either ParseError ([Command], LCNames)
 parse = runParser reconParser []
 
 reconParser :: Parsec String LCNames ([Command], LCNames)
-reconParser = do
-    commands <- command `sepEndBy` semi
-    eof
-    names <- getState
-    return $ (commands, names)
+reconParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
-command = (try evalCommand) <|> bindCommand
+command = bindCommand <|> evalCommand
 
 bindCommand :: LCCommandParser
 bindCommand = do
@@ -39,38 +35,25 @@ bindCommand = do
     return $ Bind pos x $ VarBind ty
 
 evalCommand :: LCCommandParser
-evalCommand = try $ Eval <$> term `sepEndBy` semi
+evalCommand = Eval <$> term `sepEndBy` semi
 
 term :: LCParser
-term = try apply
-   <|> try notApply
-   <|> parens term
+term = apply <|> notApply <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ do
-            optional spaces
-            pos <- getPosition
-            return $ TApp pos
+apply = chainl1 notApply $ TApp <$> getPosition
 
 notApply :: LCParser
-notApply = try value
-       <|> try (condition <?> "condition")
-       <|> try (abstraction <?> "abstraction")
-       <|> try (variable <?> "variable")
-       <|> try (parens notApply)
-       <|> try (parens apply)
-
-notTypeBind :: LCParser
-notTypeBind = try apply
-          <|> try notApply
-          <|> try (parens notTypeBind)
+notApply = value
+       <|> (isZero <?> "zero?")
+       <|> (condition <?> "condition")
+       <|> (variable <?> "variable")
+       <|> (parens notApply)
 
 value :: LCParser
 value = (boolean <?> "boolean")
-    <|> (succ <?> "succ")
-    <|> (pred <?> "pred")
-    <|> (isZero <?> "zero?")
-    <|> (zero <?> "zero")
+    <|> (nat <?> "nat")
+    <|> (abstraction <?> "abstraction")
 
 abstraction :: LCParser
 abstraction = do
@@ -80,11 +63,14 @@ abstraction = do
     ty <- termType
     _ <- dot
     optional spaces
-    names <- getState
+    n <- getState
     modifyState $ addVar name ty
-    t <- notTypeBind
-    setState names
+    t <- term
+    setState n
     return $ TAbs pos name ty t
+
+isZero :: LCParser
+isZero = fun "zero?" TIsZero
 
 variable :: LCParser
 variable = do
@@ -100,23 +86,24 @@ boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
 
+nat :: LCParser
+nat = succ <|> pred <|> zero <|> integer
+    where succ = fun "succ" TSucc
+          pred = fun "pred" TPred
+          zero = constant "zero" TZero
+          integer = do
+            p <- getPosition
+            i <- try natural
+            toNat p i (TZero p)
+          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ 0 t = return t
+          toNat p i t = toNat p (i - 1) (TSucc p t)
+
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
 fun name tm = tm <$> (reserved name *> getPosition) <*> term
 
-succ :: LCParser
-succ = fun "succ" TSucc
-
-pred :: LCParser
-pred = fun "pred" TPred
-
-isZero :: LCParser
-isZero = fun "zero?" TIsZero
-
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = reserved name >> (t <$> getPosition)
-
-zero :: LCParser
-zero = constant "zero" TZero
 
 condition :: LCParser
 condition = TIf <$> getPosition
@@ -128,19 +115,13 @@ termType :: LCTypeParser
 termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
-typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
+typeAnnotation = arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-    optional spaces
-    reservedOp "->"
-    optional spaces
-    return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") *> return TyArrow
 
 notArrowAnnotation :: LCTypeParser
-notArrowAnnotation = booleanAnnotation
-                 <|> try natAnnotation
-                 <|> try typeVarOrID
+notArrowAnnotation = booleanAnnotation <|> natAnnotation <|> typeVarOrID
 
 booleanAnnotation :: LCTypeParser
 booleanAnnotation = primitiveType "Bool" TyBool

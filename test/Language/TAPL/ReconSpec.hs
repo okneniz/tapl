@@ -11,7 +11,11 @@ spec = do
         describe "primitive values" $ do
             tests evalString [
                   ("true", pass "true:Bool"),
-                  ("false", pass "false:Bool")
+                  ("false", pass "false:Bool"),
+                  ("0", pass "zero:Nat"),
+                  ("5", pass "succ succ succ succ succ zero:Nat"),
+                  ("pred 5", pass "succ succ succ succ zero:Nat"),
+                  ("4", pass "succ succ succ succ zero:Nat")
                 ]
 
         describe "abstractions" $ do
@@ -28,12 +32,30 @@ spec = do
                       "(lambda x:Nat. succ (succ x)) (succ zero)",
                       pass "succ succ succ zero:Nat"
                     ),
-                    ("(lambda x:Bool.x)", pass "(lambda x.x):(Bool -> Bool)"),
-                    ("(lambda x:Bool.lambda y:A.x)", pass "(lambda x.(lambda y.x)):(Bool -> (A -> Bool))"),
-                    ("(lambda x:Bool.lambda y:A.y)", pass "(lambda x.(lambda y.y)):(Bool -> (A -> A))"),
-                    ("(lambda x:(Bool -> A).lambda y:A.y)", pass "(lambda x.(lambda y.y)):((Bool -> A) -> (A -> A))"),
-                    ("(lambda x:A -> A.lambda y:A.x y)", pass "(lambda x.(lambda y.x y)):((A -> A) -> (A -> x0))"),
-                    ("(lambda x:A.x)", pass "(lambda x.x):(A -> A)")
+                    (
+                      "(lambda x:Bool.x)",
+                      pass "(lambda x.x):(Bool -> Bool)"
+                    ),
+                    (
+                      "(lambda x:Bool.lambda y:A.x)",
+                      pass "(lambda x.(lambda y.x)):(Bool -> (A -> Bool))"
+                    ),
+                    (
+                      "(lambda x:Bool.lambda y:A.y)",
+                      pass "(lambda x.(lambda y.y)):(Bool -> (A -> A))"
+                    ),
+                    (
+                      "(lambda x:(Bool -> A).lambda y:A.y)",
+                      pass "(lambda x.(lambda y.y)):((Bool -> A) -> (A -> A))"
+                    ),
+                    (
+                      "(lambda x:A -> A.lambda y:A.x y)",
+                      pass "(lambda x.(lambda y.x y)):((A -> A) -> (A -> x0))"
+                    ),
+                    (
+                      "(lambda x:A.x)",
+                      pass "(lambda x.x):(A -> A)"
+                    )
                  ]
 
     describe "operations" $ do
@@ -55,32 +77,73 @@ spec = do
 
         describe "apply" $ do
             tests evalString [
-                  ("(lambda x:Bool. if x then false else true) true", pass "false:Bool"),
-                  ("(lambda x:Nat. succ x) zero", pass "succ zero:Nat"),
-                  ("(lambda x:Bool -> Bool.lambda y:A. x true)", pass "(lambda x.(lambda y.x true)):((Bool -> Bool) -> (A -> x0))"),
-                  ("(lambda x:Nat. succ x) succ zero", pass "succ succ zero:Nat"),
-                  ("(lambda x:Nat -> Nat. x zero) (lambda x:Nat. succ x)", pass "succ zero:Nat"),
+                  (
+                    "(lambda x:Bool. if x then false else true) true",
+                    pass "false:Bool"
+                  ),
+                  (
+                    "(lambda x:Nat. succ x) zero",
+                    pass "succ zero:Nat"
+                  ),
+                  (
+                    "(lambda x:Bool -> Bool.lambda y:A. x true)",
+                    pass "(lambda x.(lambda y.x true)):((Bool -> Bool) -> (A -> x0))"
+                  ),
+                  (
+                    "(lambda x:Nat. succ x) succ zero",
+                    pass "succ succ zero:Nat"
+                  ),
+                  (
+                    "(lambda x:Nat -> Nat. x zero) (lambda x:Nat. succ x)",
+                    pass "succ zero:Nat"
+                  ),
+                  (
+                    "(lambda x:Nat -> Nat. x zero) (lambda x:Nat. succ x)",
+                    pass "succ zero:Nat"
+                  ),
                   (
                     "(lambda x:Bool->Bool. if x false then true else false) (lambda x:Bool. if x then false else true);",
                     pass "true:Bool"
+                  ),
+                  (
+                    "lambda x:Nat. succ x",
+                    pass "(lambda x.succ x):(Nat -> Nat)"
+                  ),
+                  (
+                    "(lambda x:Nat. succ (succ x)) (succ 0)",
+                    pass "succ succ succ zero:Nat"
+                  ),
+                  (
+                    "lambda x:A. x",
+                    pass "(lambda x.x):(A -> A)"
+                  ),
+                  (
+                    "(lambda x:X. lambda y:X->X. y x)",
+                    pass  "(lambda x.(lambda y.y x)):(X -> ((X -> X) -> x0))"
+                  ),
+--                  (
+--                    "(lambda x:X. lambda y:X->X. y x) 1",
+--                    pass  "(lambda x.(lambda y.y x)):(X -> ((X -> X) -> x0))"
+--                  ),
+                  (
+                    "(lambda x:X->X. x 0) (lambda y:Nat. y)",
+                    pass "zero:Nat"
                   )
                  ]
 
+--TODO : fix it!
 --        describe "type binding" $ do
---            let test = (\(x,y) -> it x $ do { evalString x "<stdin>" `shouldBe` Right y })
---                examples = [
+--            tests evalString [
 --                    (
 --                      "Bit = Bool; (lambda x:Bit.x) true",
---                      "true:Bool"
+--                      pass "true:Bool"
 --                    ),
 --                    (
 --                      "T = Nat->Nat",
---                      "unit:Unit"
+--                      pass ""
 --                    ),
 --                    (
---                      "T = Nat->Nat; \
---                      \ (lambda x:T.x zero) (lambda y:Nat. if zero? y then succ y else y)",
---                      "succ zero:Nat"
+--                      "T = Nat->Nat; (lambda x:T.x zero) (lambda y:Nat. if zero? y then succ y else y)",
+--                      pass "succ zero:Nat"
 --                    )
 --                 ]
---            mapM_ test examples
