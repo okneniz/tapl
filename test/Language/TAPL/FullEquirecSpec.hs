@@ -14,6 +14,10 @@ spec = do
                   ("false", pass "false:Bool"),
                   ("\"foo\"", pass "\"foo\":String"),
                   ("unit", pass "unit:Unit"),
+                  ("0", pass "zero:Nat"),
+                  ("5", pass "succ succ succ succ succ zero:Nat"),
+                  ("pred 5", pass "succ succ succ succ zero:Nat"),
+                  ("4", pass "succ succ succ succ zero:Nat"),
                   ("1.1", pass "1.1:Float"),
                   ("1.1000001", pass "1.1000001:Float")
                 ]
@@ -61,7 +65,7 @@ spec = do
                     pass "<a=true>:<a:Bool, b:Unit, c:Nat>"
                 ),
                 (
-                    "case <b=zero> as <a:Int,b:Nat> of <b=x> -> succ succ pred pred pred x | <a=y> -> zero",
+                    "case <b=0> as <a:Nat,b:Nat> of <b=x> -> succ succ pred pred pred x | <a=y> -> zero",
                     pass "succ succ zero:Nat"
                 ),
                 (
