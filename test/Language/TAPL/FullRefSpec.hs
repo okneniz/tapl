@@ -15,7 +15,12 @@ spec = do
                   ("\"foo\"", pass "\"foo\":String"),
                   ("unit", pass "unit:Unit"),
                   ("1.1", pass "1.1:Float"),
-                  ("1.1000001", pass "1.1000001:Float")
+                  ("1.1000001", pass "1.1000001:Float"),
+                  ("zero", pass "zero:Nat"),
+                  ("0", pass "zero:Nat"),
+                  ("5", pass "succ succ succ succ succ zero:Nat"),
+                  ("pred 5", pass "succ succ succ succ zero:Nat"),
+                  ("4", pass "succ succ succ succ zero:Nat")
                 ]
 
         describe "pairs" $ do
@@ -53,7 +58,7 @@ spec = do
                 ("<a=unit> as <a:Unit,b:Unit,c:Nat>", pass "<a=unit>:<a:Unit, b:Unit, c:Nat>"),
                 ("(lambda x:<a:Unit,b:Unit,c:Nat>.x)", pass "(lambda x.x):(<a:Unit, b:Unit, c:Nat> -> <a:Unit, b:Unit, c:Nat>)"),
                 ("let z = <a=true> as <a:Bool,b:Unit,c:Nat> in (lambda x:<a:Bool, b:Unit, c:Nat>.x) z", pass "<a=true>:<a:Bool, b:Unit, c:Nat>"),
-                ("case <b=zero> as <a:Int,b:Nat> of <b=x> -> succ succ pred pred pred x | <a=y> -> zero", pass "succ succ zero:Nat"),
+                ("case <b=0> as <a:Int,b:Nat> of <b=x> -> succ succ pred pred pred x | <a=y> -> zero", pass "succ succ zero:Nat"),
                 ("case <b=zero> as <a:Nat,b:Nat> of <b=x> -> if (zero? x) then false else true | <a=y> -> true", pass "false:Bool"),
                 ("case <b=succ zero> as <a:Nat,b:Nat> of <a=x> -> <a=succ x> as <a:Nat>| <b=y> -> <a=succ y> as <a:Nat>", pass "<a=succ succ zero>:<a:Nat>")
                ]
@@ -115,7 +120,7 @@ spec = do
                   ("pred zero", pass "zero:Nat"),
                   ("pred succ zero", pass "zero:Nat"),
                   ("succ pred pred zero", pass "succ zero:Nat"),
-                  ("zero? zero", pass "true:Bool"),
+                  ("zero? 0", pass "true:Bool"),
                   ("zero? succ zero", pass "false:Bool")
                  ]
 

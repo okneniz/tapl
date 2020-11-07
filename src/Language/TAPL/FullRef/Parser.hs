@@ -3,7 +3,7 @@ module Language.TAPL.FullRef.Parser (parse) where
 import Language.TAPL.FullRef.Types
 import Language.TAPL.FullRef.Context
 import Language.TAPL.FullRef.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
 
 import Prelude hiding (abs, succ, pred)
 
@@ -24,7 +24,7 @@ fullRefParser :: Parsec String LCNames ([Command], LCNames)
 fullRefParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
-command =  (optional spaces) >> ((try bindCommand) <|> (try evalCommand))
+command = padded (bindCommand <|> evalCommand)
 
 bindCommand :: LCCommandParser
 bindCommand = do
@@ -35,47 +35,19 @@ bindCommand = do
     return $ Bind pos x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
-evalCommand = try $ Eval <$> term `sepEndBy` semi
+evalCommand = Eval <$> term `sepEndBy` semi
 
 term :: LCParser
-term = try apply
-   <|> try notApply
-   <|> parens term
-
-optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
-optionalProjection key tm = do
-    t <- tm
-    t' <- (try $ dotRef key t) <|> (return t)
-    return t'
-    where dotRef key t = do
-            _ <- dot
-            pos <- getPosition
-            i <- key
-            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-            return t'
-
-anotated :: LCParser -> LCParser
-anotated e = do
-    t <- e
-    t' <- (try $ ascribed t) <|> (return t)
-    return t'
-
-ascribed :: Term -> LCParser
-ascribed t = do
-    spaces
-    reserved "as"
-    optional spaces
-    ty <- typeAnnotation
-    pos <- getPosition
-    return $ TAscribe pos t ty
+term = apply <|> notApply <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ optional spaces >> TApp <$> getPosition
+apply = try $ chainl1 (notApply <|> try (parens apply)) $ TApp <$> getPosition
 
 notApply :: LCParser
 notApply = value
-       <|> ((variant value) <?> "variant")
-       <|> try (assignT <?> "assignment")
+       <|> (isZero <?> "isZero?")
+       <|> (variant <?> "variant")
+       <|> (assignT <?> "assignment")
        <|> (condition <?> "condition")
        <|> (letT <?> "let")
        <|> (derefT <?> "deref")
@@ -83,13 +55,14 @@ notApply = value
        <|> (caseT <?> "case")
        <|> (abstraction <?> "abstraction")
        <|> (variable <?> "variable")
-       <|> (parens notApply)
+       <|> try (parens notApply)
 
 assignT :: LCParser
-assignT = chainl1 notAssign $ reservedOp ":=" >> TAssign <$> getPosition
+assignT = try $ chainl1 notAssign $ reservedOp ":=" *> (TAssign <$> getPosition)
 
 notAssign :: LCParser
 notAssign = value
+        <|> (isZero <?> "isZero?")
         <|> (condition <?> "condition")
         <|> (derefT <?> "deref")
         <|> (ref <?> "ref")
@@ -98,22 +71,19 @@ notAssign = value
         <|> (parens notAssign)
 
 value :: LCParser
-value = anotated $ (boolean <?> "boolean")
-               <|> (string' <?> "string")
-               <|> (succ <?> "succ")
-               <|> (pred <?> "pred")
-               <|> (isZero <?> "isZero?")
-               <|> (zero <?> "zero")
-               <|> (float <?> "float")
-               <|> (unit <?> "unit")
-               <|> try (record <?> "record")
-               <|> try (pair <?> "pair")
+value = optionalAscribed $ (boolean <?> "boolean")
+                       <|> (stringT <?> "string")
+                       <|> (float <?> "float")
+                       <|> (nat <?> "nat")
+                       <|> (unit <?> "unit")
+                       <|> ((optionalProjection identifier record) <?> "record")
+                       <|> ((optionalProjection pairIndexes pair) <?> "pair")
 
 ref :: LCParser
 ref = fun "ref" TRef
 
 derefT :: LCParser
-derefT = TDeref <$> (reservedOp "!" >> getPosition) <*> term
+derefT = TDeref <$> (reservedOp "!" *> getPosition) <*> term
 
 fix :: LCParser
 fix = TFix <$> (reserved "fix" *> getPosition) <*> term
@@ -121,31 +91,35 @@ fix = TFix <$> (reserved "fix" *> getPosition) <*> term
 isZero :: LCParser
 isZero = fun "zero?" TIsZero
 
-succ :: LCParser
-succ = fun "succ" TSucc
-
-pred :: LCParser
-pred = fun "pred" TPred
+nat :: LCParser
+nat = succ <|> pred <|> zero <|> integer
+    where succ = fun "succ" TSucc
+          pred = fun "pred" TPred
+          zero = constant "zero" TZero
+          integer = do
+            p <- getPosition
+            i <- try natural
+            toNat p i (TZero p)
+          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ 0 t = return t
+          toNat p i t = toNat p (i - 1) (TSucc p t)
 
 boolean :: LCParser
 boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
 
-string' :: LCParser
-string' = TString <$> getPosition <*> try stringLiteral
+stringT :: LCParser
+stringT = TString <$> getPosition <*> try stringLiteral
 
 unit :: LCParser
 unit = constant "unit" TUnit
 
-zero :: LCParser
-zero = constant "zero" TZero
-
 float :: LCParser
-float = TFloat <$> getPosition <*> floatNum
+float = TFloat <$> getPosition <*> try floatNum
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = reserved name >> (t <$> getPosition)
+constant name t = reserved name *> (t <$> getPosition)
 
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
 fun name tm = tm <$> (reserved name *> getPosition) <*> term
@@ -158,72 +132,60 @@ condition = TIf <$> getPosition
 
 letT :: LCParser
 letT = do
-    reserved "let"
-    p <- getPosition
-    v <- identifier
-    reservedOp "="
-    t1 <- term
-    optional spaces
-    reserved "in"
-    optional spaces
-    context <- getState
-    modifyState $ addName v
+    p <- getPosition <* reserved "let"
+    name <- identifier <* reservedOp "="
+    t1 <- term <* reserved "in"
+    n <- getState
+    modifyState $ addName name
     t2 <- term
-    setState context
-    return $ TLet p v t1 t2
+    setState n
+    return $ TLet p name t1 t2
 
 caseT :: LCParser
-caseT = do
-  reserved "case"
-  t <- term
-  optional spaces
-  reserved "of"
-  optional spaces
-  branches <- branch `sepBy` (reservedOp "|")
-  pos <- getPosition
-  return $ TCase pos t $ Map.fromList branches
+caseT = TCase <$> getPosition
+              <*> (reserved "case" *> padded term <* reserved "of")
+              <*> (Map.fromList <$> branch `sepBy` (reserved "|"))
   where branch = do
-          (caseName, varName) <- pattern
+          (caseName, varName) <- angles $ keyValue (reservedOp "=") identifier
           reservedOp "->"
           context <- getState
           modifyState $ addName varName
           t2 <- term
           setState context
           return (caseName, (varName, t2))
-        pattern = angles $ do
-          caseName <- identifier
-          reservedOp "="
-          varName <- identifier
-          return (caseName, varName)
 
 pair :: LCParser
-pair = optionalProjection pairIndexes $ braces $ TPair <$> getPosition <*> (term <* comma) <*> term
+pair = try $ braces $ TPair <$> getPosition <*> (term <* comma) <*> term
 
 pairIndexes :: Parsec String LCNames String
 pairIndexes = flip(:) [] <$> oneOf "01"
 
 record :: LCParser
-record = optionalProjection identifier $ braces $ do
+record = try $ braces $ do
     ts <- (keyValue (reservedOp "=") term) `sepBy` comma
     p <- getPosition
     return $ TRecord p $ Map.fromList ts
 
+variant :: LCParser
+variant = try $ do
+  pos <- getPosition
+  (key, t) <- angles $ keyValue (reservedOp "=") notApply
+  ty <- reserved "as" *> typeAnnotation
+  return $ TTag pos key t ty
+
 abstraction :: LCParser
-abstraction = do
-    p <- getPosition
-    reserved "lambda"
-    varName <- identifier
-    varType <- termType
-    _ <- dot
-    optional spaces
-    context <- getState
-    modifyState $ addVar varName varType
-    t <- term
-    setState context
-    return $ TAbs p varName varType t
+abstraction = optionalParens $ do
+    pos <- getPosition
+    name <-  reserved "lambda" *> identifier
+    ty <- colon *> typeAnnotation
+    n <- getState
+    modifyState $ addVar name ty
+    t <- dot *> term
+    setState n
+    return $ TAbs pos name ty t
 
 variable :: LCParser
-variable = anotated $ optionalProjection (pairIndexes <|> identifier) $ do
+variable = optionalAscribed $ optionalProjection (pairIndexes <|> identifier) $ do
     name <- identifier
     p <- getPosition
     ns <- getState
@@ -231,35 +193,33 @@ variable = anotated $ optionalProjection (pairIndexes <|> identifier) $ do
          Just n -> return $ TVar p n (length $ ns)
          Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
 
-variant :: LCParser -> LCParser
-variant x = do
-  reservedOp "<"
-  pos <- getPosition
-  key <- identifier
-  reservedOp "="
-  t <- x
-  reservedOp ">"
-  reserved "as"
-  ty <- variantAnnotation
-  return $ TTag pos key t ty
-
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = (,) <$> (identifier <* devider) <*> val
 
-termType :: LCTypeParser
-termType = colon >> typeAnnotation
+optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
+optionalProjection key tm = do
+    t <- tm
+    (try $ dotRef key t) <|> (return t)
+    where dotRef k t = do
+            pos <- dot *> getPosition
+            i <- k
+            (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
+
+optionalAscribed :: LCParser -> LCParser
+optionalAscribed e = do
+    t <- e
+    (try $ f t) <|> (return t)
+  where f t = do
+          padded $ reserved "as"
+          ty <- typeAnnotation
+          pos <- getPosition
+          return $ TAscribe pos t ty
 
 typeAnnotation :: LCTypeParser
-typeAnnotation = (try arrowAnnotation <?> "arrow type annotation")
-             <|> try notArrowAnnotation
-             <|> (try $ parens typeAnnotation)
+typeAnnotation = arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-                    optional spaces
-                    reservedOp "->"
-                    optional spaces
-                    return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") *> return TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = (booleanAnnotation     <?> "boolean type")
@@ -277,7 +237,7 @@ notArrowAnnotation = (booleanAnnotation     <?> "boolean type")
                  <|> try (variantAnnotation <?> "variant annotation")
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name >> return ty
+primitiveType name ty = reserved name *> return ty
 
 idTypeAnnotation :: LCTypeParser
 idTypeAnnotation = TyID <$> ucid
@@ -310,14 +270,13 @@ refAnnotation :: LCTypeParser
 refAnnotation = TyRef <$> (reserved "Ref" *> typeAnnotation)
 
 productAnnotation :: LCTypeParser
-productAnnotation = braces $ chainl1 typeAnnotation $ reservedOp "*" >> return TyProduct
+productAnnotation = try $ braces $ chainl1 typeAnnotation $ reservedOp "*" *> return TyProduct
 
 recordAnnotation :: LCTypeParser
-recordAnnotation = braces $ do
-    tys <- (keyValue colon typeAnnotation) `sepBy` comma
-    return $ TyRecord $ Map.fromList tys
+recordAnnotation = try $ braces $ TyRecord <$> Map.fromList <$> (keyValue colon typeAnnotation) `sepBy` comma
 
 variantAnnotation :: LCTypeParser
-variantAnnotation = angles $ do
-    ts <- (keyValue colon typeAnnotation) `sepBy` comma
-    return $ TyVariant $ Map.fromList ts
+variantAnnotation = angles $ TyVariant <$> Map.fromList <$> (keyValue colon typeAnnotation) `sepBy` comma
+
+optionalParens :: Parsec String u a -> Parsec String u a
+optionalParens f = try (parens f) <|> f
