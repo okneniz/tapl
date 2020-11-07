@@ -67,17 +67,17 @@ typeEq ty1 ty2 = do
                                                        <*> typeEq tyS2 tyT2
         (TyBool, TyBool) -> return True
 
-        (TyVar _ i, _) | isTypeAbb n i -> do
+        (TyVar i _, _) | isTypeAbb n i -> do
             case (getTypeAbb n i) of
                 Just x -> typeEq x ty2'
                 _ -> return False
 
-        (_, TyVar _ i) | isTypeAbb n i -> do
+        (_, TyVar i _) | isTypeAbb n i -> do
             case (getTypeAbb n i) of
                 Just x -> typeEq x ty1'
                 _ -> return False
 
-        (TyVar _ i, TyVar _ j) | i == j -> return True
+        (TyVar i _, TyVar j _) | i == j -> return True
         _ -> return False
 
 (<:) :: Type -> Type -> Eval Bool
@@ -90,8 +90,7 @@ typeEq ty1 ty2 = do
     else case (tyS', tyT) of
               (_, TyTop) -> return True
               (TyBot, _) -> return False
-              (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> (&&) <$> (tyS1 <: tyT1)
-                                                             <*> (tyS2 <: tyT2)
+              (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> (&&) <$> (tyS1 <: tyT1) <*> (tyS2 <: tyT2)
               _ -> return False
 
 joinTypes :: Type -> Type -> Eval Type
