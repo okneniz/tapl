@@ -46,7 +46,7 @@ fullNormalize t = do
          _ -> return t
 
 continue :: (Monad m1, Monad m2) => a -> m1 (m2 a)
-continue x = (return.return) x
+continue = return.return
 
 nvm :: Eval (Maybe Term)
 nvm = return Nothing

@@ -39,10 +39,10 @@ typeApply = try $ do
     p <- getPosition
     t <- try typeAbstraction <|> variable
     ty <- z
-    (try $ f $ TTApp p t ty) <|> (return $ TTApp p t ty)
+    try (f $ TTApp p t ty) <|> return (TTApp p t ty)
     where z = bracketType <|> typeAbstractionAnnotation <|> typeVar
           f t1 = do t2 <- TTApp <$> getPosition <*> (return t1) <*> z
-                    (try $ f t2) <|> (return t2)
+                    try (f t2) <|> (return t2)
 
 notApply :: LCParser
 notApply = value <|> (variable <?> "variable") <|> (parens notApply)

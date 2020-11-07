@@ -180,7 +180,7 @@ typeEq ty1 ty2 = do
         (&&) <$> typeEq tyS1 tyT1 <*> typeEq tyS2 tyT2
 
       (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
-      (TyRecord f1, TyRecord f2) -> all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
+      (TyRecord f1, TyRecord f2) -> all (id) <$> sequence (uncurry typeEq <$> Map.elems (Map.intersectionWith (,) f1 f2))
 
       (TyAll tyX1 tyS1 tyS2, TyAll _ tyT1 tyT2) -> withTmpStateT (addName tyX1) $ do
         (&&) <$> typeEq tyS1 tyT1 <*> typeEq tyS2 tyT2
@@ -199,7 +199,7 @@ typeEq ty1 ty2 = do
               (_, TyTop) -> return True
               (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> (&&) <$> (tyS1 <: tyT1) <*> (tyS2 <: tyT2)
               (TyRecord f1, TyRecord f2) ->
-                all (id) <$> (sequence (uncurry (<:) <$> (Map.elems $ Map.intersectionWith (,) f1 f2)))
+                all (id) <$> (sequence (uncurry (<:) <$> Map.elems (Map.intersectionWith (,) f1 f2)))
 
               (TyVar _ _, _) -> do
                 x <- promote tyS'
@@ -232,7 +232,7 @@ joinTypes tyS tyT = do
             else do z <- (,) <$> simplifyType tyS <*> simplifyType tyT
                     case z of
                          (TyRecord fS, TyRecord fT) -> do
-                            fTS <- sequence $ fmap f $ Map.toList $ Map.intersectionWith (,) fS fT
+                            fTS <- traverse f (Map.toList $ Map.intersectionWith (,) fS fT)
                             return $ TyRecord (Map.fromList fTS)
                             where f (k, (tyS, tyT)) = ((,) k) <$> joinTypes tyS tyT
 
@@ -274,7 +274,7 @@ meetTypes tyS tyT = do
                              -- what is Nothing (not found in original implementation) in this context?
                              -- how to handle it?
                             ok $ TyRecord $ Map.fromList $ catMaybes fST
-                            where f k (Just tySi, Just tyTi) = liftM ((,) k) <$> meetTypes tySi tyTi
+                            where f k (Just tySi, Just tyTi) = fmap ((,) k) <$> meetTypes tySi tyTi
                                   f k (Just tySi, Nothing) = ok (k, tySi)
                                   f k (Nothing, Just tyTi) = ok (k, tyTi)
 

@@ -115,7 +115,7 @@ typeOf (TCase p v branches) = do
                  (typeError p $ "Absent case branches : " <> intercalate ", " absentCaseBranches)
 
             cases <- traverse caseType (Map.toList $ Map.intersectionWith (,) branches fields)
-            theSameTypes <- sequence $ [typeEq t1 t2 | (t1:ys) <- tails $ snd <$> cases, t2 <- ys]
+            theSameTypes <- sequence [typeEq t1 t2 | (t1:ys) <- tails $ snd <$> cases, t2 <- ys]
 
             unless (and theSameTypes)
                    (typeError p "Case branches have different types")

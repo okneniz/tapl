@@ -56,7 +56,7 @@ checkBinding p b@(TypeAddBind ty (Just k1)) = do
 checkBinding _ x = return x
 
 continue :: (Monad m1, Monad m2) => a -> m1 (m2 a)
-continue x = (return.return) x
+continue = return.return
 
 nvm :: Eval (Maybe Term)
 nvm = return Nothing

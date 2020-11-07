@@ -98,7 +98,7 @@ normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = return $ substitutionTop t1 
 normalize (TFix p t) = TFix p <$> normalize t
 
 normalize (TCase _ (TTag _ key v _) branches) | isVal v =
-    liftM (\(_, t) -> substitutionTop v t)
+    fmap (\(_, t) -> substitutionTop v t)
           (Map.lookup key branches)
 
 normalize (TCase p t fields) = normalize t >>= \t' -> return $ TCase p t' fields

@@ -103,6 +103,6 @@ normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = return $ TFloat p (t1 * 
 normalize (TTimesFloat p t1 t2) | isVal t1 = TTimesFloat p t1 <$> normalize t2
 normalize (TTimesFloat p t1 t2) = flip(TTimesFloat p) t2 <$> normalize t1
 
-normalize (TCase _ (TTag _ k v _) bs) | isVal v = liftM (\(_, t) -> termSubstitutionTop v t) (Map.lookup k bs)
+normalize (TCase _ (TTag _ k v _) bs) | isVal v = fmap (\(_, t) -> termSubstitutionTop v t) (Map.lookup k bs)
 normalize (TCase p t fs) = flip(TCase p) fs <$> normalize t
 normalize _ = Nothing

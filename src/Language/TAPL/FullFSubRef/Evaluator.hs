@@ -53,7 +53,7 @@ nvm = return Nothing
 normalize :: Term -> Eval (Maybe Term)
 normalize (TIf _ (TTrue _) t _ ) = success t
 normalize (TIf _ (TFalse _) _ t) = success t
-normalize (TIf p t1 t2 t3) = liftM (\t1' -> TIf p t1' t2 t3 ) <$> normalize t1
+normalize (TIf p t1 t2 t3) = fmap (\t1' -> TIf p t1' t2 t3 ) <$> normalize t1
 
 normalize (TLet _ _ t1 t2) | isVal t1 = success $ termSubstitutionTop t1 t2
 normalize (TLet p v t1 t2) = fmap(\t1' -> TLet p v t1' t2) <$> normalize t1
@@ -79,7 +79,7 @@ normalize (TProj p t@(TRecord _ _) k) = fmap(\t' -> TProj p t' k) <$> normalize 
 normalize (TTag p l t ty) = fmap(flip(TTag p l) ty) <$> normalize t
 
 normalize (TCase _ (TTag _ key v _) branches) | isVal v =
-    return $ liftM (\(_, t) -> termSubstitutionTop v t) (Map.lookup key branches)
+    return $ fmap (\(_, t) -> termSubstitutionTop v t) (Map.lookup key branches)
 
 normalize (TCase p t fields) = fmap(flip(TCase p) fields) <$> normalize t
 

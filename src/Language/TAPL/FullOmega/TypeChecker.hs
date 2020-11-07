@@ -259,7 +259,7 @@ typeEq p t1 t2 = do
 
       (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
       (TyRecord f1, TyRecord f2) ->
-        all (id) <$> sequence (uncurry (typeEq p) <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
+        all (id) <$> sequence (uncurry (typeEq p) <$> Map.elems (Map.intersectionWith (,) f1 f2))
 
       (TySome x k1 ty1, TySome _ k2 ty2) | k1 == k2 ->
         withTmpStateT (\s -> s { names = addName x (names s) }) $ typeEq p ty1 ty2

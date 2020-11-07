@@ -148,7 +148,7 @@ typeOf (TAssign p t1 t2) = do
        (TyRef tyT1) -> do
             unlessM (ty2 <: tyT1) (typeError p $ "arguments of := are incompatible 1") -- TODO
             return TyUnit
-       TyBot -> const TyBot <$> typeOf t2
+       TyBot -> TyBot <$ typeOf t2
        TySink tyT1 -> do
             unlessM (ty2 <: tyT1) (typeError p $ "arguments of := are incompatible 2") -- TODO
             return TyUnit
@@ -209,9 +209,9 @@ unexpectedType p expected actual = do
               (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> (&&) <$> (tyS1 <: tyT1) <*> (tyS2 <: tyT2)
               (TyProduct tyS1 tyS2, TyProduct tyT1 tyT2) -> (&&) <$> (tyS1 <: tyT1) <*> (tyS2 <: tyT2)
               (TyRecord f1, TyRecord f2) ->
-                all (id) <$> (sequence (uncurry (<:) <$> (Map.elems $ Map.intersectionWith (,) f1 f2)))
+                all (id) <$> (sequence (uncurry (<:) <$> Map.elems (Map.intersectionWith (,) f1 f2)))
               (TyVariant f1, TyVariant f2) ->
-                all (id) <$> (sequence (uncurry (<:) <$> (Map.elems $ Map.intersectionWith (,) f1 f2)))
+                all (id) <$> (sequence (uncurry (<:) <$> Map.elems (Map.intersectionWith (,) f1 f2)))
               _ -> return False
     where subs f1 f2 = uncurry (<:) <$> fs f1 f2
           fs f1 f2 = Map.elems $ Map.intersectionWith (,) f1 f2
@@ -251,11 +251,11 @@ typeEq ty1 ty2 = do
 
         (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
         (TyRecord f1, TyRecord f2) ->
-          all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
+          all (id) <$> sequence (uncurry typeEq <$> Map.elems (Map.intersectionWith (,) f1 f2))
 
         (TyVariant f1, TyVariant f2) | (Map.keys f1) /= (Map.keys f2) -> return False
         (TyVariant f1, TyVariant f2) ->
-          all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
+          all (id) <$> sequence (uncurry typeEq <$> Map.elems (Map.intersectionWith (,) f1 f2))
 
         _ -> return False
 
@@ -271,7 +271,7 @@ joinTypes tyS tyT = do
                     tyT' <- simplifyType tyT
                     case (tyS',tyT') of
                          (TyRecord fS, TyRecord fT) -> do
-                            fTS <- sequence $ fmap f $ Map.toList $ Map.intersectionWith (,) fS fT
+                            fTS <- traverse f (Map.toList $ Map.intersectionWith (,) fS fT)
                             return $ TyRecord (Map.fromList fTS)
                             where f (k, (tyS, tyT)) = ((,) k) <$> joinTypes tyS tyT
 

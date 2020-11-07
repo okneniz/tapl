@@ -146,7 +146,7 @@ typeOf (TCase p v branches) = do
                  (typeError p $ "Absent case branches : " <> intercalate ", " absentCaseBranches)
 
             cases <- traverse caseType (Map.toList $ Map.intersectionWith (,) branches fields)
-            theSameTypes <- sequence $ [typeEq t1 t2 | (t1:ys) <- tails $ snd <$> cases, t2 <- ys]
+            theSameTypes <- sequence [typeEq t1 t2 | (t1:ys) <- tails $ snd <$> cases, t2 <- ys]
 
             unless (and theSameTypes)
                    (typeError p "Case branches have different types")
@@ -224,11 +224,11 @@ typeEq ty1 ty2 = do
 
       (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
       (TyRecord f1, TyRecord f2) ->
-        all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
+        all (id) <$> sequence (uncurry typeEq <$> Map.elems (Map.intersectionWith (,) f1 f2))
 
       (TyVariant f1, TyVariant f2) | (Map.keys f1) /= (Map.keys f2) -> return False
       (TyVariant f1, TyVariant f2) ->
-        all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
+        all (id) <$> sequence (uncurry typeEq <$> Map.elems (Map.intersectionWith (,) f1 f2))
 
       (TyProduct tyS1 tyS2, TyProduct tyT1 tyT2) -> (&&) <$> typeEq tyS1 tyT1 <*> typeEq tyS2 tyT2
       _ -> return False

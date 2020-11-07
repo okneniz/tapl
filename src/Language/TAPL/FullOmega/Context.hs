@@ -120,7 +120,7 @@ termMap onVar onType s t = walk s t
                            walk c (TProj p r k) = flip(TProj p) k <$> walk c r
 
                            walk c (TRecord p fields) = do
-                                fs <- sequence $ fmap f $ Map.toList fields
+                                fs <- traverse f (Map.toList fields)
                                 return $ TRecord p $ Map.fromList fs
                                 where f (k,v) = (,) k <$> walk c v
 
@@ -175,7 +175,7 @@ typeMap onVar s g = walk s g
                     walk c (TyRef ty1) = TyRef <$> walk c ty1
 
                     walk c (TyRecord fields) = do
-                        fs <- sequence $ fmap f $ Map.toList fields
+                        fs <- traverse f (Map.toList fields)
                         return $ TyRecord $ Map.fromList fs
                         where f (k,v) = (,) k <$> walk c v
 

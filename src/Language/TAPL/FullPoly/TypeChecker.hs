@@ -180,7 +180,7 @@ typeEq ty1 ty2 = do
       (TyNat, TyNat) -> return True
 
       (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
-      (TyRecord f1, TyRecord f2) -> all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
+      (TyRecord f1, TyRecord f2) -> all (id) <$> sequence (uncurry typeEq <$> Map.elems (Map.intersectionWith (,) f1 f2))
 
       (TySome tyX1 tyS2, TySome _ tyT2) -> withTmpStateT (addName tyX1) (typeEq tyS2 tyT2)
       (TyAll tyX1 tyS2, TyAll _ tyT2) -> withTmpStateT (addName tyX1) (typeEq tyS2 tyT2)

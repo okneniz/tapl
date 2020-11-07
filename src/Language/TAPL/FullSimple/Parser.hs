@@ -144,7 +144,7 @@ optionalProjection key tm = do
     where dotRef k t1 = do
             pos <- dot *> getPosition
             i <- k
-            (try $ dotRef key (TProj pos t1 i)) <|> (return $ TProj pos t1 i)
+            (try $ dotRef key (TProj pos t1 i)) <|> return (TProj pos t1 i)
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do

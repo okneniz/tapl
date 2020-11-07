@@ -52,7 +52,7 @@ nvm = return Nothing
 normalize :: Term -> Eval (Maybe Term)
 normalize (TIf _ (TTrue _) t _) = pack t
 normalize (TIf _ (TFalse _) _ t) = pack t
-normalize (TIf p t1 t2 t3) = liftM (\t1' -> TIf p t1' t2 t3 ) <$> normalize t1
+normalize (TIf p t1 t2 t3) = fmap (\t1' -> TIf p t1' t2 t3 ) <$> normalize t1
 
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = pack $ termSubstitutionTop v t
 normalize (TApp p t1 t2) | isVal t1 = fmap(TApp p t1) <$> normalize t2
@@ -74,7 +74,7 @@ normalize (TRef p t) = fmap(TRef p) <$> normalize t
 normalize (TDeref _ (TLoc _ l)) = return <$> deref l
 normalize (TDeref p t) = fmap(TDeref p) <$> normalize t
 
-normalize (TAssign p (TLoc _ l) t2) | isVal t2 = assign l t2 >> (pack $ TUnit p)
+normalize (TAssign p (TLoc _ l) t2) | isVal t2 = assign l t2 >> pack (TUnit p)
 normalize (TAssign p t1 t2) | isVal t1 = fmap(TAssign p t1) <$> normalize t2
 normalize (TAssign p t1 t2)  = fmap(\t1' -> TAssign p t1' t2) <$> normalize t1
 
@@ -106,6 +106,6 @@ normalize (TProj p t k) = fmap(\t' -> TProj p t' k) <$> normalize t
 normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = pack $ termSubstitutionTop t1 t2
 normalize (TFix p t) = fmap(TFix p) <$> normalize t
 
-normalize (TCase _ (TTag _ k v _) bs) | isVal v = return $ liftM (\(_, t) -> termSubstitutionTop v t) (Map.lookup k bs)
+normalize (TCase _ (TTag _ k v _) bs) | isVal v = return $ fmap (\(_, t) -> termSubstitutionTop v t) (Map.lookup k bs)
 normalize (TCase p t fields) = fmap(\t' -> TCase p t' fields) <$> normalize t
 normalize _ = nvm

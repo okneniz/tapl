@@ -205,7 +205,7 @@ joinTypes p tyS tyT = do
             else do z <- (,) <$> simplifyType p tyS <*> simplifyType p tyT
                     case z of
                          (TyRecord fS, TyRecord fT) -> do
-                            fTS <- sequence $ fmap f $ Map.toList $ Map.intersectionWith (,) fS fT
+                            fTS <- traverse f (Map.toList $ Map.intersectionWith (,) fS fT)
                             return $ TyRecord (Map.fromList fTS)
                             where f (k, (tyS, tyT)) = ((,) k) <$> joinTypes p tyS tyT
 
@@ -241,7 +241,7 @@ meetTypes p tyS tyT = do
                                                     (zipWithMaybeMatched $ \k tySi tyTi -> return (Just tySi, Just tyTi))
                                                     fS fT
                             ok $ TyRecord $ Map.fromList $ catMaybes fST
-                            where f k (Just tySi, Just tyTi) = liftM ((,) k) <$> meetTypes p tySi tyTi
+                            where f k (Just tySi, Just tyTi) = fmap ((,) k) <$> meetTypes p tySi tyTi
                                   f k (Just tySi, Nothing) = ok (k, tySi)
                                   f k (Nothing, Just tyTi) = ok (k, tyTi)
 
@@ -353,7 +353,7 @@ typeEq p t1 t2 = do
          (TyNat, TyNat) -> return True
 
          (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
-         (TyRecord f1, TyRecord f2) -> all (id) <$> sequence (uncurry (typeEq p) <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
+         (TyRecord f1, TyRecord f2) -> all (id) <$> sequence (uncurry (typeEq p) <$> Map.elems (Map.intersectionWith (,) f1 f2))
 
          (TyAll tyX1 tyS1 tyS2, TyAll _ tyT1 tyT2) -> withTmpStateT (addName tyX1) $ do
              (&&) <$> typeEq p tyS1 tyT1 <*> typeEq p tyS2 tyT2

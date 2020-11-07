@@ -104,7 +104,7 @@ normalize (TProj p t k) = flip(TProj p) k <$> normalize t
 
 normalize (TTag p x t ty) = normalize t >>= \t' -> return $ TTag p x t' ty
 
-normalize (TCase _ (TTag _ k v _) bs) | isVal v = liftM (\(_, t) -> termSubstitutionTop v t) (Map.lookup k bs)
+normalize (TCase _ (TTag _ k v _) bs) | isVal v = fmap (\(_, t) -> termSubstitutionTop v t) (Map.lookup k bs)
 normalize (TCase p t fs) = flip(TCase p) fs <$> normalize t
 
 normalize (TPair p t1 t2) | isVal t1 = TPair p t1 <$> normalize t2
