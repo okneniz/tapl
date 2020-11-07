@@ -5,8 +5,6 @@ import Language.TAPL.TypedArith.Context
 import Language.TAPL.TypedArith.Lexer
 import Language.TAPL.Common.Helpers (ucid, padded)
 
-import Prelude hiding (abs, succ, pred)
-
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 

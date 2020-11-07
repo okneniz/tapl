@@ -6,7 +6,6 @@ import Language.TAPL.RcdSubBot.Lexer
 import Language.TAPL.Common.Helpers (ucid)
 import Language.TAPL.Common.Context (findVarName)
 
-import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)

@@ -4,7 +4,6 @@ import Language.TAPL.FullUntyped.Types
 import Language.TAPL.FullUntyped.Context
 import Language.TAPL.FullUntyped.Lexer
 
-import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map
 import Data.List (findIndex)
 

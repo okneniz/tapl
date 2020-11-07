@@ -5,8 +5,6 @@ import Language.TAPL.FullRef.Context
 import Language.TAPL.FullRef.Lexer
 import Language.TAPL.Common.Helpers (ucid, padded)
 
-import Prelude hiding (abs, succ, pred)
-
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 

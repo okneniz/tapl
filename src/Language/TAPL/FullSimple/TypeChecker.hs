@@ -1,6 +1,5 @@
 module Language.TAPL.FullSimple.TypeChecker (typeOf) where
 
-import Prelude hiding (abs, succ, pred)
 import Data.List (tails, intercalate, all, (\\), sort)
 import Text.Parsec (SourcePos)
 

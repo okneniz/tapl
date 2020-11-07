@@ -5,7 +5,6 @@ import Language.TAPL.FullSimple.Context
 import Language.TAPL.FullSimple.Lexer
 import Language.TAPL.Common.Helpers (ucid, padded)
 
-import Prelude hiding (abs, succ, pred)
 import qualified Data.Map.Lazy as Map
 import Data.List (findIndex)
 

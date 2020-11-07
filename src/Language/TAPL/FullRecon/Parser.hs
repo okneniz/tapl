@@ -7,8 +7,6 @@ import Language.TAPL.Common.Helpers (ucid, padded)
 
 import Text.Parsec (SourcePos)
 
-import Prelude hiding (abs, succ, pred)
-
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 

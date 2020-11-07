@@ -6,8 +6,6 @@ import Language.TAPL.Bot.Lexer
 import Language.TAPL.Common.Context (findVarName)
 import Language.TAPL.Common.Helpers (ucid)
 
-import Prelude hiding (abs, succ, pred)
-
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 

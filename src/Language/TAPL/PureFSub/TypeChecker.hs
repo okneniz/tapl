@@ -1,6 +1,5 @@
 module Language.TAPL.PureFSub.TypeChecker (typeOf) where
 
-import Prelude hiding (abs, succ, pred)
 import Data.List (tails, intercalate, all, (\\), sort)
 import qualified Data.Map.Lazy as Map
 import Data.Map.Merge.Strict (merge, mapMaybeMissing, zipWithMaybeMatched)

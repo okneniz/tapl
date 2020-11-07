@@ -4,7 +4,6 @@ import Language.TAPL.SimpleBool.Types
 import Language.TAPL.SimpleBool.Context
 import Language.TAPL.SimpleBool.Lexer
 
-import Prelude hiding (abs, succ, pred)
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 import Data.List (findIndex)

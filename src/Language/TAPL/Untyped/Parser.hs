@@ -4,7 +4,6 @@ import Language.TAPL.Untyped.Types
 import Language.TAPL.Untyped.Context
 import Language.TAPL.Untyped.Lexer
 
-import Prelude hiding (abs, succ, pred)
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 import Data.List (findIndex)
