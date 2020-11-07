@@ -3,3 +3,5 @@
 .idea
 tapl.iml
 tapl.cabal
+test.bash
+.hlint.yaml

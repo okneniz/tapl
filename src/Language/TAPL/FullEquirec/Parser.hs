@@ -6,6 +6,7 @@ import Language.TAPL.FullEquirec.Lexer
 import Language.TAPL.Common.Helpers (ucid, padded)
 import Language.TAPL.Common.Context (findVarName)
 
+import Data.Functor (($>))
 import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
@@ -207,7 +208,7 @@ typeAnnotation = arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = try $ chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-  padded (reservedOp "->") *> return TyArrow
+  padded (reservedOp "->") $> TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = booleanAnnotation
@@ -239,7 +240,7 @@ floatAnnotation :: LCTypeParser
 floatAnnotation = primitiveType "Float" TyFloat
 
 productAnnotation :: LCTypeParser
-productAnnotation = try $ braces $ chainl1 typeAnnotation $ padded (reservedOp "*") *> return TyProduct
+productAnnotation = try $ braces $ chainl1 typeAnnotation $ padded (reservedOp "*") $> TyProduct
 
 recordAnnotation :: LCTypeParser
 recordAnnotation = try $ braces $ TyRecord <$> Map.fromList <$> (keyValue colon typeAnnotation) `sepBy` comma
@@ -254,7 +255,7 @@ botAnnotation :: LCTypeParser
 botAnnotation = primitiveType "Bot" TyBot
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name *> return ty
+primitiveType name ty = reserved name $> ty
 
 recursiveType :: LCTypeParser
 recursiveType = do

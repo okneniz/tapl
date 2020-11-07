@@ -8,6 +8,7 @@ import Language.TAPL.Common.Helpers (ucid, padded)
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 
+import Data.Functor (($>))
 import Data.List (findIndex)
 import qualified Data.Map.Lazy as Map
 
@@ -217,7 +218,7 @@ typeAnnotation :: LCTypeParser
 typeAnnotation = arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") *> return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = (booleanAnnotation     <?> "boolean type")
@@ -235,7 +236,7 @@ notArrowAnnotation = (booleanAnnotation     <?> "boolean type")
                  <|> try (variantAnnotation <?> "variant annotation")
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name *> return ty
+primitiveType name ty = reserved name $> ty
 
 idTypeAnnotation :: LCTypeParser
 idTypeAnnotation = TyID <$> ucid
@@ -268,7 +269,7 @@ refAnnotation :: LCTypeParser
 refAnnotation = TyRef <$> (reserved "Ref" *> typeAnnotation)
 
 productAnnotation :: LCTypeParser
-productAnnotation = try $ braces $ chainl1 typeAnnotation $ reservedOp "*" *> return TyProduct
+productAnnotation = try $ braces $ chainl1 typeAnnotation $ reservedOp "*" $> TyProduct
 
 recordAnnotation :: LCTypeParser
 recordAnnotation = try $ braces $ TyRecord <$> Map.fromList <$> (keyValue colon typeAnnotation) `sepBy` comma

@@ -5,8 +5,9 @@ import Language.TAPL.FullSimple.Context
 import Language.TAPL.FullSimple.Lexer
 import Language.TAPL.Common.Helpers (ucid, padded)
 
-import qualified Data.Map.Lazy as Map
+import Data.Functor (($>))
 import Data.List (findIndex)
+import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
@@ -203,10 +204,10 @@ typeAnnotation = arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation)
-                $ padded (reservedOp "->") *> return TyArrow
+                $ padded (reservedOp "->") $> TyArrow
 
 productAnnotation :: LCTypeParser
-productAnnotation = braces $ chainl1 typeAnnotation $ padded (reservedOp "*") *> return TyProduct
+productAnnotation = braces $ chainl1 typeAnnotation $ padded (reservedOp "*") $> TyProduct
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = booleanAnnotation
@@ -241,7 +242,7 @@ variantAnnotation :: LCTypeParser
 variantAnnotation = angles $ TyVariant <$> Map.fromList <$> (keyValue colon typeAnnotation) `sepBy` comma
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name *> return ty
+primitiveType name ty = reserved name $> ty
 
 typeVarOrID:: LCTypeParser
 typeVarOrID = do

@@ -6,6 +6,7 @@ import Language.TAPL.FullFomSub.Lexer
 import Language.TAPL.Common.Helpers (ucid, padded)
 import Language.TAPL.Common.Context (findVarName)
 
+import Data.Functor (($>))
 import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
@@ -344,7 +345,7 @@ startKind :: LCKindParser
 startKind = reservedOp "*" >> return Star
 
 arrowKind :: LCKindParser
-arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ (padded $ reservedOp "->") *> return Arrow
+arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ (padded $ reservedOp "->") $> Arrow
 
 optionalParens :: Parsec String u a -> Parsec String u a
 optionalParens f = try (parens f) <|> try f

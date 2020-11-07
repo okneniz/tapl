@@ -8,6 +8,7 @@ import Language.TAPL.Common.Helpers (ucid, padded)
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 
+import Data.Functor (($>))
 import Data.List (findIndex)
 
 type LCCommandParser = Parsec String LCNames Command
@@ -116,7 +117,7 @@ typeAnnotation :: LCTypeParser
 typeAnnotation = arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") *> return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = booleanAnnotation <|> natAnnotation <|> typeVarOrID

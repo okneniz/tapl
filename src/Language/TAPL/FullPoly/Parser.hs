@@ -6,6 +6,7 @@ import Language.TAPL.FullPoly.Lexer
 import Language.TAPL.Common.Helpers (ucid, padded)
 import Language.TAPL.Common.Context (findVarName)
 
+import Data.Functor (($>))
 import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
@@ -222,7 +223,7 @@ typeAnnotation :: LCTypeParser
 typeAnnotation = arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") *> return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = stringAnnotation
@@ -254,7 +255,7 @@ existentialType = try $ braces $ do
     return $ TySome x ty
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name *> return ty
+primitiveType name ty = reserved name $> ty
 
 booleanAnnotation :: LCTypeParser
 booleanAnnotation = primitiveType "Bool" TyBool
