@@ -63,12 +63,12 @@ nvm = return Nothing
 
 normalize :: Term -> Eval (Maybe Term)
 normalize (TApp p (TAbs _ _ _ t12) v2) | isVal v2 = Just <$> termSubstitutionTop p v2 t12
-normalize (TApp p v1 t2) | isVal v1 = liftM(TApp p v1) <$> normalize t2
-normalize (TApp p t1 t2) = liftM(flip (TApp p) t2) <$> normalize t1
+normalize (TApp p v1 t2) | isVal v1 = fmap(TApp p v1) <$> normalize t2
+normalize (TApp p t1 t2) = fmap(flip (TApp p) t2) <$> normalize t1
 
 normalize (TIf _ (TTrue _) t _ ) = continue t
 normalize (TIf _ (TFalse _) _ t) = continue t
-normalize (TIf p t1 t2 t3) = liftM(\t1' -> TIf p t1' t2 t3) <$> normalize t1
+normalize (TIf p t1 t2 t3) = fmap(\t1' -> TIf p t1' t2 t3) <$> normalize t1
 
 normalize (TRecord _ fields) | (Map.size fields) == 0 = nvm
 normalize t@(TRecord _ _) | isVal t = nvm
@@ -78,40 +78,40 @@ normalize (TRecord p fs) = do
     where evalField (k,v) = (,) k <$> fullNormalize v
 
 normalize (TProj _ t@(TRecord _ fs) k) | isVal t = return $ Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) k) = liftM(\t' -> TProj p t' k) <$> normalize t
+normalize (TProj p t@(TRecord _ _) k) = fmap(\t' -> TProj p t' k) <$> normalize t
 
 normalize (TLet p _ t1 t2) | isVal t1 = Just <$> termSubstitutionTop p t1 t2
-normalize (TLet p v t1 t2) = liftM(flip(TLet p v) t2) <$> normalize t1
+normalize (TLet p v t1 t2) = fmap(flip(TLet p v) t2) <$> normalize t1
 
 normalize t1@(TFix p a@(TAbs _ _ _ t2)) | isVal a = Just <$> termSubstitutionTop p t1 t2
-normalize (TFix p t) = liftM(TFix p) <$> normalize t
+normalize (TFix p t) = fmap(TFix p) <$> normalize t
 
 normalize (TAscribe _ t _) | isVal t = continue t
-normalize (TAscribe x t ty) = liftM(flip(TAscribe x) ty) <$> normalize t
+normalize (TAscribe x t ty) = fmap(flip(TAscribe x) ty) <$> normalize t
 
 normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = continue $ TFloat p (t1 * t2)
-normalize (TTimesFloat p t1 t2) | isVal t1 = liftM(TTimesFloat p t1) <$> normalize t2
-normalize (TTimesFloat p t1 t2) = liftM(flip (TTimesFloat p) t2) <$> normalize t1
+normalize (TTimesFloat p t1 t2) | isVal t1 = fmap(TTimesFloat p t1) <$> normalize t2
+normalize (TTimesFloat p t1 t2) = fmap(flip (TTimesFloat p) t2) <$> normalize t1
 
 normalize (TTApp p (TTAbs _ _ _ t11) tyT2) = Just <$> typeTermSubstitutionTop p tyT2 t11
-normalize (TTApp p t1 tyT2) = liftM(flip(TTApp p) tyT2) <$> normalize t1
+normalize (TTApp p t1 tyT2) = fmap(flip(TTApp p) tyT2) <$> normalize t1
 
-normalize (TSucc p t) = liftM(TSucc p) <$> normalize t
+normalize (TSucc p t) = fmap(TSucc p) <$> normalize t
 
 normalize (TPred _ (TZero p)) = continue $ TZero p
 normalize (TPred _ (TSucc _ t)) | isNumerical t = continue t
-normalize (TPred p t) = liftM(TPred p) <$> normalize t
+normalize (TPred p t) = fmap(TPred p) <$> normalize t
 
 normalize (TIsZero _ (TZero p)) = continue $ TTrue p
 normalize (TIsZero _ (TSucc p t)) | isNumerical t = continue $ TFalse p
-normalize (TIsZero p t) = liftM(TIsZero p) <$> normalize t
+normalize (TIsZero p t) = fmap(TIsZero p) <$> normalize t
 
 normalize (TUnpack _ _ _ (TPack p2 tyT11 v12 _) t2) | isVal v12 = do
     x <- termShift p2 1 v12
     y <- termSubstitutionTop p2 x t2
     Just <$> typeTermSubstitutionTop p2 tyT11 y
 
-normalize (TUnpack p ty x t1 t2) = liftM(flip(TUnpack p ty x) t2) <$> normalize t1
+normalize (TUnpack p ty x t1 t2) = fmap(flip(TUnpack p ty x) t2) <$> normalize t1
 
-normalize (TPack p ty1 t2 ty3) = liftM(flip(TPack p ty1) ty3) <$> normalize t2
+normalize (TPack p ty1 t2 ty3) = fmap(flip(TPack p ty1) ty3) <$> normalize t2
 normalize _ = nvm

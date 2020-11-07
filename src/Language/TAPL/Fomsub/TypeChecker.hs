@@ -170,7 +170,7 @@ promote (TyVar i _) = do
          Just (TypeVarBind ty) -> return $ Just ty
          _ -> return Nothing
 
-promote (TyApp tyS tyT) = liftM(flip(TyApp) tyT) <$> promote tyS
+promote (TyApp tyS tyT) = fmap(flip(TyApp) tyT) <$> promote tyS
 promote _ = return Nothing
 
 lcst :: Type -> Eval Type

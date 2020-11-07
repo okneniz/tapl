@@ -56,14 +56,14 @@ normalize (TIf _ (TFalse _) _ t) = success t
 normalize (TIf p t1 t2 t3) = liftM (\t1' -> TIf p t1' t2 t3 ) <$> normalize t1
 
 normalize (TLet _ _ t1 t2) | isVal t1 = success $ termSubstitutionTop t1 t2
-normalize (TLet p v t1 t2) = liftM(\t1' -> TLet p v t1' t2) <$> normalize t1
+normalize (TLet p v t1 t2) = fmap(\t1' -> TLet p v t1' t2) <$> normalize t1
 
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = success $ termSubstitutionTop v t
-normalize (TApp p t1 t2) | isVal t1 = liftM(TApp p t1) <$> normalize t2
-normalize (TApp p t1 t2) = liftM(\t1' -> TApp p t1' t2) <$> normalize t1
+normalize (TApp p t1 t2) | isVal t1 = fmap(TApp p t1) <$> normalize t2
+normalize (TApp p t1 t2) = fmap(\t1' -> TApp p t1' t2) <$> normalize t1
 
 normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = success $ termSubstitutionTop t1 t2
-normalize (TFix p t) = liftM(TFix p) <$> normalize t
+normalize (TFix p t) = fmap(TFix p) <$> normalize t
 
 normalize (TRecord _ fields) | (Map.size fields) == 0 = nvm
 normalize t@(TRecord _ _) | isVal t = nvm
@@ -74,49 +74,49 @@ normalize (TRecord p fs) = do
     where evalField (k,v) = (,) k <$> fullNormalize v
 
 normalize (TProj _ t@(TRecord _ fs) k) | isVal t = return $ Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) k) = liftM(\t' -> TProj p t' k) <$> normalize t
+normalize (TProj p t@(TRecord _ _) k) = fmap(\t' -> TProj p t' k) <$> normalize t
 
-normalize (TTag p l t ty) = liftM(flip(TTag p l) ty) <$> normalize t
+normalize (TTag p l t ty) = fmap(flip(TTag p l) ty) <$> normalize t
 
 normalize (TCase _ (TTag _ key v _) branches) | isVal v =
     return $ liftM (\(_, t) -> termSubstitutionTop v t) (Map.lookup key branches)
 
-normalize (TCase p t fields) = liftM(flip(TCase p) fields) <$> normalize t
+normalize (TCase p t fields) = fmap(flip(TCase p) fields) <$> normalize t
 
 normalize (TAscribe _ t _) | isVal t = success t
-normalize (TAscribe x t ty) = liftM(flip(TAscribe x) ty) <$> normalize t
+normalize (TAscribe x t ty) = fmap(flip(TAscribe x) ty) <$> normalize t
 
 normalize (TRef p t) | isVal t = (\x -> return $ TLoc p x) <$> extend t
-normalize (TRef p t) = liftM(TRef p) <$> normalize t
+normalize (TRef p t) = fmap(TRef p) <$> normalize t
 
 normalize (TDeref _ (TLoc _ l)) = return <$> deref l
-normalize (TDeref p t) = liftM(TDeref p) <$> normalize t
+normalize (TDeref p t) = fmap(TDeref p) <$> normalize t
 
 normalize (TAssign p (TLoc _ l) t2) | isVal t2 = assign l t2 >> (success $ TUnit p)
-normalize (TAssign p t1 t2) | isVal t1 = liftM(TAssign p t1) <$> normalize t2
-normalize (TAssign p t1 t2)  = liftM(flip(TAssign p) t2) <$> normalize t1
+normalize (TAssign p t1 t2) | isVal t1 = fmap(TAssign p t1) <$> normalize t2
+normalize (TAssign p t1 t2)  = fmap(flip(TAssign p) t2) <$> normalize t1
 
 normalize (TError p) = lift $ throwE $ show p ++ ": error"
 
 normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = success $ TFloat p (t1 * t2)
-normalize (TTimesFloat p t1 t2) | isVal t1 = liftM(TTimesFloat p t1) <$> normalize t2
-normalize (TTimesFloat p t1 t2) = liftM(flip (TTimesFloat p) t2) <$> normalize t1
+normalize (TTimesFloat p t1 t2) | isVal t1 = fmap(TTimesFloat p t1) <$> normalize t2
+normalize (TTimesFloat p t1 t2) = fmap(flip (TTimesFloat p) t2) <$> normalize t1
 
-normalize (TSucc p t) = liftM(TSucc p) <$> normalize t
+normalize (TSucc p t) = fmap(TSucc p) <$> normalize t
 
 normalize (TPred _ (TZero p)) = success $ TZero p
 normalize (TPred _ (TSucc _ t)) | isNumerical t = success t
-normalize (TPred p t) = liftM(TPred p) <$> normalize t
+normalize (TPred p t) = fmap(TPred p) <$> normalize t
 
 normalize (TIsZero _ (TZero p)) = success $ TTrue p
 normalize (TIsZero _ (TSucc p t)) | isNumerical t = success $ TFalse p
-normalize (TIsZero p t) = liftM(TIsZero p) <$> normalize t
+normalize (TIsZero p t) = fmap(TIsZero p) <$> normalize t
 
 normalize (TTApp _ (TTAbs _ x _ t11) tyT2) = success $ typeTermSubstitutionTop tyT2 t11
-normalize (TTApp p t1 tyT2) = liftM(flip (TTApp p) tyT2) <$> normalize t1
+normalize (TTApp p t1 tyT2) = fmap(flip (TTApp p) tyT2) <$> normalize t1
 
 normalize (TApp _ (TAbs _ _ tyT11 t12) v2) | isVal v2 = success $ termSubstitutionTop v2 t12
-normalize (TApp p v1 t2) | isVal v1 = liftM(TApp p v1) <$> normalize t2
-normalize (TApp p t1 t2) = liftM(flip (TApp p) t2) <$> normalize t1
+normalize (TApp p v1 t2) | isVal v1 = fmap(TApp p v1) <$> normalize t2
+normalize (TApp p t1 t2) = fmap(flip (TApp p) t2) <$> normalize t1
 
 normalize _ = nvm

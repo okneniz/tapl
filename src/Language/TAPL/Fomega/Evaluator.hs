@@ -53,9 +53,9 @@ nvm = return Nothing
 
 normalize :: Term -> Eval (Maybe Term)
 normalize (TApp p (TAbs _ _ tyT11 t12) v2) | isVal v2 = continue $ termSubstitutionTop v2 t12
-normalize (TApp p v1 t2) | isVal v1 = liftM(TApp p v1) <$> normalize t2
-normalize (TApp p t1 t2) = liftM(flip (TApp p) t2) <$> normalize t1
+normalize (TApp p v1 t2) | isVal v1 = fmap(TApp p v1) <$> normalize t2
+normalize (TApp p t1 t2) = fmap(flip (TApp p) t2) <$> normalize t1
 
 normalize (TTApp p (TTAbs _ _ _ t11) tyT2) = continue $ typeTermSubstitutionTop tyT2 t11
-normalize (TTApp p t1 tyT2) = liftM(flip (TTApp p) tyT2) <$> normalize t1
+normalize (TTApp p t1 tyT2) = fmap(flip (TTApp p) tyT2) <$> normalize t1
 normalize _ = nvm
