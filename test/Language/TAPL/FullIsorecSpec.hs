@@ -15,7 +15,12 @@ spec = do
                   ("\"foo\"", pass "\"foo\":String"),
                   ("unit", pass "unit:Unit"),
                   ("1.1", pass "1.1:Float"),
-                  ("1.1000001", pass "1.1000001:Float")
+                  ("1.1000001", pass "1.1000001:Float"),
+                  ("zero", pass "zero:Nat"),
+                  ("0", pass "zero:Nat"),
+                  ("5", pass "succ succ succ succ succ zero:Nat"),
+                  ("pred 5", pass "succ succ succ succ zero:Nat"),
+                  ("4", pass "succ succ succ succ zero:Nat")
                 ]
 
         describe "pairs" $ do
@@ -61,7 +66,7 @@ spec = do
                     pass "<a=true>:<a:Bool, b:Unit, c:Nat>"
                 ),
                 (
-                    "case <b=zero> as <a:Int,b:Nat> of <b=x> -> succ succ pred pred pred x | <a=y> -> zero",
+                    "case <b=0> as <a:Int,b:Nat> of <b=x> -> succ succ pred pred pred x | <a=y> -> zero",
                     pass "succ succ zero:Nat"
                 ),
                 (
@@ -95,7 +100,7 @@ spec = do
                       pass "(lambda x.succ x):(Nat -> Nat)"
                     ),
                     (
-                      "(lambda x:Nat. succ (succ x)) (succ zero)",
+                      "(lambda x:Nat. succ (succ x)) (succ 0)",
                       pass "succ succ succ zero:Nat"
                     ),
                     (
@@ -139,7 +144,7 @@ spec = do
             tests evalString [
                   ("succ zero", pass "succ zero:Nat"),
                   ("pred zero", pass "zero:Nat"),
-                  ("pred succ zero", pass "zero:Nat"),
+                  ("pred succ 0", pass "zero:Nat"),
                   ("succ pred pred zero", pass "succ zero:Nat"),
                   ("zero? zero", pass "true:Bool"),
                   ("zero? succ zero", pass "false:Bool"),
