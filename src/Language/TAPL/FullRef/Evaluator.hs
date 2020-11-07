@@ -71,7 +71,7 @@ normalize (TIsZero p t) = liftM(TIsZero p) <$> normalize t
 normalize (TRef p t) | isVal t = (\t' -> return $ TLoc p t') <$> extend t
 normalize (TRef p t) = liftM(TRef p) <$> normalize t
 
-normalize (TDeref _ (TLoc _ l)) = pure <$> deref l
+normalize (TDeref _ (TLoc _ l)) = return <$> deref l
 normalize (TDeref p t) = liftM(TDeref p) <$> normalize t
 
 normalize (TAssign p (TLoc _ l) t2) | isVal t2 = assign l t2 >> (pack $ TUnit p)

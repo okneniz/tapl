@@ -49,4 +49,4 @@ constant :: String -> Term -> LCParser
 constant name t = reserved name >> return t
 
 fun :: String -> (Term -> Term) -> LCParser
-fun name tm = pure tm <*> (reserved name >> term)
+fun name tm = tm <$> (reserved name >> term)
