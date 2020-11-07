@@ -14,7 +14,12 @@ spec = do
               ("\"foo\"", pass "\"foo\":String"),
               ("unit", pass "unit:Unit"),
               ("1.1", pass "1.1:Float"),
-              ("1.1000001", pass "1.1000001:Float")
+              ("1.1000001", pass "1.1000001:Float"),
+              ("zero", pass "zero:Nat"),
+              ("0", pass "zero:Nat"),
+              ("5", pass "succ succ succ succ succ zero:Nat"),
+              ("pred 5", pass "succ succ succ succ zero:Nat"),
+              ("4", pass "succ succ succ succ zero:Nat")
             ]
 
         describe "records" $ do
@@ -67,7 +72,7 @@ spec = do
            tests evalString [
                   ("succ zero", pass "succ zero:Nat"),
                   ("pred zero", pass "zero:Nat"),
-                  ("pred succ zero", pass "zero:Nat"),
+                  ("pred succ 0", pass "zero:Nat"),
                   ("succ pred pred zero", pass "succ zero:Nat"),
                   ("zero? zero", pass "true:Bool"),
                   ("zero? succ zero", pass "false:Bool"),
@@ -82,7 +87,7 @@ spec = do
                   ("(lambda x:Bool. if x then false else true) true", pass "false:Bool"),
                   ("(lambda x:Nat. succ x) zero", pass "succ zero:Nat"),
                   ("(lambda x:Bool -> Bool.lambda y:A. x true)", pass "(lambda x.(lambda y.x true)):((Bool -> Bool) -> (A -> Bool))"),
-                  ("(lambda x:Nat. succ x) succ zero", pass "succ succ zero:Nat"),
+                  ("(lambda x:Nat. succ x) 1", pass "succ succ zero:Nat"),
                   ("(lambda x:Nat.lambda y:Float.lambda z:Float. if zero? x then y else z) pred zero", pass "(lambda y.(lambda z.if zero? zero then y else z)):(Float -> (Float -> Float))"),
                   ("(lambda x:Nat.lambda y:Float.lambda z:Float. if zero? x then y else z) zero 3.14 9.8", pass "3.14:Float"),
                   ("(lambda x:Nat -> Nat. x zero) (lambda x:Nat. succ x)", pass "succ zero:Nat"),
