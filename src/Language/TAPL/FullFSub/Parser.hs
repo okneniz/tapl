@@ -3,7 +3,7 @@ module Language.TAPL.FullFSub.Parser (parse) where
 import Language.TAPL.FullFSub.Types
 import Language.TAPL.FullFSub.Context
 import Language.TAPL.FullFSub.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
 import Language.TAPL.Common.Context (findVarName)
 
 import Prelude hiding (abs, succ, pred)
@@ -17,18 +17,13 @@ type LCParser = Parsec String LCNames Term
 type LCTypeParser = Parsec String LCNames Type
 
 parse :: String -> String -> Either ParseError ([Command], LCNames)
-parse = runParser fullPolyParser []
+parse = runParser fullFsubParser []
 
-fullPolyParser :: Parsec String LCNames ([Command], LCNames)
-fullPolyParser = do
-    commands <- command `sepEndBy` semi <* eof
-    names <- getState
-    return $ (commands, names)
+fullFsubParser :: Parsec String LCNames ([Command], LCNames)
+fullFsubParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
-command = (optional spaces) >> ((try bindCommand)
-                            <|> (try someBindCommand)
-                            <|> evalCommand)
+command = padded (bindCommand <|> evalCommand)
 
 bindCommand :: LCCommandParser
 bindCommand = do
@@ -39,15 +34,15 @@ bindCommand = do
     ty <- typeAnnotation
     return $ Bind pos x $ TypeAddBind ty
 
-someBindCommand :: LCCommandParser
-someBindCommand = braces $ do
-    pos <- getPosition
-    u <- ucid <* spaces
-    modifyState $ addName u
-    l <- comma *> identifier <* reserved "="
-    modifyState $ addName l
-    t <- notApply
-    return $ SomeBind pos u l t
+--someBindCommand :: LCCommandParser
+--someBindCommand = braces $ do
+--    pos <- getPosition
+--    u <- ucid <* spaces
+--    modifyState $ addName u
+--    l <- comma *> identifier <* reserved "="
+--    modifyState $ addName l
+--    t <- notApply
+--    return $ SomeBind pos u l t
 
 evalCommand :: LCCommandParser
 evalCommand = Eval <$> term `sepEndBy` semi
@@ -61,12 +56,10 @@ term = try typeApply
    <|> parens term
 
 typeApply :: LCParser
-typeApply = TTApp <$> getPosition
-                  <*> (typeAbstraction <* spaces)
-                  <*> (brackets typeAnnotation)
+typeApply = TTApp <$> getPosition <*> padded typeAbstraction <*> (brackets typeAnnotation)
 
 termApply :: LCParser
-termApply = chainl1 (notApply <|> parens termApply) $ TApp <$> (optional spaces *> getPosition)
+termApply = chainl1 (notApply <|> parens termApply) $ TApp <$> getPosition
 
 notApply :: LCParser
 notApply = optionalAscribed
@@ -89,19 +82,14 @@ stdFuncs :: LCParser
 stdFuncs = (timesFloat <?> "timesfloat") <|> (isZero <?> "zero?")
 
 value :: LCParser
-value = nat
-    <|> (abstraction <?> "abstraction")
-    <|> (boolean <?> "boolean")
+value = (boolean <?> "boolean")
     <|> (unit <?> "unit")
     <|> (stringT <?> "string")
     <|> (float <?> "float")
+    <|> (nat <?> "nat")
+    <|> (abstraction <?> "abstraction")
     <|> (record <?> "record")
     <|> (parens value)
-
-nat :: LCParser
-nat = (succ <?> "succ")
-  <|> (pred <?> "pred")
-  <|> (zero <?> "zero")
 
 pack :: LCParser
 pack = do
@@ -164,26 +152,30 @@ boolean = true <|> false
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
 fun name tm = tm <$> (reserved name *> getPosition) <*> term
 
-succ :: LCParser
-succ = fun "succ" TSucc
-
-pred :: LCParser
-pred = fun "pred" TPred
-
 isZero :: LCParser
 isZero = fun "zero?" TIsZero
 
 float :: LCParser
-float = TFloat <$> getPosition <*> floatNum
+float = TFloat <$> getPosition <*> try floatNum
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = reserved name >> (t <$> getPosition)
+constant name t = reserved name *> (t <$> getPosition)
 
 unit :: LCParser
 unit = constant "unit" TUnit
 
-zero :: LCParser
-zero = constant "zero" TZero
+nat :: LCParser
+nat = succ <|> pred <|> zero <|> integer
+    where succ = fun "succ" TSucc
+          pred = fun "pred" TPred
+          zero = constant "zero" TZero
+          integer = do
+            p <- getPosition
+            i <- try natural
+            toNat p i (TZero p)
+          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ 0 t = return t
+          toNat p i t = toNat p (i - 1) (TSucc p t)
 
 condition :: LCParser
 condition = TIf <$> getPosition
@@ -194,26 +186,21 @@ condition = TIf <$> getPosition
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
-    t' <- (try $ dotRef key t) <|> (return t)
-    return t'
+    (try $ dotRef key t) <|> (return t)
     where dotRef k t = do
             pos <- dot *> getPosition
             i <- k
-            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-            return t'
+            (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
-    t' <- (try $ f t) <|> (return t)
-    return t'
-  where f t = do
-          spaces
-          reserved "as"
-          optional spaces
-          ty <- typeAnnotation
-          pos <- getPosition
-          return $ TAscribe pos t ty
+    (try $ f t) <|> (return t)
+    where f t = do
+            padded $ reserved "as"
+            ty <- typeAnnotation
+            pos <- getPosition
+            return $ TAscribe pos t ty
 
 record :: LCParser
 record = braces $ TRecord <$> getPosition <*> (Map.fromList <$> (keyValue (reservedOp "=") notTypeBind) `sepBy` comma)
@@ -226,7 +213,7 @@ letT = do
     names <- getState
     modifyState $ addName name
     t2 <- notTypeBind
-    setState names -- TODO ?
+    setState names
     return $ TLet p name t1 t2
 
 timesFloat :: LCParser
@@ -239,17 +226,13 @@ keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b
 keyValue devider val = (,) <$> (identifier <* devider) <*> val
 
 termType :: LCTypeParser
-termType = colon >> typeAnnotation
+termType = colon *> typeAnnotation
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-    optional spaces
-    reservedOp "->"
-    optional spaces
-    return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") *> return TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = topAnnotation
@@ -287,7 +270,7 @@ optionalType :: LCTypeParser
 optionalType = try (reservedOp "<:" *> typeAnnotation) <|> return TyTop
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name >> return ty
+primitiveType name ty = reserved name *> return ty
 
 topAnnotation :: LCTypeParser
 topAnnotation = primitiveType "Top" TyTop

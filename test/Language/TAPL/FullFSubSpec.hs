@@ -13,6 +13,10 @@ spec = do
               ("false", pass "false:Bool"),
               ("\"foo\"", pass "\"foo\":String"),
               ("unit", pass "unit:Unit"),
+              ("0", pass "zero:Nat"),
+              ("5", pass "succ succ succ succ succ zero:Nat"),
+              ("pred 5", pass "succ succ succ succ zero:Nat"),
+              ("4", pass "succ succ succ succ zero:Nat"),
               ("1.1", pass "1.1:Float"),
               ("1.1000001", pass "1.1000001:Float")
             ]
