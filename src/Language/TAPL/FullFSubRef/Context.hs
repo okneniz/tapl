@@ -23,7 +23,7 @@ addTypeVar :: String -> Type -> LCNames -> LCNames
 addTypeVar x ty n = bind x (TypeVarBind ty) n
 
 pickFreshName :: LCNames -> String -> (String, LCNames)
-pickFreshName n x | isBound n x = pickFreshName n (x ++ "'")
+pickFreshName n x | isBound n x = pickFreshName n (x <> "'")
 pickFreshName n x = (x, n') where n' = addName x n
 
 getBinding :: LCNames -> VarName -> Maybe Binding
@@ -73,7 +73,7 @@ type LCMemory = [Term]
 extend :: Term -> Eval Location
 extend t = do
     m <- getMemory
-    putMemory $ m ++ [t]
+    putMemory $ m <> [t]
     return $ length m
 
 deref :: Location -> Eval Term

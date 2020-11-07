@@ -40,6 +40,6 @@ data TypeError = TypeMissmatch SourcePos String
                | UnresolvedConstraints [Constraint]
 
 instance Show TypeError where
-    show (TypeMissmatch pos message) = message ++ " in " ++ show pos
-    show (CircularConstrains cs) = "Circular constraints " ++ show cs
-    show (UnresolvedConstraints cs) = "Unresolved constraints " ++ show cs
+    show (TypeMissmatch pos message) = message <> " in " <> show pos
+    show (CircularConstrains cs) = "Circular constraints " <> show cs
+    show (UnresolvedConstraints cs) = "Unresolved constraints " <> show cs

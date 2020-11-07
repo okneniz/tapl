@@ -86,7 +86,7 @@ variable = optionalAscribed $ optionalProjection (pairIndexes <|> identifier) $ 
     p <- getPosition
     case findIndex ((== name) . fst) names of
          Just n -> return $ TVar p n (length names)
-         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
+         Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show p)
 
 boolean :: LCParser
 boolean = true <|> false

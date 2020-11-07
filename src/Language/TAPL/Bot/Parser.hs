@@ -75,7 +75,7 @@ variable = do
     ns <- getState
     case findVarName ns name of
         Just n -> return $ TVar p n (length $ ns)
-        Nothing -> unexpected $ "variable " ++ name ++ " has't been bound in context " ++ (show p)
+        Nothing -> unexpected $ "variable " <> name <> " has't been bound in context " <> (show p)
 
 termType :: LCTypeParser
 termType = colon >> typeAnnotation

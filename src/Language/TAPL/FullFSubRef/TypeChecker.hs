@@ -21,7 +21,7 @@ typeOf (TVar p v _) = do
     n <- getNames
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" <> show x <> " " <> show n <> " " <> show v <> ")"
          Nothing -> typeError p "var type error"
 
 typeOf (TAbs _ x tyT1 t2) = do
@@ -36,17 +36,17 @@ typeOf r@(TApp p t1 t2) = do
     case tyT1 of
          (TyArrow tyT11 tyT12) -> do
             s <- simplifyType tyT11
-            unlessM (tyT2 <: tyT11) (typeError p $ "parameter type missmatch " ++ show tyT11 ++ " : " ++ show tyT2)
+            unlessM (tyT2 <: tyT11) (typeError p $ "parameter type missmatch " <> show tyT11 <> " : " <> show tyT2)
             return tyT12
          TyBot -> return TyBot
-         x -> typeError p $ "arrow type expected " ++ show x ++ " : " ++ show n
+         x -> typeError p $ "arrow type expected " <> show x <> " : " <> show n
 
 typeOf (TTrue _) = return TyBool
 typeOf (TFalse _) = return TyBool
 
 typeOf (TIf p t1 t2 t3) = do
     ty1 <- typeOf t1
-    unlessM (ty1 <: TyBool) (typeError p $ "guard of condition have not a Bool type (" ++ show ty1 ++ ")")
+    unlessM (ty1 <: TyBool) (typeError p $ "guard of condition have not a Bool type (" <> show ty1 <> ")")
     ty2 <- typeOf t2
     ty3 <- typeOf t3
     joinTypes ty2 ty3
@@ -68,9 +68,9 @@ typeOf s@(TProj p t key) = do
          (TyRecord fields) ->
             case Map.lookup key fields of
                  Just x -> return x
-                 _ -> typeError p $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
+                 _ -> typeError p $ "invalid keyword " <> show key <> " for record " <> (show t)
          TyBot -> return TyBot
-         x -> typeError p $ "Expected record type: " ++ show s
+         x -> typeError p $ "Expected record type: " <> show s
 
 typeOf (TProj p _ _) = typeError p "invalid lookup operation"
 
@@ -79,10 +79,10 @@ typeOf (TCase p v branches) = do
     case ty1 of
          TyVariant fields -> do
             when (not $ null invalidCaseBranches)
-                 (typeError p $ "Invalid case branches : " ++ intercalate ", " invalidCaseBranches)
+                 (typeError p $ "Invalid case branches : " <> intercalate ", " invalidCaseBranches)
 
             when (not $ null absentCaseBranches)
-                 (typeError p $ "Absent case branches : " ++ intercalate ", " absentCaseBranches)
+                 (typeError p $ "Absent case branches : " <> intercalate ", " absentCaseBranches)
 
             cases <- sequence $ fmap caseType $ Map.toList $ Map.intersectionWith (,) branches fields
             foldM joinTypes TyBot cases
@@ -102,7 +102,7 @@ typeOf (TFix p t1) = do
     tyT1 <- lcst =<< typeOf t1
     case tyT1 of
         (TyArrow tyT11 tyT12) -> do
-            unlessM (tyT12 <: tyT11) (typeError p $ "result of body not compatible with domain " ++ show tyT11 ++ " and " ++ show tyT12)
+            unlessM (tyT12 <: tyT11) (typeError p $ "result of body not compatible with domain " <> show tyT11 <> " and " <> show tyT12)
             return tyT12
         TyBot -> return TyBot
         _ -> typeError p  "arrow type expected"
@@ -143,11 +143,11 @@ typeOf (TAssign p t1 t2) = do
     ty2 <- typeOf t2
     case ty1 of
          (TyRef tyT1) -> do
-            unlessM (ty2 <: tyT1) (typeError p $ "arguments of := are incompatible " ++ show ty2 ++ " -> " ++ show tyT1)
+            unlessM (ty2 <: tyT1) (typeError p $ "arguments of := are incompatible " <> show ty2 <> " -> " <> show tyT1)
             return TyUnit
          TyBot -> typeOf t2 >> return TyBot
          (TySink tyT1) -> do
-            unlessM (ty2 <: tyT1) (typeError p $ "arguments of := are incompatible " ++ show ty2 ++ " - " ++ show tyT1)
+            unlessM (ty2 <: tyT1) (typeError p $ "arguments of := are incompatible " <> show ty2 <> " - " <> show tyT1)
             return TyUnit
          _ -> typeError p "first argument of := is not a Ref or Sink"
 
@@ -195,11 +195,11 @@ typeOf (TIsZero p t) = do
     return TyBool
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 argumentError :: SourcePos -> Type -> Type -> Eval a
 argumentError p expected actual = typeError p message
-    where message = "Argument error, expected " ++ show expected  ++ ". Got " ++ show actual ++ "."
+    where message = "Argument error, expected " <> show expected  <> ". Got " <> show actual <> "."
 
 typeEq :: Type -> Type -> Eval Bool
 typeEq ty1 ty2 = do

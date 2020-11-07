@@ -30,7 +30,7 @@ evalString code = do
                     ty <- typeOf t
                     t' <- prettify t
                     ty' <- prettifyType ty
-                    return $ show t' ++ ":" ++ show ty'
+                    return $ show t' <> ":" <> show ty'
 
 evalCommands :: [Command] -> Eval AST
 evalCommands [] = return []
@@ -43,7 +43,7 @@ evalCommands ((Eval ts):cs) = do
     _ <- typeCheck ts
     let ts' = whileJust normalize <$> ts
     cs' <- evalCommands cs
-    return $ ts' ++ cs'
+    return $ ts' <> cs'
 
 typeCheck :: AST -> Eval Type
 typeCheck [] = lift $ throwE "attempt to check empty AST"

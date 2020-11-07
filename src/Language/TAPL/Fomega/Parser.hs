@@ -82,7 +82,7 @@ variable = try $ do
     pos <- getPosition
     case findVarName names name of
          Just n -> return $ TVar pos n (length names)
-         Nothing -> unexpected $ "variable " ++ show name ++ " hasn't been bound in context " ++ (show names)
+         Nothing -> unexpected $ "variable " <> show name <> " hasn't been bound in context " <> (show names)
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = arrowAnnotation <|> notArrowAnnotation
@@ -133,7 +133,7 @@ typeVar = try $ do
     names <- getState
     case findVarName names name of
          Just varName -> return $ TyVar varName (length names)
-         Nothing -> unexpected $ "type variable " ++ show name ++ " hasn't been bound in context " ++ (show names)
+         Nothing -> unexpected $ "type variable " <> show name <> " hasn't been bound in context " <> (show names)
 
 optionalKind :: LCKindParser
 optionalKind = (reservedOp "::" >> kindAnnotation) <|> return Star

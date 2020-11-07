@@ -61,12 +61,12 @@ recover (TApp _ t1 t2) = do
 newVar :: Eval String
 newVar = do
     s <- get
-    let x = "x" ++ show (varIndex s)
+    let x = "x" <> show (varIndex s)
     put $ s { varIndex = ((varIndex s) + 1) }
     return x
 
 prependConstraint :: (Type, Type) -> Eval ()
-prependConstraint c = modify $ \s -> s { constraints = [c] ++ (constraints s) }
+prependConstraint c = modify $ \s -> s { constraints = [c] <> (constraints s) }
 
 appendConstraint :: (Type, Type) -> Eval ()
-appendConstraint c = modify $ \s -> s { constraints = (constraints s) ++ [c] }
+appendConstraint c = modify $ \s -> s { constraints = (constraints s) <> [c] }

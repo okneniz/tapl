@@ -21,7 +21,7 @@ typeOf (TVar p v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" <> show x <> " " <> show n <> " " <> show v <> ")"
          Nothing -> typeError p "var type error"
 
 typeOf (TAbs _ x tyT1 t2) = do
@@ -35,16 +35,16 @@ typeOf r@(TApp p t1 t2) = do
     n <- get
     case tyT1 of
          (TyArrow tyT11 tyT12) -> do
-            unlessM (tyT2 <: tyT11) (typeError p $ "parameter type missmatch " ++ show tyT2 ++ " : " ++ show tyT11)
+            unlessM (tyT2 <: tyT11) (typeError p $ "parameter type missmatch " <> show tyT2 <> " : " <> show tyT11)
             return tyT12
-         x -> typeError p $ "arrow type expected " ++ show x ++ " : " ++ show n
+         x -> typeError p $ "arrow type expected " <> show x <> " : " <> show n
 
 typeOf (TTrue _) = return TyBool
 typeOf (TFalse _) = return TyBool
 
 typeOf (TIf p t1 t2 t3) = do
     ty1 <- typeOf t1
-    unlessM (ty1 <: TyBool) (typeError p $ "guard of condition have not a Bool type (" ++ show ty1 ++ ")")
+    unlessM (ty1 <: TyBool) (typeError p $ "guard of condition have not a Bool type (" <> show ty1 <> ")")
     ty2 <- typeOf t2
     ty3 <- typeOf t3
     joinTypes ty2 ty3
@@ -60,7 +60,7 @@ typeOf (TProj p t key) = do
          (TyRecord fields) ->
             case Map.lookup key fields of
                  Just x -> return x
-                 _ -> typeError p $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
+                 _ -> typeError p $ "invalid keyword " <> show key <> " for record " <> (show t)
          _ -> typeError p "Expected record type"
 
 typeOf (TLet _ x t1 t2) = do
@@ -73,7 +73,7 @@ typeOf (TFix p t1) = do
     tyT1 <- lcst =<< typeOf t1
     case tyT1 of
         (TyArrow tyT11 tyT12) -> do
-            unlessM (tyT12 <: tyT11) (typeError p $ "result of body not compatible with domain " ++ show tyT11 ++ " and " ++ show tyT12)
+            unlessM (tyT12 <: tyT11) (typeError p $ "result of body not compatible with domain " <> show tyT11 <> " and " <> show tyT12)
             return tyT12
         _ -> typeError p  "arrow type expected"
 
@@ -142,11 +142,11 @@ typeOf (TUnpack p tyX x t1 t2) = do
         _ ->  typeError p "existential type expected"
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 argumentError :: SourcePos -> Type -> Type -> Eval a
 argumentError p expected actual = typeError p message
-    where message = "Argument error, expected " ++ show expected  ++ ". Got " ++ show actual ++ "."
+    where message = "Argument error, expected " <> show expected  <> ". Got " <> show actual <> "."
 
 typeEq :: Type -> Type -> Eval Bool
 typeEq ty1 ty2 = do

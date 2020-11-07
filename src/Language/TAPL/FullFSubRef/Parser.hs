@@ -157,7 +157,7 @@ variable = optionalProjection identifier $ do
     pos <- getPosition
     case findVarName names name of
          Just n -> return $ TVar pos n (length names)
-         Nothing -> unexpected $ "variable " ++ show name ++ " hasn't been bound in context " ++ " " ++ (show names)
+         Nothing -> unexpected $ "variable " <> show name <> " hasn't been bound in context " <> " " <> (show names)
 
 variant :: LCParser
 variant = try $ do

@@ -29,7 +29,7 @@ typeOf (TIf p t1 t2 t3) = do
   unlessM (typeEq ty2 ty3) $ do
     ty2p <- prettifyType ty2
     ty3p <- prettifyType ty3
-    typeError p $ "branches of condition have different types (" ++ show ty2p ++ " and " ++ show ty3p ++ ")"
+    typeError p $ "branches of condition have different types (" <> show ty2p <> " and " <> show ty3p <> ")"
   return ty2
 
 typeOf (TCase p v branches) = do
@@ -37,10 +37,10 @@ typeOf (TCase p v branches) = do
     case ty' of
          TyVariant fields -> do
             when (not $ null invalidCaseBranches)
-                 (typeError p $ "Invalid case branches : " ++ intercalate ", " invalidCaseBranches)
+                 (typeError p $ "Invalid case branches : " <> intercalate ", " invalidCaseBranches)
 
             when (not $ null absentCaseBranches)
-                 (typeError p $ "Absent case branches : " ++ intercalate ", " absentCaseBranches)
+                 (typeError p $ "Absent case branches : " <> intercalate ", " absentCaseBranches)
 
             cases <- sequence $ fmap caseType $ Map.toList $ Map.intersectionWith (,) branches fields
             theSameTypes <- sequence $ [typeEq t1 t2 | (t1:ys) <- tails $ snd <$> cases, t2 <- ys]
@@ -59,7 +59,7 @@ typeOf (TCase p v branches) = do
                         ty <- typeOf t
                         return (caseName, ty)
 
-         x -> typeError p $ "Invalid context for case statement " ++ show x
+         x -> typeError p $ "Invalid context for case statement " <> show x
 
 typeOf (TTag p key t tyT) = do
     tyT' <- simplifyType tyT
@@ -70,14 +70,14 @@ typeOf (TTag p key t tyT) = do
                     actual <- typeOf t
                     unlessM (typeEq actual expected) (unexpectedType p expected actual)
                     return tyT
-                 _ -> typeError p $ "label " ++ key ++ " not found"
+                 _ -> typeError p $ "label " <> key <> " not found"
          _ -> typeError p $ "Annotation is not a variant type"
 
 typeOf (TVar p v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" <> show x <> " " <> show n <> " " <> show v <> ")"
          Nothing -> typeError p "var type error"
 
 typeOf (TAbs _ x tyT1 t2) = do
@@ -93,11 +93,11 @@ typeOf (TApp p t1 t2) = do
             unlessM (typeEq ty2 ty1') $ do
                 ty1p <- prettifyType ty1
                 ty2p <- prettifyType ty2
-                typeError p $ "incorrect application " ++ show ty2p ++ " to " ++ show ty1p
+                typeError p $ "incorrect application " <> show ty2p <> " to " <> show ty1p
             return ty2'
          _ -> do
             ty1p <- prettifyType ty1
-            typeError p $ "arrow type expected, insted" ++ show ty1p
+            typeError p $ "arrow type expected, insted" <> show ty1p
 
 typeOf (TLet _ x t1 t2) = do
     ty1 <- typeOf t1
@@ -137,7 +137,7 @@ typeOf (TProj p t key) = do
          (TyRecord fields, _) ->
             case Map.lookup key fields of
                  Just x -> return x
-                 _ -> typeError p $ "label " ++ show key ++ " not found"
+                 _ -> typeError p $ "label " <> show key <> " not found"
          ((TyProduct x _), "0") -> return x
          ((TyProduct _ x), "1") -> return x
          ((TyProduct _ _), _) -> typeError p "invalid index for pair"
@@ -170,16 +170,16 @@ typeOf (TIsZero p t) = do
   return TyBool
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 unexpectedType :: SourcePos -> Type -> Type -> Eval a
 unexpectedType p expected actual = do
     tyE <- prettifyType expected
     tyA <- prettifyType actual
-    typeError p $ "expected type " ++ show tyE ++ ", actual " ++ show tyA
+    typeError p $ "expected type " <> show tyE <> ", actual " <> show tyA
 
 instance Show TypeError where
-    show (TypeMissmatch p message) = show p ++ ":" ++ message
+    show (TypeMissmatch p message) = show p <> ":" <> message
 
 typeEq :: Type -> Type -> Eval Bool
 typeEq ty1 ty2 = do

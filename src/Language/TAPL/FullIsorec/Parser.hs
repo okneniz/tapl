@@ -85,7 +85,7 @@ variable = optionalAscribed $ optionalProjection (pairIndexes <|> identifier) $ 
     pos <- getPosition
     case findVarName names name of
          Just n -> return $ TVar pos n (length names)
-         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
+         Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show pos)
 
 foldT :: LCParser
 foldT = TFold <$> (reserved "fold" *> getPosition) <*> (brackets typeAnnotation)

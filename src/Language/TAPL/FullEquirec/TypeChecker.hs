@@ -24,7 +24,7 @@ typeOf (TVar p v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" <> show x <> " " <> show n <> " " <> show v <> ")"
          Nothing -> typeError p "var type error"
 
 typeOf (TAscribe p t1 ty) = do
@@ -46,7 +46,7 @@ typeOf (TProj p t key) = do
          (TyRecord fields, _) ->
             case Map.lookup key fields of
                  Just x -> return x
-                 _ -> typeError p $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
+                 _ -> typeError p $ "invalid keyword " <> show key <> " for record " <> (show t)
          ((TyProduct x _), "0") -> return x
          ((TyProduct _ x), "1") -> return x
          ((TyProduct _ _), _) -> typeError p "invalid index for pair"
@@ -66,17 +66,17 @@ typeOf (TApp p t1 t2) = do
             x <- typeEq tyT2 tyT11
             if x
             then return tyT12
-            else typeError p $ "incorrect application of abstraction " ++ show tyT2 ++ " to " ++ show tyT11
-         _ -> typeError p $ "incorrect application " ++ show tyT1 ++ " and " ++ show tyT2
+            else typeError p $ "incorrect application of abstraction " <> show tyT2 <> " to " <> show tyT11
+         _ -> typeError p $ "incorrect application " <> show tyT1 <> " and " <> show tyT2
 
 typeOf (TIf p t1 t2 t3) = do
     ty1 <- typeOf t1
     unlessM (typeEq ty1 TyBool)
-            (typeError p $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")")
+            (typeError p $ "guard of condition have not a " <> show TyBool <>  " type (" <> show ty1 <> ")")
     ty2 <- typeOf t2
     ty3 <- typeOf t3
     unlessM (typeEq ty2 ty3)
-           (typeError p $ "branches of condition have different types (" ++ show ty2 ++ " and " ++ show ty3 ++ ")")
+           (typeError p $ "branches of condition have different types (" <> show ty2 <> " and " <> show ty3 <> ")")
     return ty2
 
 typeOf (TZero _) = return TyNat
@@ -109,10 +109,10 @@ typeOf (TCase p v branches) = do
     case ty' of
          TyVariant fields -> do
             when (not $ null invalidCaseBranches)
-                 (typeError p $ "Invalid case branches : " ++ intercalate ", " invalidCaseBranches)
+                 (typeError p $ "Invalid case branches : " <> intercalate ", " invalidCaseBranches)
 
             when (not $ null absentCaseBranches)
-                 (typeError p $ "Absent case branches : " ++ intercalate ", " absentCaseBranches)
+                 (typeError p $ "Absent case branches : " <> intercalate ", " absentCaseBranches)
 
             cases <- sequence $ fmap caseType $ Map.toList $ Map.intersectionWith (,) branches fields
             theSameTypes <- sequence $ [typeEq t1 t2 | (t1:ys) <- tails $ snd <$> cases, t2 <- ys]
@@ -131,7 +131,7 @@ typeOf (TCase p v branches) = do
                         ty <- typeOf t
                         return (caseName, ty)
 
-         x -> (typeError p $ "Invalid context for case statement " ++ show x)
+         x -> (typeError p $ "Invalid context for case statement " <> show x)
 
 typeOf (TTag p key t1 ty) = do
     ty1 <- typeOf t1
@@ -142,8 +142,8 @@ typeOf (TTag p key t1 ty) = do
                  Just x -> do
                     whenM (typeEq x ty') (typeError p "field does not have expected type")
                     return ty
-                 _ -> typeError p $ "label " ++ key ++ " not found"
-         _ -> typeError p $ "Annotation is not a variant type : " ++ show ty1
+                 _ -> typeError p $ "label " <> key <> " not found"
+         _ -> typeError p $ "Annotation is not a variant type : " <> show ty1
 
 typeOf (TLet _ x t1 t2) = do
     ty1 <- typeOf t1
@@ -163,7 +163,7 @@ typeOf (TFix p t1) = do
     tyT1' <- simplifyType tyT1
     case tyT1' of
         (TyArrow tyT11 tyT12) -> do
-            unlessM (typeEq tyT11 tyT12) (typeError p $ "result of body not compatible with domain " ++ show tyT11 ++ " and " ++ show tyT12)
+            unlessM (typeEq tyT11 tyT12) (typeError p $ "result of body not compatible with domain " <> show tyT11 <> " and " <> show tyT12)
             return tyT12
         _ -> typeError p  "arrow type expected"
 
@@ -173,11 +173,11 @@ whenM p s = do
     when x s
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 argumentError :: SourcePos -> Type -> Type -> Eval a
 argumentError p expected actual = typeError p message
-    where message = "Argument error, expected " ++ show expected  ++ ". Got " ++ show actual ++ "."
+    where message = "Argument error, expected " <> show expected  <> ". Got " <> show actual <> "."
 
 typeEq :: Type -> Type -> Eval Bool
 typeEq tyS tyT = do

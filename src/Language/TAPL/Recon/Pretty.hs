@@ -48,7 +48,7 @@ prettify (TVar _ varname _) = do
     n <- getNames
     case nameFromContext n varname of
          Just name -> return $ pretty name
-         Nothing -> lift $ throwE $ "[bad index " ++ show varname ++ "]"
+         Nothing -> lift $ throwE $ "[bad index " <> show varname <> "]"
 
 prettify (TAbs _ name _ t) = do
     state <- get

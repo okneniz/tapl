@@ -91,7 +91,7 @@ variable = do
     pos <- getPosition
     case findVarName names name of
          Just n -> return $ TVar pos n (length names)
-         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
+         Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show pos)
 
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = reserved name >> (t <$> getPosition)
@@ -134,4 +134,4 @@ typeVarOrID = do
     names <- getState
     case findVarName names name of
          Just n -> return $ TyVar n (length names)
-         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context "
+         Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context "

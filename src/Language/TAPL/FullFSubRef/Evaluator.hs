@@ -96,7 +96,7 @@ normalize (TAssign p (TLoc _ l) t2) | isVal t2 = assign l t2 >> (success $ TUnit
 normalize (TAssign p t1 t2) | isVal t1 = fmap(TAssign p t1) <$> normalize t2
 normalize (TAssign p t1 t2)  = fmap(flip(TAssign p) t2) <$> normalize t1
 
-normalize (TError p) = lift $ throwE $ show p ++ ": error"
+normalize (TError p) = lift $ throwE $ show p <> ": error"
 
 normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = success $ TFloat p (t1 * t2)
 normalize (TTimesFloat p t1 t2) | isVal t1 = fmap(TTimesFloat p t1) <$> normalize t2

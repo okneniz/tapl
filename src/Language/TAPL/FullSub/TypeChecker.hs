@@ -24,7 +24,7 @@ typeOf (TVar p v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" <> show x <> " " <> show n <> " " <> show v <> ")"
          Nothing -> typeError p "var type error"
 
 typeOf (TAbs _ x tyT1 t2) = do
@@ -40,11 +40,11 @@ typeOf (TApp p t1 t2) = do
             unlessM (ty2 <: ty1') $ do
                 ty1p <- prettifyType ty1
                 ty2p <- prettifyType ty2
-                typeError p $ "incorrect application " ++ show ty2p ++ " to " ++ show ty1p
+                typeError p $ "incorrect application " <> show ty2p <> " to " <> show ty1p
             return ty2'
          _ -> do
             ty1p <- prettifyType ty1
-            typeError p $ "arrow type expected, insted" ++ show ty1p
+            typeError p $ "arrow type expected, insted" <> show ty1p
 
 typeOf (TTrue _) = return TyBool
 typeOf (TFalse _) = return TyBool
@@ -52,7 +52,7 @@ typeOf (TFalse _) = return TyBool
 typeOf (TIf p t1 t2 t3) = do
     ty1 <- typeOf t1
     unlessM (ty1 <: TyBool)
-            (typeError p $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")")
+            (typeError p $ "guard of condition have not a " <> show TyBool <>  " type (" <> show ty1 <> ")")
     ty2 <- typeOf t2
     ty3 <- typeOf t3
     joinTypes ty2 ty3
@@ -68,7 +68,7 @@ typeOf (TProj p t key) = do
          (TyRecord fields) ->
             case Map.lookup key fields of
                  Just x -> return x
-                 _ -> typeError p $ "label " ++ show key ++ " not found"
+                 _ -> typeError p $ "label " <> show key <> " not found"
          _ -> typeError p "expected record type"
 
 typeOf (TProj p _ _) = typeError p "invalid projection"
@@ -123,16 +123,16 @@ typeOf (TIsZero p t) = do
   return TyBool
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 unexpectedType :: SourcePos -> Type -> Type -> Eval a
 unexpectedType p expected actual = do
     tyE <- prettifyType expected
     tyA <- prettifyType actual
-    typeError p $ "expected type " ++ show tyE ++ ", actual " ++ show tyA
+    typeError p $ "expected type " <> show tyE <> ", actual " <> show tyA
 
 instance Show TypeError where
-    show (TypeMissmatch p message) = show p ++ ":" ++ message
+    show (TypeMissmatch p message) = show p <> ":" <> message
 
 typeEq :: Type -> Type -> Eval Bool
 typeEq ty1 ty2 = do

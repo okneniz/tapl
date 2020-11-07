@@ -25,19 +25,19 @@ typeOf (TSucc p t) = do
   ty <- typeOf t
   case ty of
       TyNat -> return TyNat
-      x -> typeError p $ "argument of succ is not a natural number (" ++ show x ++ ")"
+      x -> typeError p $ "argument of succ is not a natural number (" <> show x <> ")"
 
 typeOf (TPred p t) = do
   ty <- typeOf t
   case ty of
      TyNat -> return TyNat
-     x -> typeError p $ "argument of pred is not a natural number (" ++ show x ++ ")"
+     x -> typeError p $ "argument of pred is not a natural number (" <> show x <> ")"
 
 typeOf (TIsZero p t) = do
   ty <- typeOf t
   case ty of
     TyNat -> return TyBool
-    x -> typeError p $ "argument of zero? is not a natural number (" ++ show x ++ ")"
+    x -> typeError p $ "argument of zero? is not a natural number (" <> show x <> ")"
 
 typeOf (TIf p t1 t2 t3) = do
   ty1 <- typeOf t1
@@ -47,14 +47,14 @@ typeOf (TIf p t1 t2 t3) = do
        TyBool ->
             if ty2 == ty3
             then return ty2
-            else typeError p $ "branches of condition have different types (" ++ show ty2 ++ " and " ++ show ty3 ++ ")"
-       ty -> typeError p $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty ++ ")"
+            else typeError p $ "branches of condition have different types (" <> show ty2 <> " and " <> show ty3 <> ")"
+       ty -> typeError p $ "guard of condition have not a " <> show TyBool <>  " type (" <> show ty <> ")"
 
 typeOf v@(TVar p varname _) = do
   names <- get
   case bindingType names varname of
        Just (VarBind ty') -> return ty'
-       Just x -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show names ++ " " ++ show v ++ ")"
+       Just x -> typeError p $ "wrong kind of binding for variable (" <> show x <> " " <> show names <> " " <> show v <> ")"
        Nothing -> typeError p $ "var type error"
 
 typeOf (TApp p t1 t2) = do
@@ -64,8 +64,8 @@ typeOf (TApp p t1 t2) = do
        (TyArrow ty1' ty2') ->
             if ty2 == ty1'
             then return ty2'
-            else typeError p $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
-       _ -> typeError p $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
+            else typeError p $ "incorrect application of abstraction " <> show ty2 <> " to " <> show ty1'
+       _ -> typeError p $ "incorrect application " <> show ty1 <> " and " <> show ty2
 
 typeOf (TAbs _ name ty t) = do
   names <- get
@@ -75,15 +75,15 @@ typeOf (TAbs _ name ty t) = do
   return $ TyArrow ty ty'
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 unexpectedType :: SourcePos -> Type -> Type -> Eval a
 unexpectedType p expected actual = do
     tyE <- prettifyType expected
     tyA <- prettifyType actual
-    typeError p $ "expected type " ++ show tyE ++ ", actual " ++ show tyA
+    typeError p $ "expected type " <> show tyE <> ", actual " <> show tyA
 
 data TypeError = TypeMissmatch SourcePos String
 
 instance Show TypeError where
-    show (TypeMissmatch pos message) = message ++ " in " ++ show pos
+    show (TypeMissmatch pos message) = message <> " in " <> show pos

@@ -83,7 +83,7 @@ variable = optionalAscribed $ optionalProjection (pairIndexes <|> identifier) $ 
     pos <- getPosition
     case findVarName n name of
          Just x -> return $ TVar pos x (length n)
-         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show pos)
+         Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show pos)
 
 stringT :: LCParser
 stringT = TString <$> getPosition <*> try stringLiteral

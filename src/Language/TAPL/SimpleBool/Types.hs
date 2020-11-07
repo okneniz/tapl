@@ -22,7 +22,7 @@ type AST = [Term]
 data Binding = NameBind | VarBind Type deriving (Show)
 
 instance Show Type where
-    show (TyArrow t1 t2) = "("++ show t1 ++ " -> " ++ show t2 ++ ")"
+    show (TyArrow t1 t2) = "("<> show t1 <> " -> " <> show t2 <> ")"
     show TyBool = "Bool"
 
 isVal :: Term -> Bool

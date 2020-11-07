@@ -20,7 +20,7 @@ addTypeVar :: String -> Type -> LCNames -> LCNames
 addTypeVar x ty n = bind x (TypeVarBind ty) n
 
 pickFreshName :: LCNames -> String -> (String, LCNames)
-pickFreshName n x | isBound n x = pickFreshName n (x ++ "'")
+pickFreshName n x | isBound n x = pickFreshName n (x <> "'")
 pickFreshName n x = (x, n') where n' = addName x n
 
 getBinding :: LCNames -> VarName -> Maybe Binding

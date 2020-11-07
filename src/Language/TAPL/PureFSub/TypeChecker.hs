@@ -35,7 +35,7 @@ typeOf (TVar p v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" <> show x <> " " <> show n <> " " <> show v <> ")"
          Nothing -> typeError p "var type error"
 
 typeOf (TAbs _ x tyT1 t2) = do
@@ -54,16 +54,16 @@ typeOf r@(TApp p t1 t2) = do
          x -> typeError p "arrow type expected"
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 unexpectedType :: SourcePos -> Type -> Type -> Eval a
 unexpectedType p expected actual = do
     tyE <- prettifyType expected
     tyA <- prettifyType actual
-    typeError p $ "expected type " ++ show tyE ++ ", actual " ++ show tyA
+    typeError p $ "expected type " <> show tyE <> ", actual " <> show tyA
 
 instance Show TypeError where
-    show (TypeMissmatch p message) = show p ++ ":" ++ message
+    show (TypeMissmatch p message) = show p <> ":" <> message
 
 (<:) :: Type -> Type -> Eval Bool
 (<:) tyS tyT | tyS == tyT = return True

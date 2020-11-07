@@ -190,7 +190,7 @@ variable = optionalAscribed $ optionalProjection (pairIndexes <|> identifier) $ 
     ns <- getState
     case findIndex ((== name) . fst) ns of
          Just n -> return $ TVar p n (length $ ns)
-         Nothing -> unexpected $ "variable " ++ show name ++ " has't been bound in context " ++ " " ++ (show p)
+         Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show p)
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = (,) <$> (identifier <* devider) <*> val

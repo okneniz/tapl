@@ -20,7 +20,7 @@ typeOf (TVar p v _) = do
     n <- getNames
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" <> show x <> " " <> show n <> " " <> show v <> ")"
          Nothing -> typeError p "var type error"
 
 typeOf (TAbs _ x tyT1 t2) = do
@@ -36,12 +36,12 @@ typeOf (TApp p t1 t2) = do
             unlessM (ty2 <: ty1') $ do
                 ty1p <- renderType ty1
                 ty2p <- renderType ty2
-                typeError p $ "incorrect application " ++ ty2p ++ " to " ++ ty1p
+                typeError p $ "incorrect application " <> ty2p <> " to " <> ty1p
             return ty2'
          TyBot -> return TyBot
          _ -> do
             ty1p <- renderType ty1
-            typeError p $ "arrow type expected, insted" ++ ty1p
+            typeError p $ "arrow type expected, insted" <> ty1p
 
 typeOf (TTrue _) = return TyBool
 typeOf (TFalse _) = return TyBool
@@ -70,7 +70,7 @@ typeOf (TProj p t k) = do
          (TyRecord fs, _) ->
             case Map.lookup k fs of
                  Just x -> return x
-                 _ -> typeError p $ "label " ++ show k ++ " not found"
+                 _ -> typeError p $ "label " <> show k <> " not found"
          (TyRecord fs, _) -> typeError p "invalid keyword for record"
          (TyProduct x _, "0") -> return x
          (TyProduct _ x, "1") -> return x
@@ -82,10 +82,10 @@ typeOf (TCase p v branches) = do
     case ty' of
          TyVariant fields -> do
             when (not $ null invalidCaseBranches)
-                 (typeError p $ "Invalid case branches : " ++ intercalate ", " invalidCaseBranches)
+                 (typeError p $ "Invalid case branches : " <> intercalate ", " invalidCaseBranches)
 
             when (not $ null absentCaseBranches)
-                 (typeError p $ "Absent case branches : " ++ intercalate ", " absentCaseBranches)
+                 (typeError p $ "Absent case branches : " <> intercalate ", " absentCaseBranches)
 
             cases <- sequence $ fmap caseType $ Map.toList $ Map.intersectionWith (,) branches fields
             foldM joinTypes TyBot cases
@@ -99,7 +99,7 @@ typeOf (TCase p v branches) = do
                         typeShift (-1) <$> typeOf t
 
          TyBot -> return TyBot
-         x -> (typeError p $ "Invalid context for case statement " ++ show x)
+         x -> (typeError p $ "Invalid context for case statement " <> show x)
 
 typeOf (TFix p t1) = do
     tyT1 <- simplifyType =<< typeOf t1
@@ -119,7 +119,7 @@ typeOf (TTag p key t tyT) = do
                     actual <- typeOf t
                     unlessM (actual <: expected) (unexpectedType p expected actual)
                     return tyT
-                 _ -> typeError p $ "label " ++ key ++ " not found"
+                 _ -> typeError p $ "label " <> key <> " not found"
          _ -> typeError p $ "Annotation is not a variant type"
 
 typeOf (TAscribe p t ty) = do
@@ -152,7 +152,7 @@ typeOf (TAssign p t1 t2) = do
        TySink tyT1 -> do
             unlessM (ty2 <: tyT1) (typeError p $ "arguments of := are incompatible 2") -- TODO
             return TyUnit
-       _ -> typeError p $ "invalid assignment of " ++ show ty1 ++ " to " ++ show ty2
+       _ -> typeError p $ "invalid assignment of " <> show ty1 <> " to " <> show ty2
 
 typeOf (TFloat _ _) = return TyFloat
 typeOf (TTimesFloat p t1 t2) = do
@@ -182,13 +182,13 @@ typeOf (TIsZero p t) = do
 typeOf (TPair _ t1 t2) = TyProduct <$> (typeOf t1) <*> (typeOf t2)
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 unexpectedType :: SourcePos -> Type -> Type -> Eval a
 unexpectedType p expected actual = do
     tyE <- renderType expected
     tyA <- renderType actual
-    typeError p $ "expected type " ++ tyE ++ ", actual " ++ tyA
+    typeError p $ "expected type " <> tyE <> ", actual " <> tyA
 
 (<:) :: Type -> Type -> Eval Bool
 (<:) tyS tyT = do

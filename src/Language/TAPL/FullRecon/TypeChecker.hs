@@ -49,12 +49,12 @@ unify cs@(((TyID tyX), tyT):_) | occursInt tyX tyT = Left $ CircularConstrains c
 
 unify ((tyS, (TyID tyX)):xs) = do
     case unify (substInConstraint tyX tyS xs) of
-        Right cs -> Right $ cs ++ [(TyID tyX, tyS)]
+        Right cs -> Right $ cs <> [(TyID tyX, tyS)]
         Left e -> Left e
 
 unify (((TyID tyX), tyT):xs) = do
     case unify (substInConstraint tyX tyT xs) of
-        Right cs -> Right $ cs ++ [(TyID tyX, tyT)]
+        Right cs -> Right $ cs <> [(TyID tyX, tyT)]
         Left e -> Left e
 
 unify ((TyNat, TyNat):xs) = unify xs

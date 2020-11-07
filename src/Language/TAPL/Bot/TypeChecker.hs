@@ -14,7 +14,7 @@ typeOf (TVar pos v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError pos $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         (Just x) -> typeError pos $ "wrong kind of binding for variable (" <> show x <> " " <> show n <> " " <> show v <> ")"
          Nothing -> typeError pos "var type error"
 
 typeOf (TAbs _ name ty t) = do
@@ -27,10 +27,10 @@ typeOf (TApp pos t1 t2) = do
     ty2 <- typeOf t2
     case ty1 of
          (TyArrow ty1' ty2') | ty2 <: ty1' -> return ty2'
-         (TyArrow ty1' _) -> typeError pos $ "incorrect application of abstraction " ++ show ty2 ++ " to " ++ show ty1'
+         (TyArrow ty1' _) -> typeError pos $ "incorrect application of abstraction " <> show ty2 <> " to " <> show ty1'
          TyBot -> return TyBot
-         _ -> typeError pos $ "incorrect application " ++ show ty1 ++ " and " ++ show ty2
+         _ -> typeError pos $ "incorrect application " <> show ty1 <> " and " <> show ty2
 
 typeError :: SourcePos -> String -> Eval a
-typeError pos message = lift $ throwE $ show pos ++ ":" ++ message
+typeError pos message = lift $ throwE $ show pos <> ":" <> message
 

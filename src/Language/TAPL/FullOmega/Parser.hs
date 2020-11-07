@@ -182,7 +182,7 @@ variable = try $ optionalProjection identifier $ do
     pos <- getPosition
     case findVarName names name of
          Just n -> return $ TVar pos n (length names)
-         Nothing -> unexpected $ "variable " ++ show name ++ " hasn't been bound in context " ++ (show names)
+         Nothing -> unexpected $ "variable " <> show name <> " hasn't been bound in context " <> (show names)
 
 record :: LCParser
 record = try $ braces $ TRecord <$> getPosition

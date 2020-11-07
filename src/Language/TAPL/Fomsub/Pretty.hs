@@ -31,7 +31,7 @@ prettify (TVar _ varname _) = do
     c <- get
     case nameFromContext c varname of
          Just name -> return $ pretty name
-         Nothing -> lift $ throwE $ "[bad index " ++ show varname ++ " in context " ++ show c ++ "]"
+         Nothing -> lift $ throwE $ "[bad index " <> show varname <> " in context " <> show c <> "]"
 
 prettify (TAbs _ name ty t) = do
   n <- get
@@ -61,7 +61,7 @@ prettifyType v@(TyVar varName _) = do
     names <- get
     case findName names varName of
          Just x -> return $ pretty x
-         Nothing -> return $ pretty $ show v ++ " in " ++ show names
+         Nothing -> return $ pretty $ show v <> " in " <> show names
 
 prettifyType (TyArrow ty1 ty2) = do
     doc1 <- prettifyType ty1

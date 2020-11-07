@@ -32,7 +32,7 @@ evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval ts):cs) = do
     let ts' = whileJust normalize <$> ts
     cs' <- evalCommands cs
-    return $ ts' ++ cs'
+    return $ ts' <> cs'
 
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _ ) = return t

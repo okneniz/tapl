@@ -25,7 +25,7 @@ typeOf (TVar p v _) = do
     b <- getBinding p n v
     case b of
          (Just (VarBind ty))-> return ty
-         (Just x)-> typeError p $ "wrong kind of binding for variable " ++ show x
+         (Just x)-> typeError p $ "wrong kind of binding for variable " <> show x
          Nothing -> typeError p "var type error"
 
 typeOf (TAbs p x tyT1 t2) = do
@@ -41,9 +41,9 @@ typeOf r@(TApp p t1 t2) = do
     case tyT1 of
          (TyArrow tyT11 tyT12) -> do
             tyT22 <- simplifyType p tyT2
-            unlessM (isSubtype p tyT2 tyT11) (typeError p $ "parameter type missmatch " ++ show tyT2 ++ "  " ++ show tyT11)
+            unlessM (isSubtype p tyT2 tyT11) (typeError p $ "parameter type missmatch " <> show tyT2 <> "  " <> show tyT11)
             return tyT12
-         x -> typeError p $ "arrow type expected " ++ show x ++ " : " ++ show n
+         x -> typeError p $ "arrow type expected " <> show x <> " : " <> show n
 
 typeOf (TTrue _) = return TyBool
 typeOf (TFalse _) = return TyBool
@@ -66,8 +66,8 @@ typeOf s@(TProj p t key) = do
          (TyRecord fields) ->
             case Map.lookup key fields of
                  Just x -> return x
-                 _ -> typeError p $ "invalid keyword " ++ show key ++ " for record " ++ (show t)
-         x -> typeError p $ "Expected record type: " ++ show s
+                 _ -> typeError p $ "invalid keyword " <> show key <> " for record " <> (show t)
+         x -> typeError p $ "Expected record type: " <> show s
 
 typeOf (TLet p x t1 t2) = do
     n <- get
@@ -135,7 +135,7 @@ typeOf (TPack p tyT1 t2 tyT) = do
             unlessM (isSubtype p tyT1 tyBound) (typeError p "hidden type not a subtype of bound")
             tyU <- typeOf t2
             tyU' <- typeSubstitutionTop p tyT1 tyT2
-            unlessM (isSubtype p tyU tyU') (typeError p $ "doesn\'t match declared type : " ++ show tyU ++ " and " ++ show tyU')
+            unlessM (isSubtype p tyU tyU') (typeError p $ "doesn\'t match declared type : " <> show tyU <> " and " <> show tyU')
             return tyT
 
 typeOf (TUnpack p tyX x t1 t2) = do
@@ -264,11 +264,11 @@ meetTypes p tyS tyT = do
                          _ -> notFound
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 argumentError :: SourcePos -> Type -> Type -> Eval a
 argumentError p expected actual = typeError p message
-    where message = "Argument error, expected " ++ show expected  ++ ". Got " ++ show actual ++ "."
+    where message = "Argument error, expected " <> show expected  <> ". Got " <> show actual <> "."
 
 isStar :: SourcePos -> Type -> Eval Bool
 isStar p ty = (==) Star <$> kindOf p ty
@@ -279,8 +279,8 @@ getKind p v = do
     case x of
         (Just (TypeVarBind ty)) -> kindOf p ty
         (Just (TypeAddBind _ (Just k))) -> return k
-        (Just (TypeAddBind _ Nothing)) -> lift $ throwE $ "No kind recorded for variable " ++ show v ++ " : " ++ show x
-        _ -> lift $ throwE $ "Wrong kind of binding for variable  " ++ show v ++ " : " ++ show x
+        (Just (TypeAddBind _ Nothing)) -> lift $ throwE $ "No kind recorded for variable " <> show v <> " : " <> show x
+        _ -> lift $ throwE $ "Wrong kind of binding for variable  " <> show v <> " : " <> show x
 
 kindOf :: SourcePos -> Type -> Eval Kind
 kindOf p (TyRecord fields) = do
@@ -304,7 +304,7 @@ kindOf p x@(TyApp tyT1 tyT2) = do
     case knK1 of
          (Arrow knK11 knK12) | knK2 == knK11 -> return knK12
          (Arrow knK11 knK12) -> typeError p "parameter kind mismatch"
-         _ -> typeError p $ "arrow kind expected " ++ show x ++ " - " ++ show knK1 ++ show knK2 ++ " : " ++ show names
+         _ -> typeError p $ "arrow kind expected " <> show x <> " - " <> show knK1 <> show knK2 <> " : " <> show names
 
 kindOf p (TySome tyX tyT1 tyT2) = do
     withTmpStateT (addTypeVar tyX tyT1) $ do

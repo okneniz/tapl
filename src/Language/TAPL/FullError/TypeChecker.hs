@@ -18,7 +18,7 @@ typeOf (TVar p v _) = do
     n <- get
     case getBinding n v of
          (Just (VarBind ty)) -> return ty
-         (Just x) -> typeError p $ "wrong kind of binding for variable (" ++ show x ++ " " ++ show n ++ " " ++ show v ++ ")"
+         (Just x) -> typeError p $ "wrong kind of binding for variable (" <> show x <> " " <> show n <> " " <> show v <> ")"
          Nothing -> typeError p "var type error"
 
 typeOf (TAbs _ x tyT1 t2) = do
@@ -33,7 +33,7 @@ typeOf (TApp p t1 t2) = do
     case tyT1' of
          (TyArrow tyT11 tyT12) -> do
             unlessM (tyT2 <: tyT11)
-                    (typeError p $ "incorrect application of abstraction " ++ show tyT2 ++ " to " ++ show tyT11)
+                    (typeError p $ "incorrect application of abstraction " <> show tyT2 <> " to " <> show tyT11)
             return tyT12
          TyBot -> return TyBot
          _ -> typeError p $ "arrow type expected"
@@ -41,7 +41,7 @@ typeOf (TApp p t1 t2) = do
 typeOf (TIf p t1 t2 t3) = do
     ty1 <- typeOf t1
     unlessM (ty1 <: TyBool)
-            (typeError p $ "guard of condition have not a " ++ show TyBool ++  " type (" ++ show ty1 ++ ")")
+            (typeError p $ "guard of condition have not a " <> show TyBool <>  " type (" <> show ty1 <> ")")
     ty2 <- typeOf t2
     ty3 <- typeOf t3
     joinTypes ty2 ty3
@@ -53,7 +53,7 @@ typeOf (TTry _ t1 t2) = do
     joinTypes ty1 ty2
 
 typeError :: SourcePos -> String -> Eval a
-typeError p message = lift $ throwE $ show p ++ ":" ++ message
+typeError p message = lift $ throwE $ show p <> ":" <> message
 
 typeEq :: Type -> Type -> Eval Bool
 typeEq ty1 ty2 = do

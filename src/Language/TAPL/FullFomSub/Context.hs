@@ -28,7 +28,7 @@ addTypeVar :: String -> Type -> LCNames -> LCNames
 addTypeVar x ty n = bind x (TypeVarBind ty) n
 
 pickFreshName :: LCNames -> String -> (String, LCNames)
-pickFreshName n x | isBound n x = pickFreshName n (x ++ "'")
+pickFreshName n x | isBound n x = pickFreshName n (x <> "'")
 pickFreshName n x = (x, n') where n' = addName x n
 
 getBinding :: SourcePos -> LCNames -> VarName -> Eval (Maybe Binding)
@@ -157,6 +157,6 @@ typeShift p d tyT = typeShiftAbove p d 0 tyT
 typeShiftAbove :: SourcePos -> Depth -> VarName -> Type -> Eval Type
 typeShiftAbove p d c ty = typeMap onVar c ty
                   where onVar c x n | x >= c = if x + d < 0
-                                               then lift $ throwE $ show p ++ " : attempt to use type variable in invalid scope"
+                                               then lift $ throwE $ show p <> " : attempt to use type variable in invalid scope"
                                                else return $ TyVar (x + d) (n + d)
                         onVar c x n = return $ TyVar x (n + d)
