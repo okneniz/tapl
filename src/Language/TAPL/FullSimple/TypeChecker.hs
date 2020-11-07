@@ -143,7 +143,6 @@ typeOf (TProj p t key) = do
          ((TyProduct _ _), _) -> typeError p "invalid index for pair"
          _ -> typeError p "expected record or pair types"
 
-typeOf (TProj p _ _) = typeError p "invalid projection"
 typeOf (TFloat _ _) = return TyFloat
 
 typeOf (TTimesFloat p t1 t2) = do
@@ -193,17 +192,17 @@ typeEq ty1 ty2 = do
       ((TyID x), (TyID y)) -> return $ x == y
       (TyFloat, TyFloat) -> return True
 
-      (TyVar _ i, _) | isTypeAbb n i -> do
+      (TyVar i _, _) | isTypeAbb n i -> do
             case (getTypeAbb n i) of
                 Just x -> typeEq x ty2'
                 _ -> return False
 
-      (_, TyVar _ i) | isTypeAbb n i -> do
+      (_, TyVar i _) | isTypeAbb n i -> do
             case (getTypeAbb n i) of
                 Just x -> typeEq x ty1'
                 _ -> return False
 
-      (TyVar _ i, TyVar _ j) | i == j -> return True
+      (TyVar i _, TyVar j _) | i == j -> return True
       (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> (&&) <$> typeEq tyS1 tyT1 <*> typeEq tyS2 tyT2
 
       (TyBool, TyBool) -> return True
@@ -211,11 +210,11 @@ typeEq ty1 ty2 = do
 
       (TyProduct tyS1 tyS2, TyProduct tyT1 tyT2) -> (&&) <$> typeEq tyS1 tyT1 <*> typeEq tyS2 tyT2
 
-      (TyRecord f1, TyRecord f2) | (Map.keys f1) /= (Map.keys f2) -> return False
+      (TyRecord f1, TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
       (TyRecord f1, TyRecord f2) ->
         all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
-      (TyVariant f1, TyVariant f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) -> return False
+      (TyVariant f1, TyVariant f2) | (Map.keys f1) /= (Map.keys f2) -> return False
       (TyVariant f1, TyVariant f2) ->
         all (id) <$> sequence (uncurry typeEq <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
