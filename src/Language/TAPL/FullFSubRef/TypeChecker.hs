@@ -218,17 +218,17 @@ typeEq ty1 ty2 = do
       (TySource ty1, TySource ty2) -> typeEq ty1 ty1
       (TySink ty1, TySink ty2) -> typeEq ty1 ty1
 
-      (TyVar _ i, _) | isTypeAdd n i -> do
+      (TyVar i _, _) | isTypeAdd n i -> do
             case (getTypeAbb n i) of
                 Just x -> typeEq x tyT
                 _ -> return False
 
-      (_, TyVar _ i) | isTypeAdd n i -> do
+      (_, TyVar i _) | isTypeAdd n i -> do
             case (getTypeAbb n i) of
                 Just x -> typeEq x tyS
                 _ -> return False
 
-      (TyVar _ i, TyVar _ j) | i == j -> return True
+      (TyVar i _, TyVar j _) | i == j -> return True
 
       (TyBool, TyBool) -> return True
       (TyNat, TyNat) -> return True
@@ -263,20 +263,20 @@ typeEq ty1 ty2 = do
               (TyRecord f1, TyRecord f2) ->
                 all (id) <$> (sequence (uncurry (<:) <$> (Map.elems $ Map.intersectionWith (,) f1 f2)))
 
-              (TyVariant f1, TyVariant f2) -> -- TODO : кажется не то
+              (TyVariant f1, TyVariant f2) ->
                 all (id) <$> (sequence (uncurry (<:) <$> (Map.elems $ Map.intersectionWith (,) f1 f2)))
 
               (TyVar _ _, _) -> do
                 x <- promote tyS'
                 case x of
-                     Just ty -> ty <: tyT
-                     Nothing -> return False
+                  Just ty -> ty <: tyT
+                  Nothing -> return False
 
               (TyAll tyX1 tyS1 tyS2, TyAll _ tyT1 tyT2) -> do
-                    x <- (&&) <$> (tyS1 <: tyT1) <*> (tyT1 <: tyS1)
-                    if x
-                    then withTmpStateT (\s -> s { names = addTypeVar tyX1 tyT1 (names s)}) $ do { tyS2 <: tyT2 }
-                    else return False
+                x <- (&&) <$> (tyS1 <: tyT1) <*> (tyT1 <: tyS1)
+                if x
+                then withTmpStateT (\s -> s { names = addTypeVar tyX1 tyT1 (names s)}) $ do { tyS2 <: tyT2 }
+                else return False
 
               (TyRef ty1, TyRef ty2) -> (&&) <$> (ty1 <: ty2) <*> (ty2 <: ty1)
               (TyRef ty1, TySource ty2) -> ty1 <: ty2
