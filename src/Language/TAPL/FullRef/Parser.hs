@@ -99,7 +99,7 @@ nat = succ <|> pred <|> zero <|> integer
             p <- getPosition
             i <- try natural
             toNat p i (TZero p)
-          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ i _ | i < 0 = unexpected "unexpected negative number"
           toNat _ 0 t = return t
           toNat p i t = toNat p (i - 1) (TSucc p t)
 
@@ -189,7 +189,7 @@ variable = optionalAscribed $ optionalProjection (pairIndexes <|> identifier) $ 
     p <- getPosition
     ns <- getState
     case findIndex ((== name) . fst) ns of
-         Just n -> return $ TVar p n (length $ ns)
+         Just n -> return $ TVar p n (length ns)
          Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show p)
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
@@ -198,16 +198,16 @@ keyValue devider val = (,) <$> (identifier <* devider) <*> val
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
-    (try $ dotRef key t) <|> (return t)
+    try (dotRef key t) <|> return t
     where dotRef k t = do
             pos <- dot *> getPosition
             i <- k
-            (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
+            try (dotRef key (TProj pos t i)) <|> return (TProj pos t i)
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
-    (try $ f t) <|> (return t)
+    try (f t) <|> return t
   where f t = do
           padded $ reserved "as"
           ty <- typeAnnotation

@@ -56,7 +56,7 @@ typeOf (TIf p t1 t2 t3) = do
     joinTypes p ty2 ty3
 
 typeOf (TRecord _ fields) = do
-    tys <- sequence $ fmap tyField $ Map.toList fields
+    tys <- mapM tyField (Map.toList fields)
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = (,) k <$> typeOf v
 
@@ -191,7 +191,7 @@ isSubtype p tyS tyT = do
 
               _ -> return False
 
-ok x = (return.return) x
+ok = return.return
 notFound = return Nothing
 
 joinTypes :: SourcePos ->  Type -> Type -> Eval Type

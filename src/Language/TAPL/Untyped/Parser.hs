@@ -14,22 +14,13 @@ parse :: String -> String -> Either ParseError ([Term], LCNames)
 parse = runParser untypedParser []
 
 untypedParser :: Parsec String LCNames ([Term], LCNames)
-untypedParser = do
-    ast <- term `sepEndBy` semi
-    eof
-    names <- getState
-    return (ast, names)
+untypedParser = (,) <$> (term `sepEndBy` semi <* eof) <*> getState
 
 term :: LCParser
-term = try apply
-   <|> try notApply
-   <|> parens term
+term = apply <|> notApply <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ do
-            optional spaces
-            pos <- getPosition
-            return $ TApp pos
+apply = try $ chainl1 notApply $ TApp <$> getPosition
 
 notApply :: LCParser
 notApply = (abstraction <?> "abstraction")
@@ -40,9 +31,7 @@ abstraction :: LCParser
 abstraction = do
     pos <- getPosition
     reserved "lambda"
-    varName <- identifier
-    _ <- dot
-    optional spaces
+    varName <- identifier <* dot
     context <- getState
     modifyState $ addName varName
     t <- term
@@ -55,5 +44,5 @@ variable = do
     ns <- getState
     pos <- getPosition
     case findIndex ((== name) . fst) ns of
-         Just n -> return $ TVar pos n (length $ ns)
+         Just n -> return $ TVar pos n (length ns)
          Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show pos)

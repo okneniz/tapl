@@ -69,7 +69,7 @@ prettify (TPair _ t1 t2) = do
     return $ braces (doc1 <> comma <> doc2)
 
 prettify (TRecord _ ts) = do
-    ts' <- sequence $ (f <$> Map.toList ts)
+    ts' <- sequence (f <$> Map.toList ts)
     return $ braces $ foldl1 (\x y -> x <> comma <+> y) ts'
     where f (s, t) = do
             doc <- prettify t
@@ -135,14 +135,14 @@ prettifyType (TyProduct ty1 ty2) = do
     return $ braces (doc1 <> pretty "*" <> doc2)
 
 prettifyType (TyRecord ts) = do
-    ts' <- sequence $ (f <$> Map.toList ts)
+    ts' <- sequence (f <$> Map.toList ts)
     return $ braces $ foldl1 (\x y -> x <> comma <+> y) ts'
     where f (k, ty) = do
             doc <- prettifyType ty
             return $ pretty k <> equals <> doc
 
 prettifyType (TyVariant ts) = do
-    ts' <- sequence $ (f <$> Map.toList ts)
+    ts' <- sequence (f <$> Map.toList ts)
     return $ angles $ foldl1 (\x y -> x <> comma <+> y) ts'
     where f (k, ty) = do
             doc <- prettifyType ty

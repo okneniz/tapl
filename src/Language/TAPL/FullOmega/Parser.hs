@@ -73,7 +73,7 @@ notTypeBind = termApply
           <|> (optionalProjection identifier (parens notTypeBind))
 
 assignT :: LCParser
-assignT = chainl1 (notAssign <|> parens notAssign) $ (padded $ reservedOp ":=") >> TAssign <$> getPosition
+assignT = chainl1 (notAssign <|> parens notAssign) $ padded (reservedOp ":=") >> TAssign <$> getPosition
 
 notAssign :: LCParser
 notAssign = value
@@ -130,7 +130,7 @@ nat = succ <|> pred <|> zero <|> integer
             p <- getPosition
             i <- try natural
             toNat p i (TZero p)
-          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ i _ | i < 0 = unexpected "unexpected negative number"
           toNat _ 0 t = return t
           toNat p i t = toNat p (i - 1) (TSucc p t)
 
@@ -228,19 +228,16 @@ letT = do
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
-    t' <- (try $ dotRef key t) <|> (return t)
-    return t'
+    try (dotRef key t) <|> return t
     where dotRef key t = do
             pos <- dot *> getPosition
             i <- key
-            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-            return t'
+            try (dotRef key (TProj pos t i)) <|> return (TProj pos t i)
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
-    t' <- (try $ f t) <|> (return t)
-    return t'
+    try (f t) <|> return t
   where f t = do
           spaces
           reserved "as"
@@ -366,7 +363,7 @@ startKind :: LCKindParser
 startKind = reservedOp "*" >> return Star
 
 arrowKind :: LCKindParser
-arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ (padded $ reservedOp "->") $> Arrow
+arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ padded (reservedOp "->") $> Arrow
 
 optionalParens :: Parsec String u a -> Parsec String u a
 optionalParens f = try (parens f) <|> try f

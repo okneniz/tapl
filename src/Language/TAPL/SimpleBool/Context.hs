@@ -13,7 +13,7 @@ addName :: LCNames -> String -> LCNames
 addName n x = bind x NameBind n
 
 addVar :: String -> Type -> LCNames -> LCNames
-addVar x ty n = bind x (VarBind ty) n
+addVar x ty = bind x (VarBind ty)
 
 pickFreshName :: LCNames -> String -> (String, LCNames)
 pickFreshName c name | isBound c name = pickFreshName c (name <> "'")

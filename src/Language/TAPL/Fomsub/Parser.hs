@@ -166,7 +166,7 @@ startKind :: LCKindParser
 startKind = reservedOp "*" >> return Star
 
 arrowKind :: LCKindParser
-arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ (padded $ reservedOp "->") $> Arrow
+arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ padded (reservedOp "->") $> Arrow
 
 optionalParens :: Parsec String u a -> Parsec String u a
 optionalParens f = try (parens f) <|> try f

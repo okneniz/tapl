@@ -17,10 +17,10 @@ type LCNames = Names Binding
 type Eval a = StateT LCNames (Except String) a
 
 addName :: String -> LCNames -> LCNames
-addName x n = bind x NameBind n
+addName x = bind x NameBind
 
 addVar :: String -> Type -> LCNames -> LCNames
-addVar x ty n = bind x (VarBind ty) n
+addVar x ty = bind x (VarBind ty)
 
 addTypeVar :: String -> Kind -> LCNames -> LCNames
 addTypeVar x k n = bind x (TypeVarBind k) n

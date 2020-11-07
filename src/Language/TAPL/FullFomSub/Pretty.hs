@@ -64,7 +64,7 @@ prettify (TAbs _ name _ t) = do
 prettify (TApp _ t1 t2) = (<+>) <$> prettify t1 <*> prettify t2
 
 prettify (TRecord _ ts) = do
-    ts' <- sequence $ (f <$> Map.toList ts)
+    ts' <- sequence (f <$> Map.toList ts)
     return $ braces $ foldl1 (\x y -> x <> comma <+> y) ts'
     where f (s, t) = do
             doc <- prettify t
@@ -133,7 +133,7 @@ prettifyType (TyArrow ty1 ty2) = do
     return $ parens (doc1 <+> pretty "->" <+> doc2)
 
 prettifyType (TyRecord ts) = do
-    ts' <- sequence $ (f <$> Map.toList ts)
+    ts' <- sequence (f <$> Map.toList ts)
     return $ braces $ foldl1 (\x y -> x <> comma <+> y) ts'
     where f (k, ty) = do
             doc <- prettifyType ty

@@ -22,7 +22,7 @@ putVar :: String -> Type -> LCState -> LCState
 putVar x ty s = s { names = (bind x (VarBind ty) (names s)) }
 
 addName :: String -> LCNames -> LCNames
-addName x n = bind x NameBind n
+addName x = bind x NameBind
 
 pickFreshName :: LCNames -> String -> (String, LCNames)
 pickFreshName c name | isBound c name = pickFreshName c (name <> "'")

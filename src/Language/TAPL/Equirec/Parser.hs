@@ -3,8 +3,10 @@ module Language.TAPL.Equirec.Parser (parse) where
 import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Context
 import Language.TAPL.Equirec.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
 import Language.TAPL.Common.Context (findVarName)
+
+import Data.Functor (($>))
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
@@ -14,17 +16,13 @@ type LCParser = Parsec String LCNames Term
 type LCTypeParser = Parsec String LCNames Type
 
 parse :: String -> String -> Either ParseError ([Command], LCNames)
-parse = runParser reconParser []
+parse = runParser equirecParser []
 
-reconParser :: Parsec String LCNames ([Command], LCNames)
-reconParser = do
-    commands <- command `sepEndBy` semi
-    eof
-    names <- getState
-    return $ (commands, names)
+equirecParser :: Parsec String LCNames ([Command], LCNames)
+equirecParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
-command =  (try bindCommand) <|> (try evalCommand)
+command = bindCommand <|> evalCommand
 
 bindCommand :: LCCommandParser
 bindCommand = do
@@ -36,40 +34,26 @@ bindCommand = do
     return $ Bind pos x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
-evalCommand = try $ Eval <$> term `sepEndBy` semi
+evalCommand = Eval <$> term `sepEndBy` semi
 
 term :: LCParser
-term = try apply
-   <|> try notApply
-   <|> parens term
+term = apply <|> notApply <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ do
-            optional spaces
-            pos <- getPosition
-            return $ TApp pos
+apply = try $ chainl1 (notApply <|> try (parens apply)) $ TApp <$> getPosition
 
 notApply :: LCParser
-notApply = try (abstraction <?> "abstraction")
-       <|> try (variable <?> "variable")
-       <|> try (parens notApply)
-
-notTypeBind :: LCParser
-notTypeBind = try apply
-          <|> try notApply
-          <|> try (parens notTypeBind)
+notApply = (abstraction <?> "abstraction") <|> (variable <?> "variable") <|> (parens notApply)
 
 abstraction :: LCParser
 abstraction = do
     pos <- getPosition
     reserved "lambda"
     name <- identifier
-    ty <- termType
-    dot
-    optional spaces
+    ty <- colon *> typeAnnotation <* dot
     names <- getState
     modifyState $ addVar name ty
-    t <- notTypeBind
+    t <- term
     setState names
     return $ TAbs pos name ty t
 
@@ -82,13 +66,8 @@ variable = do
          Just n -> return $ TVar pos n (length names)
          Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show pos)
 
-termType :: LCTypeParser
-termType = colon >> typeAnnotation
-
 typeAnnotation :: LCTypeParser
-typeAnnotation = try recursiveType
-             <|> try arrowAnnotation
-             <|> notArrowAnnotation
+typeAnnotation = recursiveType <|> arrowAnnotation <|> notArrowAnnotation
 
 recursiveType :: LCTypeParser
 recursiveType = do
@@ -101,14 +80,10 @@ recursiveType = do
     return $ TyRec x ty
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-    optional spaces
-    reservedOp "->"
-    optional spaces
-    return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 notArrowAnnotation :: LCTypeParser
-notArrowAnnotation = try typeVarOrID
+notArrowAnnotation = typeVarOrID
 
 typeVarOrID:: LCTypeParser
 typeVarOrID = do

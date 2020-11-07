@@ -70,7 +70,7 @@ variable = do
     ns <- getState
     pos <- getPosition
     case findIndex ((== name) . fst) ns of
-         Just n -> return $ TVar pos n (length $ ns)
+         Just n -> return $ TVar pos n (length ns)
          Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show pos)
 
 boolean :: LCParser
@@ -87,7 +87,7 @@ nat = succ <|> pred <|> zero <|> integer
             p <- getPosition
             i <- try natural
             toNat p i (TZero p)
-          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ i _ | i < 0 = unexpected "unexpected negative number"
           toNat _ 0 t = return t
           toNat p i t = toNat p (i - 1) (TSucc p t)
 

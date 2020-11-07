@@ -59,8 +59,7 @@ abstraction = do
     pos <- getPosition
     reserved "lambda"
     name <- identifier
-    ty <- termType
-    _ <- dot
+    ty <- termType <* dot
     optional spaces
     n <- getState
     modifyState $ addVar name ty
@@ -94,7 +93,7 @@ nat = succ <|> pred <|> zero <|> integer
             p <- getPosition
             i <- try natural
             toNat p i (TZero p)
-          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ i _ | i < 0 = unexpected "unexpected negative number"
           toNat _ 0 t = return t
           toNat p i t = toNat p (i - 1) (TSucc p t)
 

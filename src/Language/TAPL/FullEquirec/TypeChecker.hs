@@ -33,7 +33,7 @@ typeOf (TAscribe p t1 ty) = do
     return ty
 
 typeOf (TRecord _ fields) = do
-    tys <- sequence $ fmap tyField $ Map.toList fields
+    tys <- mapM tyField (Map.toList fields)
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = do
             tyf <- typeOf v
@@ -108,17 +108,17 @@ typeOf (TCase p v branches) = do
     ty' <- simplifyType v'
     case ty' of
          TyVariant fields -> do
-            when (not $ null invalidCaseBranches)
+            unless (null invalidCaseBranches)
                  (typeError p $ "Invalid case branches : " <> intercalate ", " invalidCaseBranches)
 
-            when (not $ null absentCaseBranches)
+            unless (null absentCaseBranches)
                  (typeError p $ "Absent case branches : " <> intercalate ", " absentCaseBranches)
 
-            cases <- sequence $ fmap caseType $ Map.toList $ Map.intersectionWith (,) branches fields
+            cases <- traverse caseType (Map.toList $ Map.intersectionWith (,) branches fields)
             theSameTypes <- sequence $ [typeEq t1 t2 | (t1:ys) <- tails $ snd <$> cases, t2 <- ys]
 
-            unless (all id theSameTypes)
-                   (typeError p $ "Case branches have different types")
+            unless (and theSameTypes)
+                   (typeError p "Case branches have different types")
 
             return $ snd $ head cases
 

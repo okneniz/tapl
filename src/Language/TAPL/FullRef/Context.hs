@@ -38,7 +38,7 @@ addName :: String -> LCNames -> LCNames
 addName x = bind x NameBind
 
 addVar :: String -> Type -> LCNames -> LCNames
-addVar x ty n = bind x (VarBind ty) n
+addVar x ty = bind x (VarBind ty)
 
 pickFreshName :: LCNames -> String -> (String, LCNames)
 pickFreshName c name | isBound c name = pickFreshName c (name <> "'")
@@ -84,7 +84,7 @@ assign :: Location -> Term -> Eval ()
 assign l t = getMemory >>= f l >>= putMemory
        where f 0 (_:rest) = return $ t:rest
              f i (x:rest) = f (i - 1) rest >>= \rest' -> return $ x:rest'
-             f _ _ = lift $ throwE $ "invalid location"
+             f _ _ = lift $ throwE "invalid location"
 
 shiftStore :: VarName -> Eval ()
 shiftStore i = getMemory >>= \m -> putMemory $ termShift i <$> m

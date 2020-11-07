@@ -74,7 +74,7 @@ notTypeBind = termApply
           <|> (optionalProjection identifier (parens notTypeBind))
 
 assignT :: LCParser
-assignT = chainl1 (notAssign <|> parens notAssign) $ (padded $ reservedOp ":=") >> TAssign <$> getPosition
+assignT = chainl1 (notAssign <|> parens notAssign) $ padded (reservedOp ":=") >> TAssign <$> getPosition
 
 notAssign :: LCParser
 notAssign = value
@@ -226,19 +226,16 @@ letT = do
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
-    t' <- (try $ dotRef key t) <|> (return t)
-    return t'
+    try (dotRef key t) <|> return t
     where dotRef key t = do
             pos <- dot *> getPosition
             i <- key
-            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-            return t'
+            try (dotRef key (TProj pos t i)) <|> return (TProj pos t i)
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
-    t' <- (try $ f t) <|> (return t)
-    return t'
+    try (f t) <|> return t
   where f t = do
           spaces
           reserved "as"

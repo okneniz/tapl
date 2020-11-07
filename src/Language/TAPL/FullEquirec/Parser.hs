@@ -20,7 +20,7 @@ parse :: String -> String -> Either ParseError ([Command], LCNames)
 parse = runParser fullEquirecParser []
 
 fullEquirecParser :: Parsec String LCNames ([Command], LCNames)
-fullEquirecParser =  (,) <$> (command `sepEndBy` semi <* eof) <*> getState
+fullEquirecParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
 command = padded $ bindCommand <|> evalCommand
@@ -105,7 +105,7 @@ nat = succ <|> pred <|> zero <|> integer
             p <- getPosition
             i <- try natural
             toNat p i (TZero p)
-          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ i _ | i < 0 = unexpected "unexpected negative number"
           toNat _ 0 t = return t
           toNat p i t = toNat p (i - 1) (TSucc p t)
 
@@ -130,19 +130,16 @@ condition = TIf <$> getPosition
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
-    t' <- (try $ dotRef key t) <|> (return t)
-    return t'
+    try (dotRef key t) <|> return t
     where dotRef k t = do
               pos <- dot *> getPosition
               i <- k
-              t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-              return t'
+              try (dotRef key (TProj pos t i)) <|> return (TProj pos t i)
 
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
-    t' <- (try $ f t) <|> (return t)
-    return t'
+    try (f t) <|> return t
   where f t = do
           spaces
           reserved "as"

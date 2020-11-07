@@ -10,7 +10,7 @@ whileJust f x = case f x of
                      Nothing -> x
 
 ucid :: Parsec String a String
-ucid = (:) <$> (try x) <*> (try $ many y)
+ucid = (:) <$> (try x) <*> try (many y)
     where x = oneOf ['A'..'Z']
           y = oneOf $ ['A'..'Z'] <> ['a'..'z']
 

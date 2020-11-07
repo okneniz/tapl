@@ -36,7 +36,7 @@ typeOf (TApp p t1 t2) = do
                     (typeError p $ "incorrect application of abstraction " <> show tyT2 <> " to " <> show tyT11)
             return tyT12
          TyBot -> return TyBot
-         _ -> typeError p $ "arrow type expected"
+         _ -> typeError p "arrow type expected"
 
 typeOf (TIf p t1 t2 t3) = do
     ty1 <- typeOf t1

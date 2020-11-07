@@ -48,7 +48,7 @@ typeOf (TTApp p t1 tyT2) = do
     tyT1 <- lcst =<< typeOf t1
     case tyT1 of
          TyAll _ tyT11 tyT12 -> do
-             unlessM (tyT2 <: tyT11) (typeError p $ "type parameter type mismatch")
+             unlessM (tyT2 <: tyT11) (typeError p "type parameter type mismatch")
              return $ typeSubstitutionTop tyT2 tyT12
          _ -> typeError p "universal type expected"
 

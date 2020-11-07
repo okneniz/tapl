@@ -72,7 +72,7 @@ typeOf (TAssign p t1 t2) = do
          _ -> typeError p "first argument of := is not a Ref"
 
 typeOf (TRecord _ fields) = do
-    tys <- sequence $ fmap tyField $ Map.toList fields
+    tys <- mapM tyField (Map.toList fields)
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = (,) k <$> typeOf v
 

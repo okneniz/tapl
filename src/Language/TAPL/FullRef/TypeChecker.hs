@@ -4,7 +4,7 @@ import qualified Data.Map.Lazy as Map
 import Data.Map.Merge.Strict (merge, mapMaybeMissing, zipWithMaybeMatched)
 import Data.List (sort, intercalate, (\\))
 
-import Control.Monad (when, foldM)
+import Control.Monad (when, unless, foldM)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
 
@@ -60,7 +60,7 @@ typeOf (TLet _ x t1 t2) = do
         return $ typeShift (-1) ty2
 
 typeOf (TRecord _ fields) = do
-    tys <- sequence $ fmap tyField $ Map.toList fields
+    tys <- mapM tyField (Map.toList fields)
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = (,) k <$> typeOf v
 
@@ -81,13 +81,13 @@ typeOf (TCase p v branches) = do
     ty' <- simplifyType =<< typeOf v
     case ty' of
          TyVariant fields -> do
-            when (not $ null invalidCaseBranches)
+            unless (null invalidCaseBranches)
                  (typeError p $ "Invalid case branches : " <> intercalate ", " invalidCaseBranches)
 
-            when (not $ null absentCaseBranches)
+            unless (null absentCaseBranches)
                  (typeError p $ "Absent case branches : " <> intercalate ", " absentCaseBranches)
 
-            cases <- sequence $ fmap caseType $ Map.toList $ Map.intersectionWith (,) branches fields
+            cases <- traverse caseType (Map.toList $ Map.intersectionWith (,) branches fields)
             foldM joinTypes TyBot cases
             where variantKeys = Map.keys fields
                   branchesKeys = Map.keys branches

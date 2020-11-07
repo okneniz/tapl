@@ -4,7 +4,9 @@ import Language.TAPL.Bot.Types
 import Language.TAPL.Bot.Context
 import Language.TAPL.Bot.Lexer
 import Language.TAPL.Common.Context (findVarName)
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
+
+import Data.Functor (($>))
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
@@ -17,14 +19,10 @@ parse :: String -> String -> Either ParseError ([Command], LCNames)
 parse = runParser botParser []
 
 botParser :: Parsec String LCNames ([Command], LCNames)
-botParser = do
-    commands <- command `sepEndBy` semi
-    eof
-    names <- getState
-    return $ (commands, names)
+botParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
-command =  (try bindCommand) <|> (try evalCommand)
+command = bindCommand <|> evalCommand
 
 bindCommand :: LCCommandParser
 bindCommand = do
@@ -36,32 +34,23 @@ bindCommand = do
     return $ Bind pos x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
-evalCommand = try $ Eval <$> term `sepEndBy` semi
+evalCommand = Eval <$> term `sepEndBy` semi
 
 term :: LCParser
-term = (try apply <?> "apply")
-    <|> (try notApply <?> "not apply expressions")
-    <|> parens term
+term = apply <|> notApply <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ do
-          p <- getPosition
-          whiteSpace
-          return $ TApp p
+apply = try $ chainl1 (notApply <|> try (parens apply)) $ TApp <$> getPosition
 
 notApply :: LCParser
-notApply =  try abstraction
-        <|> try variable
-        <|> parens notApply
+notApply = abstraction <|> variable <|> parens notApply
 
 abstraction :: LCParser
 abstraction = do
     p <- getPosition
     reserved "lambda"
     varName <- identifier
-    varType <- termType
-    _ <- dot
-    optional space
+    varType <- colon *> typeAnnotation <* dot
     context <- getState
     modifyState $ addVar varName varType
     t <- term
@@ -74,21 +63,14 @@ variable = do
     p <- getPosition
     ns <- getState
     case findVarName ns name of
-        Just n -> return $ TVar p n (length $ ns)
+        Just n -> return $ TVar p n (length ns)
         Nothing -> unexpected $ "variable " <> name <> " has't been bound in context " <> (show p)
 
-termType :: LCTypeParser
-termType = colon >> typeAnnotation
-
 typeAnnotation :: LCTypeParser
-typeAnnotation = try arrowAnnotation
-             <|> try notArrowAnnotation
-             <|> (try $ parens typeAnnotation)
+typeAnnotation = arrowAnnotation <|> notArrowAnnotation <|> parens typeAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-                    reservedOp "->"
-                    return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = topAnnotation <|> botAnnotation

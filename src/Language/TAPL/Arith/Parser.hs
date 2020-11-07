@@ -33,7 +33,7 @@ nat = succ <|> pred <|> zero <|> integer
           integer = do
             i <- try natural
             toNat i TZero
-          toNat i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat i _ | i < 0 = unexpected "unexpected negative number"
           toNat 0 t = return t
           toNat i t = toNat (i - 1) (TSucc t)
 

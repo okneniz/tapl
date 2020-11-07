@@ -105,7 +105,7 @@ nat = succ <|> pred <|> zero <|> integer
             p <- getPosition
             i <- try natural
             toNat p i (TZero p)
-          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ i _ | i < 0 = unexpected "unexpected negative number"
           toNat _ 0 t = return t
           toNat p i t = toNat p (i - 1) (TSucc p t)
 
@@ -140,7 +140,7 @@ pairIndexes = flip(:) [] <$> oneOf "01"
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
-    (try $ dotRef key t) <|> (return t)
+    try (dotRef key t) <|> return t
     where dotRef k t1 = do
             pos <- dot *> getPosition
             i <- k
@@ -149,8 +149,7 @@ optionalProjection key tm = do
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
-    t' <- (try $ f t) <|> (return t)
-    return t'
+    try (f t) <|> return t
   where f t = do
           spaces
           reserved "as"

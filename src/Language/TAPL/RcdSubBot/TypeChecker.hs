@@ -15,7 +15,7 @@ import Language.TAPL.RcdSubBot.Context
 
 typeOf :: Term -> Eval Type
 typeOf (TRecord _ fields) = do
-    tys <- sequence $ fmap tyField $ Map.toList fields
+    tys <- mapM tyField (Map.toList fields)
     return $ TyRecord $ Map.fromList tys
     where tyField (k,v) = (,) k <$> typeOf v
 

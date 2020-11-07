@@ -20,10 +20,10 @@ data LCState = LCState { names :: LCNames, memory :: LCMemory } deriving (Show)
 type Eval a = StateT LCState (Except String) a
 
 addName :: String -> LCNames -> LCNames
-addName x n = bind x NameBind n
+addName x = bind x NameBind
 
 addVar :: String -> Type -> LCNames -> LCNames
-addVar x ty n = bind x (VarBind ty) n
+addVar x ty = bind x (VarBind ty)
 
 addTypeVar :: String -> Kind -> LCNames -> LCNames
 addTypeVar x ty n = bind x (TypeVarBind ty) n
@@ -93,7 +93,7 @@ assign :: Location -> Term -> Eval ()
 assign l t = getMemory >>= f l >>= putMemory
        where f 0 (_:rest) = return $ t:rest
              f i (x:rest) = f (i - 1) rest >>= \rest' -> return $ x:rest'
-             f _ _ = lift $ throwE $ "invalid location"
+             f _ _ = lift $ throwE "invalid location"
 
 shiftStore :: SourcePos -> VarName -> Eval ()
 shiftStore p i = do

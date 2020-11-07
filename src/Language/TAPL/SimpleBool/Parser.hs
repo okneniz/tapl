@@ -3,6 +3,9 @@ module Language.TAPL.SimpleBool.Parser (parse) where
 import Language.TAPL.SimpleBool.Types
 import Language.TAPL.SimpleBool.Context
 import Language.TAPL.SimpleBool.Lexer
+import Language.TAPL.Common.Helpers (padded)
+
+import Data.Functor (($>))
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
@@ -15,22 +18,13 @@ parse :: String -> String -> Either ParseError (AST, LCNames)
 parse = runParser simpleBoolParser []
 
 simpleBoolParser :: Parsec String LCNames (AST, LCNames)
-simpleBoolParser = do
-    ast <- term `sepEndBy` semi
-    eof
-    names <- getState
-    return (ast, names)
+simpleBoolParser = (,) <$> (term `sepEndBy` semi <* eof) <*> getState
 
 term :: LCParser
-term = try apply
-   <|> try notApply
-   <|> parens term
+term = apply <|> notApply <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ do
-            optional spaces
-            pos <- getPosition
-            return $ TApp pos
+apply = try $ chainl1 notApply $ TApp <$> getPosition
 
 notApply :: LCParser
 notApply = (boolean     <?> "boolean")
@@ -42,11 +36,8 @@ notApply = (boolean     <?> "boolean")
 abstraction :: LCParser
 abstraction = do
     pos <- getPosition
-    reserved "lambda"
-    varName <- identifier
-    varType <- termType
-    _ <- dot
-    optional spaces
+    varName <- reserved "lambda" *> identifier
+    varType <- colon *> typeAnnotation <* dot
     context <- getState
     modifyState $ addVar varName varType
     t <- term
@@ -59,7 +50,7 @@ variable = do
     ns <- getState
     pos <- getPosition
     case findIndex ((== name) . fst) ns of
-         Just n -> return $ TVar pos n (length $ ns)
+         Just n -> return $ TVar pos n (length ns)
          Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show pos)
 
 boolean :: LCParser
@@ -76,18 +67,11 @@ condition = TIf <$> getPosition
                 <*> (reserved "then" *> term)
                 <*> (reserved "else" *> term)
 
-termType :: LCTypeParser
-termType = colon >> typeAnnotation
-
 typeAnnotation :: LCTypeParser
 typeAnnotation = try arrowAnnotation <|> booleanAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (booleanAnnotation <|> parens arrowAnnotation) $ do
-    optional spaces
-    reservedOp "->"
-    optional spaces
-    return TyArrow
+arrowAnnotation = chainr1 (booleanAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 booleanAnnotation :: LCTypeParser
 booleanAnnotation = reserved "Bool" >> return TyBool

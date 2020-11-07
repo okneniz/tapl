@@ -3,13 +3,15 @@ module Language.TAPL.PureFSub.Parser (parse) where
 import Language.TAPL.PureFSub.Types
 import Language.TAPL.PureFSub.Context
 import Language.TAPL.PureFSub.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, padded)
 import Language.TAPL.Common.Context (findVarName)
 
 import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
+
+import Data.Functor (($>))
 
 type LCCommandParser = Parsec String LCNames Command
 type LCParser = Parsec String LCNames Term
@@ -19,13 +21,10 @@ parse :: String -> String -> Either ParseError ([Command], LCNames)
 parse = runParser pureFSubParser []
 
 pureFSubParser :: Parsec String LCNames ([Command], LCNames)
-pureFSubParser = do
-    commands <- command `sepEndBy` semi <* eof
-    names <- getState
-    return $ (commands, names)
+pureFSubParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
-command = (optional spaces) >> ((try bindCommand) <|> evalCommand)
+command = padded (bindCommand <|> evalCommand)
 
 bindCommand :: LCCommandParser
 bindCommand = do
@@ -103,11 +102,7 @@ typeAnnotation :: LCTypeParser
 typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-    optional spaces
-    reservedOp "->"
-    optional spaces
-    return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = try topAnnotation <|> try universalType <|> typeVarOrID

@@ -64,8 +64,7 @@ abstraction = do
     pos <- getPosition
     reserved "lambda"
     name <- identifier
-    ty <- termType
-    _ <- dot
+    ty <- termType <* dot
     optional spaces
     names <- getState
     modifyState $ addVar name ty
@@ -85,14 +84,11 @@ variable = optionalProjection identifier $ do
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
-    t' <- (try $ dotRef key t) <|> (return t)
-    return t'
+    try (dotRef key t) <|> return t
     where dotRef key t = do
-            _ <- dot
-            pos <- getPosition
+            pos <- dot *> getPosition
             i <- key
-            t' <- (try $ dotRef key (TProj pos t i)) <|> (return $ TProj pos t i)
-            return t'
+            try (dotRef key (TProj pos t i)) <|> return (TProj pos t i)
 
 record :: LCParser
 record = optionalProjection identifier $ braces $ do

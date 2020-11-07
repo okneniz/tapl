@@ -202,8 +202,7 @@ letT = do
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
-    t' <- (try $ dotRef key t) <|> (return t)
-    return t'
+    try (dotRef key t) <|> return t
     where dotRef k t = do
             pos <- dot *> getPosition
             i <- key
@@ -213,8 +212,7 @@ optionalProjection key tm = do
 optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
-    t' <- (try $ f t) <|> (return t)
-    return t'
+    try (f t) <|> return t
   where f t = do
           spaces
           reserved "as"
@@ -345,7 +343,7 @@ startKind :: LCKindParser
 startKind = reservedOp "*" >> return Star
 
 arrowKind :: LCKindParser
-arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ (padded $ reservedOp "->") $> Arrow
+arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ padded (reservedOp "->") $> Arrow
 
 optionalParens :: Parsec String u a -> Parsec String u a
 optionalParens f = try (parens f) <|> try f
