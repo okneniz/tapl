@@ -13,6 +13,10 @@ spec = do
               ("false", pass "false:Bool"),
               ("\"foo\"", pass "\"foo\":String"),
               ("unit", pass "unit:Unit"),
+              ("0", pass "zero:Nat"),
+              ("5", pass "succ succ succ succ succ zero:Nat"),
+              ("pred 5", pass "succ succ succ succ zero:Nat"),
+              ("4", pass "succ succ succ succ zero:Nat"),
               ("1.1", pass "1.1:Float"),
               ("1.1000001", pass "1.1000001:Float")
             ]
@@ -82,7 +86,7 @@ spec = do
                   ("pred zero", pass "zero:Nat"),
                   ("pred succ zero", pass "zero:Nat"),
                   ("succ pred pred zero", pass "succ zero:Nat"),
-                  ("zero? zero", pass "true:Bool"),
+                  ("zero? 0", pass "true:Bool"),
                   ("zero? succ zero", pass "false:Bool"),
                   ("timesfloat 1.0 2.0", pass "2.0:Float"),
                   ("timesfloat (timesfloat 1.3 1.111) 2.0", pass "2.8886000000000003:Float"),
@@ -110,7 +114,7 @@ spec = do
                     \lambda y:Nat. \
                     \lambda z:Float. \
                     \lambda p:Float. \
-                    \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14 9.8", pass "9.8:Float"),
+                    \if x y then z else p) (lambda x:Nat. zero? x) 1 3.14 9.8", pass "9.8:Float"),
                   ("(lambda x:{a:Bool,b:Bool}.x) {a=true, b=false}", pass "{a=true, b=false}:{a=Bool, b=Bool}"),
                   ("(lambda x:{a:Bool,b:Bool}.if x.a then false else true) {a=true, b=false}", pass "false:Bool"),
                   ("(lambda x:Top. x) (lambda x:Top. x)", pass "(lambda x.x):(Top -> Top)"),
