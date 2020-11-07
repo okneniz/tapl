@@ -95,13 +95,14 @@ construction = (condition <?> "condition")
            <|> (letT <?> "let")
 
 value :: LCParser
-value = optionalAscribed $ nat <|> (boolean <?> "boolean")
-                               <|> (unit <?> "unit")
-                               <|> (stringT <?> "string")
-                               <|> (float <?> "float")
-                               <|> ((optionalProjection identifier record) <?> "record")
-                               <|> (typeAbstraction <?> "type abstraction")
-                               <|> (abstraction <?> "abstraction")
+value = optionalAscribed $ (boolean <?> "boolean")
+                       <|> (float <?> "float")
+                       <|> (nat <?> "nat")
+                       <|> (unit <?> "unit")
+                       <|> (stringT <?> "string")
+                       <|> ((optionalProjection identifier record) <?> "record")
+                       <|> (typeAbstraction <?> "type abstraction")
+                       <|> (abstraction <?> "abstraction")
 
 isZero :: LCParser
 isZero = fun "zero?" TIsZero
@@ -119,10 +120,17 @@ derefT :: LCParser
 derefT = TDeref <$> (reservedOp "!" >> getPosition) <*> notTypeBind
 
 nat :: LCParser
-nat = (zero <?> "zero") <|> (succ <?> "succ") <|> (pred <?> "pred")
-  where zero = constant "zero" TZero
-        succ = fun "succ" TSucc
-        pred = fun "pred" TPred
+nat = succ <|> pred <|> zero <|> integer
+    where succ = fun "succ" TSucc
+          pred = fun "pred" TPred
+          zero = constant "zero" TZero
+          integer = do
+            p <- getPosition
+            i <- try natural
+            toNat p i (TZero p)
+          toNat _ i _ | i < 0 = unexpected $ "unexpected negative number"
+          toNat _ 0 t = return t
+          toNat p i t = toNat p (i - 1) (TSucc p t)
 
 typeAbstraction :: LCParser
 typeAbstraction = try $ optionalParens $ do
@@ -184,13 +192,13 @@ keyValue devider val = (,) <$> (padded identifier <* devider) <*> padded val
 stringT :: LCParser
 stringT = TString <$> getPosition <*> try stringLiteral
 
+float :: LCParser
+float = TFloat <$> getPosition <*> try floatNum
+
 boolean :: LCParser
 boolean = true <|> false
     where true = constant "true" TTrue
           false = constant "false" TFalse
-
-float :: LCParser
-float = TFloat <$> getPosition <*> try floatNum
 
 constant :: String -> (SourcePos -> Term) -> LCParser
 constant name t = reserved name >> (t <$> getPosition)

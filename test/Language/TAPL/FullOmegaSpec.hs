@@ -14,7 +14,14 @@ spec = do
               ("\"foo\"", pass "\"foo\":String"),
               ("unit", pass "unit:Unit"),
               ("1.1", pass "1.1:Float"),
-              ("1.1000001", pass "1.1000001:Float")
+              ("1.1000001", pass "1.1000001:Float"),
+              ("true", pass "true:Bool"),
+              ("false", pass "false:Bool"),
+              ("zero", pass "zero:Nat"),
+              ("0", pass "zero:Nat"),
+              ("5", pass "succ succ succ succ succ zero:Nat"),
+              ("pred 5", pass "succ succ succ succ zero:Nat"),
+              ("4", pass "succ succ succ succ zero:Nat")
             ]
 
         describe "records" $ do
@@ -69,7 +76,7 @@ spec = do
                   ("pred zero", pass "zero:Nat"),
                   ("pred succ zero", pass "zero:Nat"),
                   ("succ pred pred zero", pass "succ zero:Nat"),
-                  ("zero? zero", pass "true:Bool"),
+                  ("zero? 0", pass "true:Bool"),
                   ("zero? succ zero", pass "false:Bool"),
                   ("timesfloat 1.0 2.0", pass "2.0:Float"),
                   ("timesfloat (timesfloat 1.3 1.111) 2.0", pass "2.8886000000000003:Float"),
@@ -85,7 +92,7 @@ spec = do
                   ("(lambda x:Nat. succ x) succ zero", pass "succ succ zero:Nat"),
                   ("(lambda x:Nat.lambda y:Float.lambda z:Float. if zero? x then y else z) pred zero", pass "(lambda y.(lambda z.if zero? zero then y else z)):(Float -> (Float -> Float))"),
                   ("(lambda x:Nat.lambda y:Float.lambda z:Float. if zero? x then y else z) zero 3.14 9.8", pass "3.14:Float"),
-                  ("(lambda x:Nat -> Nat. x zero) (lambda x:Nat. succ x)", pass "succ zero:Nat"),
+                  ("(lambda x:Nat -> Nat. x 0) (lambda x:Nat. succ x)", pass "succ zero:Nat"),
                   ("(lambda x:Nat -> Bool. \
                     \lambda y:Nat. \
                     \lambda z:Float. \
@@ -97,7 +104,7 @@ spec = do
                     \lambda y:Nat. \
                     \lambda z:Float. \
                     \lambda p:Float. \
-                    \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14 9.8", pass "9.8:Float"),
+                    \if x y then z else p) (lambda x:Nat. zero? x) 1 3.14 9.8", pass "9.8:Float"),
                   ("(lambda x:{a:Bool,b:Bool}.x) {a=true, b=false}", pass "{a=true, b=false}:{a=Bool, b=Bool}"),
                   ("(lambda x:{a:Bool,b:Bool}.if x.a then false else true) {a=true, b=false}", pass "false:Bool")
                  ]
