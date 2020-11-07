@@ -53,7 +53,7 @@ typeCheck (t:ts) = typeOf t >> typeCheck ts
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t
 normalize (TApp pos t1 t2) | isVal t1 = TApp pos t1 <$> normalize t2
-normalize (TApp pos t1 t2) = normalize t1 >>= \t1' -> return $ TApp pos t1' t2
+normalize (TApp p t1 t2) = flip(TApp p) t2 <$> normalize t1
 
 normalize (TRecord _ fields) | (Map.size fields) == 0 = Nothing
 normalize t@(TRecord _ _) | isVal t = Nothing

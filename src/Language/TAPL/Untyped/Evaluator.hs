@@ -20,5 +20,5 @@ evalString code = do
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ t) v) | isVal v = return $ substitutionTop v t
 normalize (TApp p t1 t2) | isVal t1  = TApp p t1 <$> normalize t2
-normalize (TApp p t1 t2) = normalize t1 >>= \t1' -> return $ TApp p t1' t2
+normalize (TApp p t1 t2) = flip(TApp p) t2 <$> normalize t1
 normalize _ = Nothing

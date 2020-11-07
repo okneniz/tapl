@@ -3,7 +3,7 @@ module Language.TAPL.FullFSub.Evaluator (evalString) where
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
 
-import Control.Monad (liftM)
+import Control.Monad (liftM, liftM3)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
@@ -63,7 +63,7 @@ normalize (TApp p t1 t2) = flip (TApp p) t2 <$> normalize t1
 
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf p t1 t2 t3) = normalize t1 >>= \t1' -> return $ TIf p t1' t2 t3
+normalize (TIf p t1 t2 t3) = liftM3 (TIf p) (normalize t1) (return t2) (return t3)
 
 normalize (TRecord _ fields) | (Map.size fields) == 0 = Nothing
 normalize t@(TRecord _ _) | isVal t = Nothing

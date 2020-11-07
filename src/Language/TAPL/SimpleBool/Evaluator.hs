@@ -9,6 +9,7 @@ import Language.TAPL.TypedArith.Parser
 import Language.TAPL.TypedArith.TypeChecker
 import Language.TAPL.TypedArith.Pretty
 
+import Control.Monad (liftM3)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
@@ -51,8 +52,9 @@ typeCheck (t:ts) = typeOf t >> typeCheck ts
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf pos t1 t2 t3) = normalize t1 >>= \t1' -> return $ TIf pos t1' t2 t3
+normalize (TIf p t1 t2 t3) = liftM3(TIf p) (normalize t1) (return t2) (return t3)
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ substitutionTop v t
 normalize (TApp pos t1 t2) | isVal t1 = TApp pos t1 <$> normalize t2
-normalize (TApp pos t1 t2) = normalize t1 >>= \t1' -> return $ TApp pos t1' t2
+normalize (TApp p t1 t2) = flip(TApp p) t2 <$> normalize t1
+normalize (TApp p t1 t2) = flip(TApp p) t2 <$> normalize t1
 normalize _ =  Nothing

@@ -3,7 +3,7 @@ module Language.TAPL.FullIsorec.Evaluator (evalString) where
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
 
-import Control.Monad (liftM)
+import Control.Monad (liftM, liftM3)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
@@ -53,14 +53,14 @@ typeCheck (t:ts) = typeOf t >> typeCheck ts
 
 normalize :: Term -> Maybe Term
 normalize (TLet _ _ t1 t2) | isVal t1 = return $ termSubstitutionTop t1 t2
-normalize (TLet p v t1 t2) = normalize t1 >>= \t1' -> return $ TLet p v t1' t2
+normalize (TLet p v t1 t2) = flip(TLet p v) t2 <$> normalize t1
 
 normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = return $ termSubstitutionTop t1 t2
 normalize (TFix p t) = TFix p <$> normalize t
 
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf p t1 t2 t3) = normalize t1 >>= \t1' -> return $ TIf p t1' t2 t3
+normalize (TIf p t1 t2 t3) = liftM3 (TIf p) (normalize t1) (return t2) (return t3)
 
 normalize (TAscribe _ t _) | isVal t = return t
 normalize (TAscribe _ t _) = normalize t
@@ -74,11 +74,11 @@ normalize (TRecord p fs) = do
           evalField (k, v) = ((,) k) <$> normalize v
 
 normalize (TProj _ t@(TRecord _ fs) k) | isVal t = Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) k) = normalize t >>= \t' -> return $ (TProj p t' k)
+normalize (TProj p t@(TRecord _ _) k) = flip(TProj p) k <$> normalize t
 
 normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = return $ TFloat p (t1 * t2)
 normalize (TTimesFloat p t1 t2) | isVal t1 = TTimesFloat p t1 <$> normalize t2
-normalize (TTimesFloat p t1 t2) = normalize t1 >>= \t1' -> return $ TTimesFloat p t1' t2
+normalize (TTimesFloat p t1 t2) = flip(TTimesFloat p) t2 <$> normalize t1
 
 normalize (TApp _ (TUnfold _ tyS) (TApp _ (TFold _ tyT) v)) | isVal v = return v
 normalize (TApp p t1@(TFold _ _) t2) = TApp p t1 <$> normalize t2
@@ -100,14 +100,14 @@ normalize (TIsZero p t) = TIsZero p <$> normalize t
 
 normalize (TProj _ (TPair _ t _) "0") | isVal t = return t
 normalize (TProj _ (TPair _ _ t) "1") | isVal t = return t
-normalize (TProj p t k) = normalize t >>= \t' -> return $ TProj p t' k
+normalize (TProj p t k) = flip(TProj p) k <$> normalize t
 
 normalize (TTag p x t ty) = normalize t >>= \t' -> return $ TTag p x t' ty
 
 normalize (TCase _ (TTag _ k v _) bs) | isVal v = liftM (\(_, t) -> termSubstitutionTop v t) (Map.lookup k bs)
-normalize (TCase p t fs) = normalize t >>= \t' -> return $ TCase p t' fs
+normalize (TCase p t fs) = flip(TCase p) fs <$> normalize t
 
 normalize (TPair p t1 t2) | isVal t1 = TPair p t1 <$> normalize t2
-normalize (TPair p t1 t2) = normalize t1 >>= \t1' -> return $ TPair p t1' t2
+normalize (TPair p t1 t2) = flip(TPair p) t2 <$> normalize t1
 
 normalize _ = Nothing
