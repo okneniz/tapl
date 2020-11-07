@@ -147,17 +147,17 @@ typeEq ty1 ty2 = do
       ((TyID x), (TyID y)) -> return $ x == y
       (TyFloat, TyFloat) -> return True
 
-      (TyVar _ i, _) | isTypeAbb n i -> do
+      (TyVar i _, _) | isTypeAbb n i -> do
             case getTypeAbb n i of
                 Just x -> typeEq x ty2'
                 _ -> return False
 
-      (_, TyVar _ i) | isTypeAbb n i -> do
+      (_, TyVar i _) | isTypeAbb n i -> do
             case getTypeAbb n i of
                 Just x -> typeEq x ty1'
                 _ -> return False
 
-      (TyVar _ i, TyVar _ j) | i == j -> return True
+      (TyVar i _, TyVar j _) | i == j -> return True
 
       (TyBool, TyBool) -> return True
       (TyNat, TyNat) -> return True
