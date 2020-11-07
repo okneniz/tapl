@@ -44,25 +44,10 @@ typeEq tyS tyT = do
     return $ typeEq' [] names tyS tyT
     where mem _ [] = False
           mem y (x:xs) = (y == x) || (mem y xs)
-          typeEq' seen ns ty1 ty2 =
-            if mem (tyS,tyT) seen
-            then True
-            else typeEq'' [] ns ty1 ty2
+          typeEq' seen ns ty1 ty2 = if mem (tyS,tyT) seen then True else typeEq'' [] ns ty1 ty2
           typeEq'' seen n (TyRec _ tyS1) _ = typeEq' ((tyS, tyT):seen) n (typeSubstitutionTop tyS tyS1) tyT
           typeEq'' seen n _ (TyRec _ tyT1) = typeEq' ((tyS, tyT):seen) n tyS (typeSubstitutionTop tyT tyT1)
           typeEq'' _ _ (TyID b1) (TyID b2) = b1 == b2
-
-          typeEq'' seen n (TyVar i _) tyT1 | isTypeAbb n i =
-            case (getTypeAbb n i) of
-                Just x -> typeEq' seen n x tyT1
-                _ -> False
-
-          typeEq'' seen n tyS1 (TyVar i _) | isTypeAbb n i =
-            case (getTypeAbb n i) of
-                Just x -> typeEq' seen n tyS1 x
-                _ -> False
-
-          typeEq'' _ _ (TyVar _ i) (TyVar _ j) = i == j
           typeEq'' seen n (TyArrow tyS1 tyS2) (TyArrow tyT1 tyT2) = (typeEq' seen n tyS1 tyT1) && (typeEq' seen n tyS2 tyT2)
           typeEq'' _ _ _ _ = False
 
