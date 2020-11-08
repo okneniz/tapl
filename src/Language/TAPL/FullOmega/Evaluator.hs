@@ -3,7 +3,7 @@ module Language.TAPL.FullOmega.Evaluator (evalString) where
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
 
-import Control.Monad (liftM, unless)
+import Control.Monad (unless)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
@@ -78,7 +78,7 @@ normalize (TRecord p fs) = do
     where evalField (k,v) = (,) k <$> fullNormalize v
 
 normalize (TProj _ t@(TRecord _ fs) k) | isVal t = return $ Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) k) = fmap(\t' -> TProj p t' k) <$> normalize t
+normalize (TProj p t@(TRecord _ _) k) = fmap(flip(TProj p) k) <$> normalize t
 
 normalize (TRef p t) | isVal t = (\x -> return $ TLoc p x) <$> extend t
 normalize (TRef p t) = fmap(TRef p) <$> normalize t

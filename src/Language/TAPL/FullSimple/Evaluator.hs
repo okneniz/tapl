@@ -1,7 +1,7 @@
 module Language.TAPL.FullSimple.Evaluator (evalString) where
 
 import qualified Data.Map.Lazy as Map
-import Control.Monad (liftM, liftM3)
+import Control.Monad (liftM3)
 
 import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.Common.Context (bind)
@@ -82,7 +82,7 @@ normalize (TRecord p fields) = do
           evalField (k, v) = ((,) k) <$> normalize v
 
 normalize (TProj _ t@(TRecord _ fields) key) | isVal t = Map.lookup key fields
-normalize (TProj p t@(TRecord _ _) key) = normalize t >>= \t' -> return $ TProj p t' key
+normalize (TProj p t@(TRecord _ _) key) = flip(TProj p) key <$> normalize t
 
 normalize (TProj _ (TPair _ t _) "0") | isVal t = return t
 normalize (TProj _ (TPair _ _ t) "1") | isVal t = return t
@@ -101,7 +101,7 @@ normalize (TCase _ (TTag _ key v _) branches) | isVal v =
     fmap (\(_, t) -> substitutionTop v t)
           (Map.lookup key branches)
 
-normalize (TCase p t fields) = normalize t >>= \t' -> return $ TCase p t' fields
+normalize (TCase p t fields) = flip(TCase p) fields <$> normalize t
 
 normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = return $ TFloat p (t1 * t2)
 normalize (TTimesFloat p t1 t2) | isVal t1 = TTimesFloat p t1 <$> normalize t2

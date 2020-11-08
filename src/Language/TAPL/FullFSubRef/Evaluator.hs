@@ -3,7 +3,6 @@ module Language.TAPL.FullFSubRef.Evaluator (evalString) where
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
 
-import Control.Monad (liftM)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
@@ -53,14 +52,14 @@ nvm = return Nothing
 normalize :: Term -> Eval (Maybe Term)
 normalize (TIf _ (TTrue _) t _ ) = success t
 normalize (TIf _ (TFalse _) _ t) = success t
-normalize (TIf p t1 t2 t3) = fmap (\t1' -> TIf p t1' t2 t3 ) <$> normalize t1
+normalize (TIf p t1 t2 t3) = fmap(\t1' -> TIf p t1' t2 t3) <$> normalize t1
 
 normalize (TLet _ _ t1 t2) | isVal t1 = success $ termSubstitutionTop t1 t2
 normalize (TLet p v t1 t2) = fmap(\t1' -> TLet p v t1' t2) <$> normalize t1
 
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = success $ termSubstitutionTop v t
 normalize (TApp p t1 t2) | isVal t1 = fmap(TApp p t1) <$> normalize t2
-normalize (TApp p t1 t2) = fmap(\t1' -> TApp p t1' t2) <$> normalize t1
+normalize (TApp p t1 t2) = fmap(flip(TApp p) t2) <$> normalize t1
 
 normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = success $ termSubstitutionTop t1 t2
 normalize (TFix p t) = fmap(TFix p) <$> normalize t
@@ -74,7 +73,7 @@ normalize (TRecord p fs) = do
     where evalField (k,v) = (,) k <$> fullNormalize v
 
 normalize (TProj _ t@(TRecord _ fs) k) | isVal t = return $ Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) k) = fmap(\t' -> TProj p t' k) <$> normalize t
+normalize (TProj p t@(TRecord _ _) k) = fmap(flip(TProj p) k) <$> normalize t
 
 normalize (TTag p l t ty) = fmap(flip(TTag p l) ty) <$> normalize t
 

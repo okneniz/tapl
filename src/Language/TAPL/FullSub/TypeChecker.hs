@@ -7,7 +7,6 @@ import Data.Maybe (catMaybes)
 
 import Text.Parsec (SourcePos)
 
-import Control.Monad (liftM, liftM2, when, unless)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
