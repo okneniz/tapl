@@ -1,9 +1,6 @@
 module Language.TAPL.Fomega.TypeChecker (typeOf, kindOf) where
 
 import qualified Data.Map.Lazy as Map
-import Data.List (tails, (\\), intercalate, sort)
-import Data.Map.Merge.Strict (merge, mapMaybeMissing, zipWithMaybeMatched)
-import Data.Maybe (catMaybes)
 
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except

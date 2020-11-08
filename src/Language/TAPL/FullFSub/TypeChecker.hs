@@ -5,7 +5,6 @@ import Data.List (tails, (\\), intercalate, sort)
 import Data.Map.Merge.Strict (merge, mapMaybeMissing, zipWithMaybeMatched)
 import Data.Maybe (catMaybes)
 
-import Control.Monad (when, unless, liftM, liftM2, when, unless)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.State.Lazy

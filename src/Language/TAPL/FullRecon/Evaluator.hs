@@ -1,7 +1,6 @@
 module Language.TAPL.FullRecon.Evaluator (evalString) where
 
 import Data.List (last)
-import Control.Monad (liftM3)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
@@ -52,7 +51,7 @@ typeCheck (t:ts) = typeOf t >> typeCheck ts
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf p t1 t2 t3) = liftM3 (TIf p) (normalize t1) (return t2) (return t3)
+normalize (TIf p t1 t2 t3) = TIf p <$> normalize t1 <*> return t2 <*> return t3
 normalize (TSucc p t1) = TSucc p <$> normalize t1
 normalize (TPred _ (TZero p)) = return $ TZero p
 normalize (TPred _ (TSucc _ t)) | isNumerical  t = return t

@@ -3,7 +3,6 @@ module Language.TAPL.FullIsorec.Evaluator (evalString) where
 import Data.List (last)
 import qualified Data.Map.Lazy as Map
 
-import Control.Monad (liftM, liftM3)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
@@ -60,7 +59,7 @@ normalize (TFix p t) = TFix p <$> normalize t
 
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf p t1 t2 t3) = liftM3 (TIf p) (normalize t1) (return t2) (return t3)
+normalize (TIf p t1 t2 t3) = TIf p <$> normalize t1 <*> return t2 <*> return t3
 
 normalize (TAscribe _ t _) | isVal t = return t
 normalize (TAscribe _ t _) = normalize t

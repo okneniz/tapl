@@ -2,7 +2,6 @@ module Language.TAPL.FullError.Evaluator (evalString) where
 
 import Data.List (last)
 
-import Control.Monad (liftM3)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
@@ -54,7 +53,7 @@ normalize :: Term -> Maybe Term
 normalize (TIf _ t@(TError _) _ _) = return t
 normalize (TIf _ (TTrue _) t _ ) = return t
 normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf p t1 t2 t3) = liftM3 (TIf p) (normalize t1) (return t2) (return t3)
+normalize (TIf p t1 t2 t3) = TIf p <$> normalize t1 <*> return t2 <*> return t3
 normalize (TApp _ t@(TError _) _) = return t
 normalize (TApp _ v t@(TError _)) | isVal v = return t
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t

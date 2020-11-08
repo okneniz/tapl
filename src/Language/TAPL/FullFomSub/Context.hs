@@ -5,8 +5,6 @@ import qualified Data.Map.Lazy as Map
 
 import Text.Parsec (SourcePos)
 
-import Control.Monad (liftM2, liftM3)
-
 import Control.Monad (when, unless)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
@@ -70,11 +68,11 @@ typeTermSubstitution p tyS j t =
 termMap :: (SourcePos -> Int -> VarName -> Depth -> Eval Term) -> (Int -> Type -> Eval Type) -> Int -> Term -> Eval Term
 termMap onVar onType s t = walk s t
                      where walk c (TVar p name depth) = onVar p c name depth
-                           walk c (TAbs p x ty t) = liftM2 (TAbs p x) (onType c ty) (walk (c+1) t)
-                           walk c (TApp p t1 t2) = liftM2 (TApp p) (walk c t1) (walk c t2)
+                           walk c (TAbs p x ty t) = TAbs p x <$> onType c ty <*> walk (c+1) t
+                           walk c (TApp p t1 t2) = TApp p <$> walk c t1 <*> walk c t2
                            walk c (TTrue p) = return $ TTrue p
                            walk c (TFalse p) = return $ TFalse p
-                           walk c (TIf p t1 t2 t3) = liftM3 (TIf p) (walk c t1) (walk c t2) (walk c t3)
+                           walk c (TIf p t1 t2 t3) = TIf p <$> walk c t1 <*> walk c t2 <*> walk c t3
                            walk c (TProj p r k) = flip(TProj p) k <$> walk c r
 
                            walk c (TRecord p fields) = do
@@ -82,21 +80,21 @@ termMap onVar onType s t = walk s t
                                 return $ TRecord p $ Map.fromList fs
                                 where f (k,v) = (,) k <$> walk c v
 
-                           walk c (TLet p x t1 t2) = liftM2 (TLet p x) (walk c t1) (walk (c+1) t2)
+                           walk c (TLet p x t1 t2) = TLet p x <$> walk c t1 <*> walk (c+1) t2
                            walk c (TFix p t) = TFix p <$> walk c t
                            walk c (TString p s) = return $ TString p s
                            walk c (TUnit p) = return $ TUnit p
-                           walk c (TAscribe p t ty) = liftM2 (TAscribe p) (walk c t) (onType c ty)
+                           walk c (TAscribe p t ty) = TAscribe p <$> walk c t <*> onType c ty
                            walk c (TFloat p t) = return $ TFloat p t
-                           walk c (TTimesFloat p t1 t2) = liftM2 (TTimesFloat p) (walk c t1) (walk c t2)
+                           walk c (TTimesFloat p t1 t2) = TTimesFloat p <$> walk c t1 <*> walk c t2
                            walk c (TTAbs p x k t) = TTAbs p x k <$> walk (c+1) t
-                           walk c (TTApp p t ty) = liftM2 (TTApp p) (walk c t) (onType c ty)
+                           walk c (TTApp p t ty) = TTApp p <$> walk c t <*> onType c ty
                            walk c (TZero p) = return $ TZero p
                            walk c (TSucc p t) = TSucc p <$> walk c t
                            walk c (TPred p t) = TPred p <$> walk c t
                            walk c (TIsZero p t) = TIsZero p <$> walk c t
-                           walk c (TPack p ty1 t ty2) = liftM3 (TPack p) (onType c ty1) (walk c t) (onType c ty2)
-                           walk c (TUnpack p ty x t1 t2) = liftM2 (TUnpack p ty x) (walk c t1) (walk (c + 2) t2)
+                           walk c (TPack p ty1 t ty2) = TPack p <$> onType c ty1 <*> walk c t <*> onType c ty2
+                           walk c (TUnpack p ty x t1 t2) = TUnpack p ty x <$> walk c t1 <*> walk (c + 2) t2
 
 termShiftAbove :: SourcePos -> Depth -> VarName -> Term -> Eval Term
 termShiftAbove p d c t = termMap onVar (typeShiftAbove p d) c t
@@ -122,7 +120,7 @@ typeMap :: (Int -> VarName -> Depth -> Eval Type) -> Int -> Type -> Eval Type
 typeMap onVar s g = walk s g
               where walk c (TyVar x n) = onVar c x n
                     walk _ (TyID x) = return $ TyID x
-                    walk c (TyArrow ty1 ty2) = liftM2 TyArrow (walk c ty1) (walk c ty2)
+                    walk c (TyArrow ty1 ty2) = TyArrow <$> walk c ty1 <*> walk c ty2
                     walk _ TyTop = return TyTop
                     walk _ TyBool = return TyBool
 
@@ -138,7 +136,7 @@ typeMap onVar s g = walk s g
                     walk _ TyNat = return TyNat
                     walk c (TySome x k ty1) = TySome x k <$> walk (c+1) ty1
                     walk c (TyAbs x k ty1) = TyAbs x k <$> walk (c+1) ty1
-                    walk c (TyApp ty1 ty2) = liftM2 TyApp (walk c ty1) (walk c ty2)
+                    walk c (TyApp ty1 ty2) = TyApp <$> walk c ty1 <*> walk c ty2
 
 typeSubstitution :: SourcePos -> Type -> VarName -> Type -> Eval Type
 typeSubstitution p tyS j tyT = typeMap onVar j tyT

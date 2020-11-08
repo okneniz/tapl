@@ -1,9 +1,6 @@
 module Language.TAPL.Fomsub.TypeChecker (typeOf) where
 
 import qualified Data.Map.Lazy as Map
-import Data.List (tails, (\\), intercalate, sort)
-import Data.Map.Merge.Strict (merge, mapMaybeMissing, zipWithMaybeMatched)
-import Data.Maybe (catMaybes)
 
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except
@@ -15,7 +12,6 @@ import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
 import Language.TAPL.Common.Context
 import Language.TAPL.Fomsub.Types
 import Language.TAPL.Fomsub.Context
-
 
 typeOf :: Term -> Eval Type
 typeOf (TVar p v _) = do
