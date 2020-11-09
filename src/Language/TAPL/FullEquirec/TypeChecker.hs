@@ -211,11 +211,11 @@ typeEq tyS tyT = do
           typeEq'' _ _ (TyVar _ i) (TyVar _ j) = i == j
           typeEq'' seen n (TyArrow tyS1 tyS2) (TyArrow tyT1 tyT2) = (typeEq' seen n tyS1 tyT1) && (typeEq' seen n tyS2 tyT2)
 
-          typeEq'' _ _ (TyRecord f1) (TyRecord f2) | (Map.keys f1) /= (Map.keys f2) = False
+          typeEq'' _ _ (TyRecord f1) (TyRecord f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) = False
           typeEq'' seen n (TyRecord f1) (TyRecord f2) =
             all (id) (uncurry (typeEq' seen n) <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
-          typeEq'' _ _ (TyVariant f1) (TyVariant f2) | (sort $ Map.keys f1) /= (sort $ Map.keys f2) = False
+          typeEq'' _ _ (TyVariant f1) (TyVariant f2) | (Map.keys f1) /= (Map.keys f2) = False
           typeEq'' seen n (TyVariant f1) (TyVariant f2) =
             all (id) (uncurry (typeEq' seen n) <$> (Map.elems $ Map.intersectionWith (,) f1 f2))
 
