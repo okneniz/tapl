@@ -3,7 +3,7 @@ module Language.TAPL.FullIsorec.Parser (parse) where
 import Language.TAPL.FullIsorec.Types
 import Language.TAPL.FullIsorec.Context
 import Language.TAPL.FullIsorec.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import Data.Functor (($>))
@@ -71,12 +71,8 @@ abstraction :: LCParser
 abstraction = optionalParens $ do
     pos <- getPosition
     name <-  reserved "lambda" *> identifier
-    ty <- colon >> typeAnnotation
-    names <- getState
-    modifyState $ addVar name ty
-    t <- dot *> term
-    setState names
-    return $ TAbs pos name ty t
+    ty <- colon *> typeAnnotation <* dot
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = optionalAscribed $ optionalProjection (pairIndexes <|> identifier) $ do
@@ -178,11 +174,7 @@ letT = do
     p <- reserved "let" *> getPosition
     v <- identifier
     t1 <- reservedOp "=" *> padded term <* reserved "in"
-    context <- getState
-    modifyState $ addName v
-    t2 <- term
-    setState context
-    return $ TLet  p v t1 t2
+    withState (addName v) $ TLet p v t1 <$> term
 
 caseT :: LCParser
 caseT = TCase <$> getPosition
@@ -191,11 +183,9 @@ caseT = TCase <$> getPosition
   where branch = do
           (caseName, varName) <- angles $ keyValue (reservedOp "=") identifier
           reservedOp "->"
-          context <- getState
-          modifyState $ addName varName
-          t2 <- term
-          setState context
-          return (caseName, (varName, t2))
+          withState (addName varName) $ do
+            t2 <- term
+            return (caseName, (varName, t2))
 
 fix :: LCParser
 fix = TFix <$> (reserved "fix" *> getPosition) <*> term
@@ -255,11 +245,7 @@ recursiveType :: LCTypeParser
 recursiveType = do
     reserved "Rec"
     x <- spaces *> ucid <* dot
-    names <- getState
-    modifyState $ addName x
-    ty <- typeAnnotation
-    setState names
-    return $ TyRec x ty
+    withState (addName x) $ TyRec x <$> typeAnnotation
 
 typeVarOrID:: LCTypeParser
 typeVarOrID = do

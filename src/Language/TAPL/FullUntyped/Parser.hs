@@ -3,6 +3,7 @@ module Language.TAPL.FullUntyped.Parser (parse) where
 import Language.TAPL.FullUntyped.Types
 import Language.TAPL.FullUntyped.Context
 import Language.TAPL.FullUntyped.Lexer
+import Language.TAPL.Common.Helpers (withState)
 
 import qualified Data.Map.Lazy as Map
 import Data.List (findIndex)
@@ -56,12 +57,8 @@ isZero = fun "zero?" TIsZero
 abstraction :: LCParser
 abstraction = optionalParens $ do
     pos <- getPosition
-    name <-  reserved "lambda" *> identifier
-    names <- getState
-    modifyState $ addName name
-    t <- dot *> term
-    setState names
-    return $ TAbs pos name t
+    name <-  reserved "lambda" *> identifier <* dot
+    withState (addName name) $ TAbs pos name <$> term
 
 variable :: LCParser
 variable = optionalProjection (pairIndexes <|> identifier) $ do
@@ -135,11 +132,7 @@ letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
     t1 <- term <* reserved "in"
-    names <- getState
-    modifyState $ addName name
-    t2 <- term
-    setState names
-    return $ TLet p name t1 t2
+    withState (addName name) $ TLet p name t1 <$> term
 
 timesFloat :: LCParser
 timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply <*> (spaces *> notApply)

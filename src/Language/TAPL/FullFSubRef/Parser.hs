@@ -3,7 +3,7 @@ module Language.TAPL.FullFSubRef.Parser (parse) where
 import Language.TAPL.FullFSubRef.Types
 import Language.TAPL.FullFSubRef.Context
 import Language.TAPL.FullFSubRef.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import Data.Functor (($>))
@@ -133,22 +133,14 @@ typeAbstraction = try $ do
     p <- getPosition
     x <- reserved "lambda" *> ucid
     ty <- optionalType <* dot
-    names <- getState
-    modifyState $ addName x
-    t <- notTypeBind
-    setState names
-    return $ TTAbs p x ty t
+    withState (addName x) $ TTAbs p x ty <$> notTypeBind
 
 abstraction :: LCParser
 abstraction = try $ do
     pos <- getPosition
     name <-  reserved "lambda" *> identifier
     ty <- termType <* dot
-    names <- getState
-    modifyState $ addVar name ty
-    t <- notTypeBind
-    setState names
-    return $ TAbs pos name ty t
+    withState (addVar name ty) $ TAbs pos name ty <$> notTypeBind
 
 variable :: LCParser
 variable = optionalProjection identifier $ do
@@ -206,22 +198,16 @@ caseT = TCase <$> getPosition
   where branch = do
           (caseName, varName) <- angles $ keyValue (reservedOp "=") identifier
           reservedOp "->"
-          context <- getState
-          modifyState $ addName varName
-          t2 <- term
-          setState context
-          return (caseName, (varName, t2))
+          withState (addName varName) $ do
+            t2 <- term
+            return (caseName, (varName, t2))
 
 letT :: LCParser
 letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
     t1 <- (typeApply <|> notTypeBind) <* reserved "in"
-    names <- getState
-    modifyState $ addName name
-    t2 <- notTypeBind
-    setState names
-    return $ TLet p name t1 t2
+    withState (addName name) $ TLet p name t1 <$> notTypeBind
 
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
@@ -275,12 +261,8 @@ notArrowAnnotation = topAnnotation
 universalType :: LCTypeParser
 universalType = do
     x <- reserved "All" *> ucid
-    ty1 <- optionalType
-    names <- getState
-    modifyState $ addName x
-    ty2 <- dot *> typeAnnotation
-    setState names
-    return $ TyAll x ty1 ty2
+    ty1 <- optionalType <* dot
+    withState (addName x) $ TyAll x ty1 <$> typeAnnotation
 
 optionalType :: LCTypeParser
 optionalType = try (reservedOp "<:" *> typeAnnotation) <|> return TyTop

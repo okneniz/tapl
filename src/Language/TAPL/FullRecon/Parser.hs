@@ -3,7 +3,7 @@ module Language.TAPL.FullRecon.Parser (parse) where
 import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Context
 import Language.TAPL.FullRecon.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 
 import Text.Parsec (SourcePos)
 import Text.Parsec hiding (parse)
@@ -55,11 +55,7 @@ letT = do
     p <- reserved "let" *> getPosition
     v <- identifier
     t1 <- reservedOp "=" *> term <* reserved "in"
-    context <- getState
-    modifyState $ addName v
-    t2 <- term
-    setState context
-    return $ TLet  p v t1 t2
+    withState (addName v) $ TLet p v t1 <$> term
 
 value :: LCParser
 value = (boolean <?> "boolean")
@@ -72,11 +68,7 @@ abstraction = do
     reserved "lambda"
     name <- identifier
     ty <- optionMaybe (colon *> typeAnnotation) <* dot
-    n <- getState
-    modifyState $ addName name
-    t <- term
-    setState n
-    return $ TAbs pos name ty t
+    withState (addName name) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = do

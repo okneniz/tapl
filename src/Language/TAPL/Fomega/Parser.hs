@@ -3,12 +3,10 @@ module Language.TAPL.Fomega.Parser (parse) where
 import Language.TAPL.Fomega.Types
 import Language.TAPL.Fomega.Context
 import Language.TAPL.Fomega.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import Data.Functor (($>))
-
-import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
@@ -58,22 +56,14 @@ typeAbstraction = try $ optionalParens $ do
     p <- getPosition
     x <- reserved "lambda" *> ucid
     k <- optionalKind <* dot
-    names <- getState
-    modifyState $ addName x
-    t <- notTypeBind
-    setState names
-    return $ TTAbs p x k t
+    withState (addName x) $ TTAbs p x k <$> notTypeBind
 
 abstraction :: LCParser
 abstraction = try $ optionalParens $ do
     pos <- getPosition
     name <-  reserved "lambda" *> identifier
-    ty <- colon >> typeAnnotation
-    names <- getState
-    modifyState $ addVar name ty
-    t <- dot *> term
-    setState names
-    return $ TAbs pos name ty t
+    ty <- colon *> typeAnnotation <* dot
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = try $ do
@@ -104,22 +94,14 @@ bracketType = brackets $ arrowAnnotation <|> typeVar
 universalType :: LCTypeParser
 universalType = try $ do
     x <- reserved "All" *> ucid
-    k <- optionalKind
-    names <- getState
-    modifyState $ addName x
-    ty <- dot *> typeAnnotation
-    setState names
-    return $ TyAll x k ty
+    k <- optionalKind <* dot
+    withState (addName x) $ TyAll x k <$> typeAnnotation
 
 typeAbstractionAnnotation :: LCTypeParser
 typeAbstractionAnnotation = try $ optionalParens $ do
     x <- reserved "lambda" *> ucid
-    k <- optionalKind
-    names <- getState
-    modifyState $ addName x
-    ty <- dot *> typeAnnotation
-    setState names
-    return $ TyAbs x k ty
+    k <- optionalKind <* dot
+    withState (addName x) $ TyAbs x k <$> typeAnnotation
 
 typeApplyAnnotation :: LCTypeParser
 typeApplyAnnotation =

@@ -3,7 +3,7 @@ module Language.TAPL.FullRef.Parser (parse) where
 import Language.TAPL.FullRef.Types
 import Language.TAPL.FullRef.Context
 import Language.TAPL.FullRef.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
@@ -134,11 +134,7 @@ letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
     t1 <- term <* reserved "in"
-    n <- getState
-    modifyState $ addName name
-    t2 <- term
-    setState n
-    return $ TLet p name t1 t2
+    withState (addName name) $ TLet p name t1 <$> term
 
 caseT :: LCParser
 caseT = TCase <$> getPosition
@@ -147,11 +143,9 @@ caseT = TCase <$> getPosition
   where branch = do
           (caseName, varName) <- angles $ keyValue (reservedOp "=") identifier
           reservedOp "->"
-          context <- getState
-          modifyState $ addName varName
-          t2 <- term
-          setState context
-          return (caseName, (varName, t2))
+          withState (addName varName) $ do
+            t2 <- term
+            return (caseName, (varName, t2))
 
 pair :: LCParser
 pair = try $ braces $ TPair <$> getPosition <*> (term <* comma) <*> term
@@ -176,12 +170,8 @@ abstraction :: LCParser
 abstraction = optionalParens $ do
     pos <- getPosition
     name <-  reserved "lambda" *> identifier
-    ty <- colon *> typeAnnotation
-    n <- getState
-    modifyState $ addVar name ty
-    t <- dot *> term
-    setState n
-    return $ TAbs pos name ty t
+    ty <- colon *> typeAnnotation <* dot
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = optionalAscribed $ optionalProjection (pairIndexes <|> identifier) $ do

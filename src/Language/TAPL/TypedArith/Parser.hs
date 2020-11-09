@@ -3,7 +3,7 @@ module Language.TAPL.TypedArith.Parser (parse) where
 import Language.TAPL.TypedArith.Types
 import Language.TAPL.TypedArith.Context
 import Language.TAPL.TypedArith.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
@@ -55,14 +55,9 @@ value = nat <|> (boolean <?> "boolean")
 abstraction :: LCParser
 abstraction = do
     pos <- getPosition
-    reserved "lambda"
-    varName <- identifier
-    varType <- termType <* dot
-    context <- getState
-    modifyState $ addVar varName varType
-    t <- term
-    setState context
-    return $ TAbs pos varName varType t
+    varName <- reserved "lambda" *> identifier
+    varType <- colon *> typeAnnotation <* dot
+    withState (addVar varName varType) $ TAbs pos varName varType <$> term
 
 variable :: LCParser
 variable = do
@@ -105,9 +100,6 @@ condition = TIf <$> getPosition
                 <*> (reserved "if" *> term)
                 <*> (reserved "then" *> term)
                 <*> (reserved "else" *> term)
-
-termType :: LCTypeParser
-termType = colon >> typeAnnotation
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = arrowAnnotation <|> notArrowAnnotation

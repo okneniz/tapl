@@ -1,6 +1,6 @@
 module Language.TAPL.Common.Helpers where
 
-import Text.Parsec (Parsec, try, oneOf, many, spaces, optional)
+import Text.Parsec (Parsec, try, oneOf, many, spaces, optional, getState, putState, modifyState)
 import Control.Monad (unless)
 import Control.Monad.Trans.State.Lazy
 
@@ -22,6 +22,13 @@ withTmpStateT f g = do
     s <- get
     x <- modify f >> g
     put s
+    return x
+
+withState :: (u -> u) -> Parsec String u a -> Parsec String u a
+withState f g = do
+    s <- getState
+    x <- modifyState f >> g
+    putState s
     return x
 
 padded :: Parsec String u a -> Parsec String u a

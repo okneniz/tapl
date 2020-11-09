@@ -3,7 +3,7 @@ module Language.TAPL.SimpleBool.Parser (parse) where
 import Language.TAPL.SimpleBool.Types
 import Language.TAPL.SimpleBool.Context
 import Language.TAPL.SimpleBool.Lexer
-import Language.TAPL.Common.Helpers (padded)
+import Language.TAPL.Common.Helpers (padded, withState)
 
 import Data.Functor (($>))
 
@@ -38,11 +38,7 @@ abstraction = do
     pos <- getPosition
     varName <- reserved "lambda" *> identifier
     varType <- colon *> typeAnnotation <* dot
-    context <- getState
-    modifyState $ addVar varName varType
-    t <- term
-    setState context
-    return $ TAbs pos varName varType t
+    withState (addVar varName varType) $ TAbs pos varName varType <$> term
 
 variable :: LCParser
 variable = do

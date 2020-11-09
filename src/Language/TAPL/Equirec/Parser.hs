@@ -3,7 +3,7 @@ module Language.TAPL.Equirec.Parser (parse) where
 import Language.TAPL.Equirec.Types
 import Language.TAPL.Equirec.Context
 import Language.TAPL.Equirec.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import Data.Functor (($>))
@@ -51,11 +51,7 @@ abstraction = do
     reserved "lambda"
     name <- identifier
     ty <- colon *> typeAnnotation <* dot
-    names <- getState
-    modifyState $ addVar name ty
-    t <- term
-    setState names
-    return $ TAbs pos name ty t
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = do
@@ -73,11 +69,7 @@ recursiveType :: LCTypeParser
 recursiveType = do
     reserved "Rec"
     x <- spaces *> ucid <* dot
-    names <- getState
-    modifyState $ addName x
-    ty <- typeAnnotation
-    setState names
-    return $ TyRec x ty
+    withState (addName x) $ TyRec x <$> typeAnnotation
 
 arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow

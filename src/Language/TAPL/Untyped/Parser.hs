@@ -3,6 +3,7 @@ module Language.TAPL.Untyped.Parser (parse) where
 import Language.TAPL.Untyped.Types
 import Language.TAPL.Untyped.Context
 import Language.TAPL.Untyped.Lexer
+import Language.TAPL.Common.Helpers (withState)
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
@@ -32,11 +33,7 @@ abstraction = do
     pos <- getPosition
     reserved "lambda"
     varName <- identifier <* dot
-    context <- getState
-    modifyState $ addName varName
-    t <- term
-    setState context
-    return $ TAbs pos varName t
+    withState (addName varName) $ TAbs pos varName <$> term
 
 variable :: LCParser
 variable = do

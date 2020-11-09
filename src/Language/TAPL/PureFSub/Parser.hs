@@ -3,7 +3,7 @@ module Language.TAPL.PureFSub.Parser (parse) where
 import Language.TAPL.PureFSub.Types
 import Language.TAPL.PureFSub.Context
 import Language.TAPL.PureFSub.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import qualified Data.Map.Lazy as Map
@@ -66,22 +66,17 @@ typeAbstraction = parens $ do
     p <- getPosition <* reserved "lambda"
     x <- ucid
     s <- getState
-    modifyState $ addName x
-    oty <- optionalType <* dot
-    t <- notApply
-    putState s
-    return $ TTAbs p x oty t
+    withState (addName x) $ do
+      oty <- optionalType <* dot
+      t <- notApply
+      return $ TTAbs p x oty t
 
 abstraction :: LCParser
 abstraction = do
     pos <- getPosition <* reserved "lambda"
     name <- identifier
     ty <- termType <* dot <* optional spaces
-    names <- getState
-    modifyState $ addVar name ty
-    t <- notTypeBind
-    setState names
-    return $ TAbs pos name ty t
+    withState (addVar name ty) $ TAbs pos name ty <$> notTypeBind
 
 variable :: LCParser
 variable = do
@@ -110,12 +105,8 @@ notArrowAnnotation = try topAnnotation <|> try universalType <|> typeVarOrID
 universalType :: LCTypeParser
 universalType = do
     x <- reserved "All" *> ucid
-    names <- getState
-    oty <- optionalType
-    modifyState $ addName x
-    ty <- dot *> typeAnnotation
-    setState names
-    return $ TyAll x oty ty
+    oty <- optionalType <* dot
+    withState (addName x) $ TyAll x oty <$> typeAnnotation
 
 optionalType :: LCTypeParser
 optionalType = try (reservedOp "<:" *> typeAnnotation) <|> return TyTop

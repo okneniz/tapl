@@ -3,7 +3,7 @@ module Language.TAPL.RcdSubBot.Parser (parse) where
 import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Context
 import Language.TAPL.RcdSubBot.Lexer
-import Language.TAPL.Common.Helpers (ucid)
+import Language.TAPL.Common.Helpers (ucid, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import qualified Data.Map.Lazy as Map
@@ -66,11 +66,7 @@ abstraction = do
     name <- identifier
     ty <- termType <* dot
     optional spaces
-    names <- getState
-    modifyState $ addVar name ty
-    t <- notTypeBind
-    setState names
-    return $ TAbs pos name ty t
+    withState (addVar name ty) $ TAbs pos name ty <$> notTypeBind
 
 variable :: LCParser
 variable = optionalProjection identifier $ do
@@ -85,10 +81,10 @@ optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
     t <- tm
     try (dotRef key t) <|> return t
-    where dotRef key t = do
+    where dotRef k t = do
             pos <- dot *> getPosition
-            i <- key
-            try (dotRef key (TProj pos t i)) <|> return (TProj pos t i)
+            i <- k
+            try (dotRef k (TProj pos t i)) <|> return (TProj pos t i)
 
 record :: LCParser
 record = optionalProjection identifier $ braces $ do

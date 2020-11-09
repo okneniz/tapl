@@ -3,7 +3,7 @@ module Language.TAPL.FullSub.Parser (parse) where
 import Language.TAPL.FullSub.Types
 import Language.TAPL.FullSub.Context
 import Language.TAPL.FullSub.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 
 import Data.Functor (($>))
 import Data.List (findIndex)
@@ -66,12 +66,8 @@ abstraction :: LCParser
 abstraction = try $ optionalParens $ do
     pos <- getPosition
     name <-  reserved "lambda" *> identifier
-    ty <- colon >> typeAnnotation
-    names <- getState
-    modifyState $ addVar name ty
-    t <- dot *> term
-    setState names
-    return $ TAbs pos name ty t
+    ty <- colon *> typeAnnotation <* dot
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = optionalAscribed $ optionalProjection identifier $ do
@@ -151,11 +147,7 @@ letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
     t1 <- term <* reserved "in"
-    names <- getState
-    modifyState $ addName name
-    t2 <- term
-    setState names
-    return $ TLet p name t1 t2
+    withState (addName name) $ TLet p name t1 <$> term
 
 timesFloat :: LCParser
 timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply <*> (spaces *> notApply)

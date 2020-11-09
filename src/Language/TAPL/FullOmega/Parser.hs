@@ -3,7 +3,7 @@ module Language.TAPL.FullOmega.Parser (parse) where
 import Language.TAPL.FullOmega.Types
 import Language.TAPL.FullOmega.Context
 import Language.TAPL.FullOmega.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import Data.Functor (($>))
@@ -139,11 +139,7 @@ typeAbstraction = try $ optionalParens $ do
     p <- getPosition
     x <- reserved "lambda" *> ucid
     k <- optionalKind <* dot
-    names <- getState
-    modifyState $ addName x
-    t <- notTypeBind
-    setState names
-    return $ TTAbs p x k t
+    withState (addName x) $ TTAbs p x k <$> notTypeBind
 
 pack :: LCParser
 pack = try $ do
@@ -156,24 +152,17 @@ unpack :: LCParser
 unpack = try $ do
     pos <- reserved "let" *> getPosition
     (x,y) <- braces $ (,) <$> ucid <*> (comma *> identifier)
-    t1 <- reservedOp "=" *> notTypeBind
-    names <- getState
-    modifyState $ addName x
-    modifyState $ addName y
-    t2 <- reserved "in" *> notTypeBind
-    setState names
-    return $ TUnpack pos x y t1 t2
+    t1 <- reservedOp "=" *> notTypeBind <* reserved "in"
+    withState (addName x) $ do
+      withState (addName y) $ do
+        TUnpack pos x y t1 <$> notTypeBind
 
 abstraction :: LCParser
 abstraction = try $ optionalParens $ do
     pos <- getPosition
     name <-  reserved "lambda" *> identifier
-    ty <- colon >> typeAnnotation
-    names <- getState
-    modifyState $ addVar name ty
-    t <- dot *> term
-    setState names
-    return $ TAbs pos name ty t
+    ty <- colon *> typeAnnotation <* dot
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = try $ optionalProjection identifier $ do
@@ -219,11 +208,7 @@ letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
     t1 <- term <* reserved "in"
-    names <- getState
-    modifyState $ addName name
-    t2 <- notTypeBind
-    setState names
-    return $ TLet p name t1 t2
+    withState (addName name) $ TLet p name t1 <$> notTypeBind
 
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
@@ -287,32 +272,20 @@ bracketType = brackets $ arrowAnnotation
 universalType :: LCTypeParser
 universalType = try $ do
     x <- reserved "All" *> ucid
-    k <- optionalKind
-    names <- getState
-    modifyState $ addName x
-    ty <- dot *> typeAnnotation
-    setState names
-    return $ TyAll x k ty
+    k <- optionalKind <* dot
+    withState (addName x) $ TyAll x k <$> typeAnnotation
 
 existentialType :: LCTypeParser
 existentialType = try $ braces $ do
     x <- reserved "Some" *> ucid
-    k <- optionalKind
-    names <- getState
-    modifyState $ addName x
-    ty <- comma *> typeAnnotation
-    setState names
-    return $ TySome x k ty
+    k <- optionalKind <* comma
+    withState (addName x) $ TySome x k <$> typeAnnotation
 
 typeAbstractionAnnotation :: LCTypeParser
 typeAbstractionAnnotation = try $ optionalParens $ do
     x <- reserved "lambda" *> ucid
-    k <- optionalKind
-    names <- getState
-    modifyState $ addName x
-    ty <- dot *> typeAnnotation
-    setState names
-    return $ TyAbs x k ty
+    k <- optionalKind <* dot
+    withState (addName x) $ TyAbs x k <$> typeAnnotation
 
 typeApplyAnnotation :: LCTypeParser
 typeApplyAnnotation =

@@ -3,7 +3,7 @@ module Language.TAPL.FullSimple.Parser (parse) where
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Context
 import Language.TAPL.FullSimple.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 
 import Data.Functor (($>))
 import Data.List (findIndex)
@@ -72,12 +72,8 @@ abstraction :: LCParser
 abstraction = optionalParens $ do
     pos <- getPosition
     name <-  reserved "lambda" *> identifier
-    ty <- colon >> typeAnnotation
-    names <- getState
-    modifyState $ addVar name ty
-    t <- dot *> term
-    setState names
-    return $ TAbs pos name ty t
+    ty <- colon *> typeAnnotation <* dot
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = optionalAscribed $ optionalProjection (pairIndexes <|> identifier) $ do
@@ -163,11 +159,7 @@ letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
     t1 <- term <* reserved "in"
-    names <- getState
-    modifyState $ addName name
-    t2 <- term
-    setState names
-    return $ TLet p name t1 t2
+    withState (addName name) $ TLet p name t1 <$> term
 
 caseT :: LCParser
 caseT = TCase <$> getPosition
@@ -176,11 +168,9 @@ caseT = TCase <$> getPosition
   where branch = do
           (caseName, varName) <- angles $ keyValue (reservedOp "=") identifier
           reservedOp "->"
-          context <- getState
-          modifyState $ addName varName
-          t2 <- term
-          setState context
-          return (caseName, (varName, t2))
+          withState (addName varName) $ do
+            t2 <- term
+            return (caseName, (varName, t2))
 
 timesFloat :: LCParser
 timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply <*> (spaces *> notApply)

@@ -3,7 +3,7 @@ module Language.TAPL.FullPoly.Parser (parse) where
 import Language.TAPL.FullPoly.Types
 import Language.TAPL.FullPoly.Context
 import Language.TAPL.FullPoly.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import Data.Functor (($>))
@@ -115,13 +115,10 @@ unpack :: LCParser
 unpack = do
     pos <- reserved "let" *> getPosition
     (x,y) <- braces $ (,) <$> ucid <*> (comma *> identifier)
-    t1 <- reservedOp "=" *> notTypeBind
-    names <- getState
-    modifyState $ addName x
-    modifyState $ addName y
-    t2 <- reserved "in" *> notTypeBind
-    setState names
-    return $ TUnpack pos x y t1 t2
+    t1 <- reservedOp "=" *> notTypeBind <* reserved "in"
+    withState (addName x) $ do
+      withState (addName y) $ do
+        TUnpack pos x y t1 <$> notTypeBind
 
 typeAbstraction :: LCParser
 typeAbstraction = parens $ TTAbs <$> getPosition <*> (reserved "lambda" *> ucid <* dot) <*> notTypeBind
@@ -131,11 +128,7 @@ abstraction = do
     pos <- getPosition <* reserved "lambda"
     name <- identifier <* colon
     ty <- typeAnnotation <* dot <* optional spaces
-    names <- getState
-    modifyState $ addVar name ty
-    t <- notTypeBind
-    setState names
-    return $ TAbs pos name ty t
+    withState (addVar name ty) $ TAbs pos name ty <$> notTypeBind
 
 variable :: LCParser
 variable = do
@@ -204,11 +197,7 @@ letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
     t1 <- notTypeBind <* reserved "in"
-    names <- getState
-    modifyState $ addName name
-    t2 <- notTypeBind
-    setState names
-    return $ TLet p name t1 t2
+    withState (addName name) $ TLet p name t1 <$> notTypeBind
 
 timesFloat :: LCParser
 timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply <*> (spaces *> notApply)
@@ -238,21 +227,13 @@ notArrowAnnotation = stringAnnotation
 
 universalType :: LCTypeParser
 universalType = do
-    x <- reserved "All" *> ucid
-    names <- getState
-    modifyState $ addName x
-    ty <- dot *> typeAnnotation
-    setState names
-    return $ TyAll x ty
+    x <- reserved "All" *> ucid <* dot
+    withState (addName x) $ TyAll x <$> typeAnnotation
 
 existentialType :: LCTypeParser
 existentialType = try $ braces $ do
-    x <- reserved "Some" *> ucid
-    names <- getState
-    modifyState $ addName x
-    ty <- comma *> typeAnnotation
-    setState names
-    return $ TySome x ty
+    x <- reserved "Some" *> ucid <* comma
+    withState (addName x) $ TySome x <$> typeAnnotation
 
 primitiveType :: String -> Type -> LCTypeParser
 primitiveType name ty = reserved name $> ty

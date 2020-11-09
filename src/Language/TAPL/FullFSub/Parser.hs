@@ -3,7 +3,7 @@ module Language.TAPL.FullFSub.Parser (parse) where
 import Language.TAPL.FullFSub.Types
 import Language.TAPL.FullFSub.Context
 import Language.TAPL.FullFSub.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import Data.Functor (($>))
@@ -102,35 +102,24 @@ unpack :: LCParser
 unpack = do
     pos <- reserved "let" *> getPosition
     (x,y) <- braces $ (,) <$> ucid <*> (comma *> identifier)
-    t1 <- reservedOp "=" *> notTypeBind
-    names <- getState
-    modifyState $ addName x
-    modifyState $ addName y
-    t2 <- reserved "in" *> notTypeBind
-    setState names
-    return $ TUnpack pos x y t1 t2
+    t1 <- reservedOp "=" *> notTypeBind <* reserved "in"
+    withState (addName x) $ do
+      withState (addName y) $ do
+        TUnpack pos x y t1 <$> notTypeBind
 
 typeAbstraction :: LCParser
 typeAbstraction = parens $ do
     p <- getPosition
     x <- reserved "lambda" *> ucid
     ty <- optionalType <* dot
-    names <- getState
-    modifyState $ addName x
-    t <-notTypeBind
-    setState names
-    return $ TTAbs p x ty t
+    withState (addName x) $ TTAbs p x ty <$> notTypeBind
 
 abstraction :: LCParser
 abstraction = do
     pos <- getPosition <* reserved "lambda"
     name <- identifier
     ty <- termType <* dot <* optional spaces
-    names <- getState
-    modifyState $ addVar name ty
-    t <- notTypeBind
-    setState names
-    return $ TAbs pos name ty t
+    withState (addVar name ty) $ TAbs pos name ty <$> notTypeBind
 
 variable :: LCParser
 variable = do
@@ -210,11 +199,7 @@ letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
     t1 <- notTypeBind <* reserved "in"
-    names <- getState
-    modifyState $ addName name
-    t2 <- notTypeBind
-    setState names
-    return $ TLet p name t1 t2
+    withState (addName name) $ TLet p name t1 <$> notTypeBind
 
 timesFloat :: LCParser
 timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply <*> (spaces *> notApply)
@@ -249,22 +234,14 @@ notArrowAnnotation = topAnnotation
 universalType :: LCTypeParser
 universalType = do
     x <- reserved "All" *> ucid
-    ty1 <- optionalType
-    names <- getState
-    modifyState $ addName x
-    ty2 <- dot *> typeAnnotation
-    setState names
-    return $ TyAll x ty1 ty2
+    ty1 <- optionalType <* dot
+    withState (addName x) $ TyAll x ty1 <$> typeAnnotation
 
 existentialType :: LCTypeParser
 existentialType = braces $ do
     x <- reserved "Some" *> ucid
-    ty1 <- optionalType
-    names <- getState
-    modifyState $ addName x
-    ty2 <- comma *> typeAnnotation
-    setState names
-    return $ TySome x ty1 ty2
+    ty1 <- optionalType <* comma
+    withState (addName x) $ TySome x ty1 <$> typeAnnotation
 
 optionalType :: LCTypeParser
 optionalType = try (reservedOp "<:" *> typeAnnotation) <|> return TyTop

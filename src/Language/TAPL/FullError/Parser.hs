@@ -3,7 +3,7 @@ module Language.TAPL.FullError.Parser (parse) where
 import Language.TAPL.FullError.Types
 import Language.TAPL.FullError.Context
 import Language.TAPL.FullError.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
 import Data.Functor (($>))
@@ -57,11 +57,7 @@ abstraction = do
     reserved "lambda"
     name <- identifier
     ty <- colon *> typeAnnotation <* dot
-    names <- getState
-    modifyState $ addVar name ty
-    t <- term
-    setState names
-    return $ TAbs pos name ty t
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 tryT :: LCParser
 tryT = TTry <$> (reserved "try" *> getPosition) <*> (term <* reserved "with") <*> term

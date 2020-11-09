@@ -3,7 +3,7 @@ module Language.TAPL.Recon.Parser (parse) where
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Context
 import Language.TAPL.Recon.Lexer
-import Language.TAPL.Common.Helpers (ucid, padded)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 
 import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
@@ -61,11 +61,7 @@ abstraction = do
     name <- identifier
     ty <- termType <* dot
     optional spaces
-    n <- getState
-    modifyState $ addVar name ty
-    t <- term
-    setState n
-    return $ TAbs pos name ty t
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 isZero :: LCParser
 isZero = fun "zero?" TIsZero
