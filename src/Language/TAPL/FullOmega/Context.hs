@@ -56,21 +56,19 @@ emptyState :: LCNames -> LCState
 emptyState x = LCState { names = x, memory = [] }
 
 getNames :: Eval LCNames
-getNames = get >>= \s -> return $ names s
+getNames = names <$> get
+
+getMemory :: Eval LCMemory
+getMemory = memory <$> get
 
 putNames :: LCNames -> Eval ()
 putNames n = get >>= \s -> put $ s { names = n }
 
-modifyNames :: (LCNames -> LCNames) -> Eval ()
-modifyNames f = do
-    m <- getNames
-    putNames $ f m
-
-getMemory :: Eval LCMemory
-getMemory = get >>= \s -> return $ memory s
-
 putMemory :: LCMemory -> Eval ()
 putMemory m = get >>= \s -> put $ s { memory = m }
+
+modifyNames :: (LCNames -> LCNames) -> Eval ()
+modifyNames f = f <$> getNames >>= putNames
 
 type LCMemory = [Term]
 

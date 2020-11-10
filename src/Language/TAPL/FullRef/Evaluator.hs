@@ -75,17 +75,17 @@ normalize (TDeref p t) = fmap(TDeref p) <$> normalize t
 
 normalize (TAssign p (TLoc _ l) t2) | isVal t2 = assign l t2 >> pack (TUnit p)
 normalize (TAssign p t1 t2) | isVal t1 = fmap(TAssign p t1) <$> normalize t2
-normalize (TAssign p t1 t2)  = fmap(\t1' -> TAssign p t1' t2) <$> normalize t1
+normalize (TAssign p t1 t2)  = fmap(flip(TAssign p) t2) <$> normalize t1
 
 normalize (TLet _ _ t1 t2) | isVal t1 = pack $ termSubstitutionTop t1 t2
-normalize (TLet p v t1 t2) = fmap(\t1' -> TLet p v t1' t2) <$> normalize t1
+normalize (TLet p v t1 t2) = fmap(flip(TLet p v) t2) <$> normalize t1
 
 normalize (TAscribe _ t _) | isVal t = pack t
 normalize (TAscribe _ t _) = normalize t
 
 normalize t@(TPair _ _ _) | isVal t = nvm
 normalize (TPair p t1 t2) | isVal t1 = fmap(TPair p t1) <$> normalize t2
-normalize (TPair p t1 t2) = fmap(\t1' -> TPair p t1' t2) <$> normalize t1
+normalize (TPair p t1 t2) = fmap(flip(TPair p) t2) <$> normalize t1
 
 normalize (TRecord _ fields) | (Map.size fields) == 0 = nvm
 normalize t@(TRecord _ _) | isVal t = nvm

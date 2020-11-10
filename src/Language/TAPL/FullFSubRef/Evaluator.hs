@@ -55,7 +55,7 @@ normalize (TIf _ (TFalse _) _ t) = success t
 normalize (TIf p t1 t2 t3) = fmap(\t1' -> TIf p t1' t2 t3) <$> normalize t1
 
 normalize (TLet _ _ t1 t2) | isVal t1 = success $ termSubstitutionTop t1 t2
-normalize (TLet p v t1 t2) = fmap(\t1' -> TLet p v t1' t2) <$> normalize t1
+normalize (TLet p v t1 t2) = fmap(flip(TLet p v) t2) <$> normalize t1
 
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = success $ termSubstitutionTop v t
 normalize (TApp p t1 t2) | isVal t1 = fmap(TApp p t1) <$> normalize t2
