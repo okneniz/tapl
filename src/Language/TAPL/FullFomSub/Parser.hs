@@ -211,9 +211,7 @@ optionalType = try top <|> try kind <|> return TyTop
           kind = reservedOp "::" *> (makeTop <$> kindAnnotation)
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = try $ chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-    (padded $ reservedOp "->")
-    return TyArrow
+arrowAnnotation = try $ chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 notArrowAnnotation :: LCTypeParser
 notArrowAnnotation = topAnnotation
