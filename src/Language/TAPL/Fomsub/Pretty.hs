@@ -33,13 +33,12 @@ prettify (TVar _ varname _) = do
          Just name -> return $ pretty name
          Nothing -> lift $ throwE $ "[bad index " <> show varname <> " in context " <> show c <> "]"
 
-prettify (TAbs _ name ty t) = do
+prettify (TAbs _ name _ t) = do
   n <- get
   let newName = fst $ pickFreshName n name
   withTmpStateT (addName newName) $ do
-      doc1 <- prettifyType ty
       doc2 <- prettify t
-      return $ parens $ pretty "lambda" <+> pretty newName <> pretty "<:" <> doc1 <> dot <> doc2
+      return $ parens $ pretty "lambda" <+> pretty newName <> dot <> doc2
 
 prettify (TApp _ t1 t2) = (<+>) <$> prettify t1 <*> prettify t2
 
