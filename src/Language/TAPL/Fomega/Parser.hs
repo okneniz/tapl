@@ -45,9 +45,6 @@ typeApply = try $ do
 notApply :: LCParser
 notApply = value <|> (variable <?> "variable") <|> (parens notApply)
 
-notTypeBind :: LCParser
-notTypeBind = termApply <|> notApply
-
 value :: LCParser
 value = (typeAbstraction <?> "type abstraction") <|> (abstraction <?> "abstraction")
 
@@ -56,7 +53,7 @@ typeAbstraction = try $ optionalParens $ do
     p <- getPosition
     x <- reserved "lambda" *> ucid
     k <- optionalKind <* dot
-    withState (addName x) $ TTAbs p x k <$> notTypeBind
+    withState (addName x) $ TTAbs p x k <$> term
 
 abstraction :: LCParser
 abstraction = try $ optionalParens $ do
