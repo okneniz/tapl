@@ -11,7 +11,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, ok, nvm)
 import Language.TAPL.FullSub.Types
 import Language.TAPL.FullSub.Pretty
 import Language.TAPL.FullSub.Context
@@ -206,9 +206,6 @@ joinTypes tyS tyT = do
                                  Nothing -> return TyTop
 
                          _ -> return TyTop
-
-ok = return.return
-nvm = return Nothing
 
 meetTypes :: Type -> Type -> Eval (Maybe Type)
 meetTypes tyS tyT = do

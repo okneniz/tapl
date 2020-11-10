@@ -11,7 +11,7 @@ import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, ok, nvm)
 import Language.TAPL.FullFSub.Types
 import Language.TAPL.FullFSub.Context
 
@@ -249,9 +249,6 @@ joinTypes tyS tyT = do
 
                          _ -> return TyTop
 
-ok = return.return
-notFound = return Nothing
-
 meetTypes :: Type -> Type -> Eval (Maybe Type)
 meetTypes tyS tyT = do
     x <- tyS <: tyT
@@ -280,22 +277,22 @@ meetTypes tyS tyT = do
                          (TyAll tyX tyS1 tyS2, TyAll _ tyT1 tyT2) -> do
                             x <- (&&) <$> (tyS1 <: tyT1) <*> (tyT1 <: tyS1)
                             if x
-                            then notFound
+                            then nvm
                             else withTmpStateT (addTypeVar tyX tyT1) $ do
                                     y <- meetTypes tyT1 tyT2
                                     case y of
                                          Just ty -> ok $ TyAll tyX tyS1 ty
-                                         Nothing -> notFound
+                                         Nothing -> nvm
 
                          (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> do
                             j <- (,) <$> joinTypes tyS1 tyT1 <*> meetTypes tyS2 tyT2
                             case j of
                                  (ty1, Just ty2) -> ok $ TyArrow ty1 ty2
-                                 (ty1, Nothing) -> notFound
+                                 (ty1, Nothing) -> nvm
 
                          -- https://github.com/enaudon/TAPL/blob/master/source/fullfsub/core.ml#L284
                          -- what is not found?
-                         _ -> notFound
+                         _ -> nvm
 
 computeType :: Type -> Eval (Maybe Type)
 computeType (TyVar i _) = do

@@ -33,3 +33,9 @@ withState f g = do
 
 padded :: Parsec String u a -> Parsec String u a
 padded x = optional spaces *> x <* optional spaces
+
+nvm :: Monad m => m (Maybe a)
+nvm = return Nothing
+
+ok :: (Monad m1, Monad m2) => a -> m1 (m2 a)
+ok = return.return

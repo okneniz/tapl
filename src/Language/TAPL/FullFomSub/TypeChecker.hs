@@ -14,7 +14,7 @@ import Language.TAPL.FullFomSub.Pretty (render, renderType)
 import Text.Parsec (SourcePos)
 
 import Language.TAPL.Common.Context
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, ok, nvm)
 import Language.TAPL.FullFomSub.Types
 import Language.TAPL.FullFomSub.Context
 
@@ -190,9 +190,6 @@ isSubtype p tyS tyT = do
 
               _ -> return False
 
-ok = return.return
-notFound = return Nothing
-
 joinTypes :: SourcePos ->  Type -> Type -> Eval Type
 joinTypes p tyS tyT = do
     x <- isSubtype p tyS tyT
@@ -247,20 +244,20 @@ meetTypes p tyS tyT = do
                          (TyAll tyX tyS1 tyS2, TyAll _ tyT1 tyT2) -> do
                             x <- (&&) <$> (isSubtype p tyS1 tyT1) <*> (isSubtype p tyT1 tyS1)
                             if x
-                            then notFound
+                            then nvm
                             else withTmpStateT (addTypeVar tyX tyT1) $ do
                                     y <- meetTypes p tyT1 tyT2
                                     case y of
                                          Just ty -> ok $ TyAll tyX tyS1 ty
-                                         Nothing -> notFound
+                                         Nothing -> nvm
 
                          (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> do
                             j <- (,) <$> joinTypes p tyS1 tyT1 <*> meetTypes p tyS2 tyT2
                             case j of
                                  (ty1, Just ty2) -> ok $ TyArrow ty1 ty2
-                                 (ty1, Nothing) -> notFound
+                                 (ty1, Nothing) -> nvm
 
-                         _ -> notFound
+                         _ -> nvm
 
 typeError :: SourcePos -> String -> Eval a
 typeError p message = lift $ throwE $ show p <> ":" <> message
