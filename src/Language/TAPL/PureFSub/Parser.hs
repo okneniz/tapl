@@ -104,7 +104,7 @@ optionalType :: LCTypeParser
 optionalType = try (reservedOp "<:" *> typeAnnotation) <|> return TyTop
 
 topAnnotation :: LCTypeParser
-topAnnotation = reserved "Top"  >> return TyTop
+topAnnotation = reserved "Top"  $> TyTop
 
 typeVarOrID:: LCTypeParser
 typeVarOrID = do

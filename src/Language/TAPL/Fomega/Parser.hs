@@ -121,7 +121,7 @@ kindAnnotation :: LCKindParser
 kindAnnotation = arrowKind <|> startKind
 
 startKind :: LCKindParser
-startKind = reservedOp "*" >> return Star
+startKind = reservedOp "*" $> Star
 
 arrowKind :: LCKindParser
 arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ padded (reservedOp "->") $> Arrow

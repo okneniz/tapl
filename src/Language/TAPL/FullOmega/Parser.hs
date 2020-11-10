@@ -289,7 +289,7 @@ typeApplyAnnotation =
         return TyApp
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name >> return ty
+primitiveType name ty = reserved name $> ty
 
 booleanAnnotation :: LCTypeParser
 booleanAnnotation = primitiveType "Bool" TyBool
@@ -328,7 +328,7 @@ kindAnnotation :: LCKindParser
 kindAnnotation = arrowKind <|> startKind
 
 startKind :: LCKindParser
-startKind = reservedOp "*" >> return Star
+startKind = reservedOp "*" $> Star
 
 arrowKind :: LCKindParser
 arrowKind = chainr1 (startKind <|> parens kindAnnotation) $ padded (reservedOp "->") $> Arrow

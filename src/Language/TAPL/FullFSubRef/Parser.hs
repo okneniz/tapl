@@ -263,7 +263,7 @@ optionalType :: LCTypeParser
 optionalType = try (reservedOp "<:" *> typeAnnotation) <|> return TyTop
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name >> return ty
+primitiveType name ty = reserved name $> ty
 
 topAnnotation :: LCTypeParser
 topAnnotation = primitiveType "Top" TyTop

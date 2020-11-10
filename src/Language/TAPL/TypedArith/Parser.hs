@@ -9,6 +9,7 @@ import Text.Parsec hiding (parse)
 import Text.Parsec.Prim (try)
 
 import Data.List (findIndex)
+import Data.Functor (($>))
 
 type LCCommandParser = Parsec String LCNames Command
 type LCParser = Parsec String LCNames Term
@@ -119,4 +120,4 @@ natAnnotation :: LCTypeParser
 natAnnotation = primitiveType "Nat" TyNat
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name >> return ty
+primitiveType name ty = reserved name $> ty

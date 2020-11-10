@@ -4,6 +4,7 @@ import qualified Data.Map.Lazy as Map
 import Data.List (tails, (\\), intercalate, sort)
 import Data.Map.Merge.Strict (merge, mapMaybeMissing, zipWithMaybeMatched)
 import Data.Maybe (catMaybes)
+import Data.Functor (($>))
 
 import Control.Monad (unless, foldM)
 import Control.Monad.Trans.Class (lift)
@@ -145,7 +146,7 @@ typeOf (TAssign p t1 t2) = do
          (TyRef tyT1) -> do
             unlessM (ty2 <: tyT1) (typeError p $ "arguments of := are incompatible " <> show ty2 <> " -> " <> show tyT1)
             return TyUnit
-         TyBot -> typeOf t2 >> return TyBot
+         TyBot -> typeOf t2 $> TyBot
          (TySink tyT1) -> do
             unlessM (ty2 <: tyT1) (typeError p $ "arguments of := are incompatible " <> show ty2 <> " - " <> show tyT1)
             return TyUnit

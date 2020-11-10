@@ -5,6 +5,7 @@ import Language.TAPL.Arith.Lexer
 import Text.Parsec.Error (ParseError)
 import Text.Parsec hiding (parse)
 import Prelude hiding (succ, pred)
+import Data.Functor (($>))
 
 type LCParser = Parsec String () Term
 
@@ -46,7 +47,7 @@ condition = TIf <$> (reserved "if"   *> term)
                 <*> (reserved "else" *> term)
 
 constant :: String -> Term -> LCParser
-constant name t = reserved name >> return t
+constant name t = reserved name $> t
 
 fun :: String -> (Term -> Term) -> LCParser
 fun name tm = tm <$> (reserved name >> term)

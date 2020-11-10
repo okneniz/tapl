@@ -70,4 +70,4 @@ arrowAnnotation :: LCTypeParser
 arrowAnnotation = chainr1 (booleanAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 booleanAnnotation :: LCTypeParser
-booleanAnnotation = reserved "Bool" >> return TyBool
+booleanAnnotation = reserved "Bool" $> TyBool
