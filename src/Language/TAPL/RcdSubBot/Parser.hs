@@ -3,9 +3,10 @@ module Language.TAPL.RcdSubBot.Parser (parse) where
 import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Context
 import Language.TAPL.RcdSubBot.Lexer
-import Language.TAPL.Common.Helpers (ucid, withState)
+import Language.TAPL.Common.Helpers (ucid, padded, withState)
 import Language.TAPL.Common.Context (findVarName)
 
+import Data.Functor (($>))
 import qualified Data.Map.Lazy as Map
 
 import Text.Parsec hiding (parse)
@@ -22,39 +23,30 @@ reconParser :: Parsec String LCNames ([Command], LCNames)
 reconParser = (,) <$> (command `sepEndBy` semi <* eof) <*> getState
 
 command :: Parsec String LCNames Command
-command =  (try bindCommand) <|> (try evalCommand)
+command =  padded (bindCommand <|> evalCommand)
 
 bindCommand :: LCCommandParser
 bindCommand = do
     pos <- getPosition
-    x <- ucid <* spaces
-    reservedOp "="
+    x <- ucid <* reservedOp "="
     modifyState $ addName x
     ty <- typeAnnotation
     return $ Bind pos x $ TypeAddBind ty
 
 evalCommand :: LCCommandParser
-evalCommand = try $ Eval <$> term `sepEndBy` semi
+evalCommand = Eval <$> term `sepEndBy` semi
 
 term :: LCParser
-term = try apply
-   <|> try notApply
-   <|> parens term
+term = apply <|> notApply <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ optional spaces >> TApp <$> getPosition
+apply = try $ chainl1 (notApply <|> try (parens apply)) $ TApp <$> getPosition
 
 notApply :: LCParser
-notApply = try value
-       <|> try (abstraction <?> "abstraction")
-       <|> try (variable <?> "variable")
-       <|> try (parens notApply)
-       <|> try (parens apply)
-
-notTypeBind :: LCParser
-notTypeBind = try apply
-          <|> try notApply
-          <|> try (parens notTypeBind)
+notApply = value
+       <|> (abstraction <?> "abstraction")
+       <|> (variable <?> "variable")
+       <|> (parens notApply)
 
 value :: LCParser
 value = record <?> "record"
@@ -62,11 +54,9 @@ value = record <?> "record"
 abstraction :: LCParser
 abstraction = do
     pos <- getPosition
-    reserved "lambda"
-    name <- identifier
-    ty <- termType <* dot
-    optional spaces
-    withState (addVar name ty) $ TAbs pos name ty <$> notTypeBind
+    name <- reserved "lambda" *> identifier
+    ty <- colon *> typeAnnotation <* dot
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = optionalProjection identifier $ do
@@ -87,36 +77,20 @@ optionalProjection key tm = do
             try (dotRef k (TProj pos t i)) <|> return (TProj pos t i)
 
 record :: LCParser
-record = optionalProjection identifier $ braces $ do
-    ts <- (keyValue (reservedOp "=") term) `sepBy` comma
-    pos <- getPosition
-    return $ TRecord pos $ Map.fromList ts
+record = try $ braces $ TRecord <$> getPosition
+                                <*> (Map.fromList <$> (keyValue (reservedOp "=") notApply) `sepBy` comma)
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = (,) <$> (identifier <* devider) <*> val
 
-termType :: LCTypeParser
-termType = colon >> typeAnnotation
-
 typeAnnotation :: LCTypeParser
-typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
+typeAnnotation = arrowAnnotation <|> notArrowAnnotation
 
 arrowAnnotation :: LCTypeParser
-arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ do
-    optional spaces
-    reservedOp "->"
-    optional spaces
-    return TyArrow
+arrowAnnotation = chainr1 (notArrowAnnotation <|> parens arrowAnnotation) $ padded (reservedOp "->") $> TyArrow
 
 notArrowAnnotation :: LCTypeParser
-notArrowAnnotation = recordAnnotation
-                 <|> try topAnnotation
-                 <|> try botAnnotation
-
-recordAnnotation :: LCTypeParser
-recordAnnotation = braces $ do
-    tys <- (keyValue colon typeAnnotation) `sepBy` comma
-    return $ TyRecord $ Map.fromList tys
+notArrowAnnotation = topAnnotation <|> botAnnotation <|> recordAnnotation
 
 topAnnotation :: LCTypeParser
 topAnnotation = primitiveType "Top" TyTop
@@ -125,4 +99,8 @@ botAnnotation :: LCTypeParser
 botAnnotation = primitiveType "Bot" TyBot
 
 primitiveType :: String -> Type -> LCTypeParser
-primitiveType name ty = reserved name >> return ty
+primitiveType name ty = reserved name $> ty
+
+recordAnnotation :: LCTypeParser
+recordAnnotation = try $ braces $ TyRecord <$> Map.fromList <$> (keyValue colon typeAnnotation) `sepBy` comma
+
