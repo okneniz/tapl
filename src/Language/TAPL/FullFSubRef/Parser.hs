@@ -68,11 +68,6 @@ notApply = value
        <|> (variable <?> "variable")
        <|> (parens notApply)
 
-notTypeBind :: LCParser
-notTypeBind = termApply
-          <|> notApply
-          <|> (optionalProjection identifier (parens notTypeBind))
-
 assignT :: LCParser
 assignT = chainl1 (notAssign <|> parens notAssign) $ padded (reservedOp ":=") >> TAssign <$> getPosition
 
@@ -120,7 +115,7 @@ timesFloat :: LCParser
 timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply <*> (spaces *> notApply)
 
 derefT :: LCParser
-derefT = TDeref <$> (reservedOp "!" >> getPosition) <*> notTypeBind
+derefT = TDeref <$> (reservedOp "!" >> getPosition) <*> term
 
 nat :: LCParser
 nat = (zero <?> "zero") <|> (succ <?> "succ") <|> (pred <?> "pred")
@@ -133,14 +128,14 @@ typeAbstraction = try $ do
     p <- getPosition
     x <- reserved "lambda" *> ucid
     ty <- optionalType <* dot
-    withState (addName x) $ TTAbs p x ty <$> notTypeBind
+    withState (addName x) $ TTAbs p x ty <$> term
 
 abstraction :: LCParser
 abstraction = try $ do
     pos <- getPosition
     name <-  reserved "lambda" *> identifier
     ty <- termType <* dot
-    withState (addVar name ty) $ TAbs pos name ty <$> notTypeBind
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = optionalProjection identifier $ do
@@ -187,9 +182,9 @@ errorT = constant "error" TError
 
 condition :: LCParser
 condition = TIf <$> getPosition
-                <*> (reserved "if" *> notTypeBind)
-                <*> (reserved "then" *> notTypeBind)
-                <*> (reserved "else" *> notTypeBind)
+                <*> (reserved "if" *> term)
+                <*> (reserved "then" *> term)
+                <*> (reserved "else" *> term)
 
 caseT :: LCParser
 caseT = TCase <$> getPosition
@@ -206,8 +201,8 @@ letT :: LCParser
 letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
-    t1 <- (typeApply <|> notTypeBind) <* reserved "in"
-    withState (addName name) $ TLet p name t1 <$> notTypeBind
+    t1 <- (typeApply <|> term) <* reserved "in"
+    withState (addName name) $ TLet p name t1 <$> term
 
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
