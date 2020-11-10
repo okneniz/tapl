@@ -73,11 +73,6 @@ notApply = optionalAscribed
                      <|> try (variable <?> "variable")
                      <|> try (parens notApply)
 
-notTypeBind :: LCParser
-notTypeBind = try termApply
-          <|> try notApply
-          <|> try (parens notTypeBind)
-
 stdFuncs :: LCParser
 stdFuncs = (timesFloat <?> "timesfloat") <|> (isZero <?> "zero?")
 
@@ -107,7 +102,7 @@ nat = succ <|> pred <|> zero <|> integer
 pack :: LCParser
 pack = do
     pos <- getPosition
-    (ty1, t) <- braces $ (,) <$> (reservedOp "*" *> typeAnnotation) <*> (comma *> notTypeBind)
+    (ty1, t) <- braces $ (,) <$> (reservedOp "*" *> typeAnnotation) <*> (comma *> term)
     ty2 <- reserved "as" *> typeAnnotation
     return $ TPack pos ty1 t ty2
 
@@ -115,20 +110,20 @@ unpack :: LCParser
 unpack = do
     pos <- reserved "let" *> getPosition
     (x,y) <- braces $ (,) <$> ucid <*> (comma *> identifier)
-    t1 <- reservedOp "=" *> notTypeBind <* reserved "in"
+    t1 <- reservedOp "=" *> term <* reserved "in"
     withState (addName x) $ do
       withState (addName y) $ do
-        TUnpack pos x y t1 <$> notTypeBind
+        TUnpack pos x y t1 <$> term
 
 typeAbstraction :: LCParser
-typeAbstraction = parens $ TTAbs <$> getPosition <*> (reserved "lambda" *> ucid <* dot) <*> notTypeBind
+typeAbstraction = parens $ TTAbs <$> getPosition <*> (reserved "lambda" *> ucid <* dot) <*> term
 
 abstraction :: LCParser
 abstraction = do
     pos <- getPosition <* reserved "lambda"
     name <- identifier <* colon
     ty <- typeAnnotation <* dot <* optional spaces
-    withState (addVar name ty) $ TAbs pos name ty <$> notTypeBind
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = do
@@ -164,9 +159,9 @@ constant name t = reserved name *> (t <$> getPosition)
 
 condition :: LCParser
 condition = TIf <$> getPosition
-                <*> (reserved "if" *> notTypeBind)
-                <*> (reserved "then" *> notTypeBind)
-                <*> (reserved "else" *> notTypeBind)
+                <*> (reserved "if" *> term)
+                <*> (reserved "then" *> term)
+                <*> (reserved "else" *> term)
 
 optionalProjection :: Parsec String LCNames String -> LCParser -> LCParser
 optionalProjection key tm = do
@@ -190,20 +185,20 @@ optionalAscribed e = do
           return $ TAscribe pos t ty
 
 record :: LCParser
-record = braces $ TRecord <$> getPosition <*> (Map.fromList <$> (keyValue (reservedOp "=") notTypeBind) `sepBy` comma)
+record = braces $ TRecord <$> getPosition <*> (Map.fromList <$> (keyValue (reservedOp "=") term) `sepBy` comma)
 
 letT :: LCParser
 letT = do
     p <- getPosition <* reserved "let"
     name <- identifier <* reservedOp "="
-    t1 <- notTypeBind <* reserved "in"
-    withState (addName name) $ TLet p name t1 <$> notTypeBind
+    t1 <- term <* reserved "in"
+    withState (addName name) $ TLet p name t1 <$> term
 
 timesFloat :: LCParser
 timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply <*> (spaces *> notApply)
 
 fix :: LCParser
-fix = TFix <$> (reserved "fix" *> getPosition) <*> notTypeBind
+fix = TFix <$> (reserved "fix" *> getPosition) <*> term
 
 keyValue :: Parsec String u a -> Parsec String u b -> Parsec String u (String, b)
 keyValue devider val = (,) <$> (identifier <* devider) <*> val
