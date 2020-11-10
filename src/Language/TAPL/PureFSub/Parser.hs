@@ -56,11 +56,6 @@ notApply = try (abstraction <?> "abstraction")
        <|> try (variable <?> "variable")
        <|> try (parens notApply)
 
-notTypeBind :: LCParser
-notTypeBind = try termApply
-          <|> try notApply
-          <|> try (parens notTypeBind)
-
 typeAbstraction :: LCParser
 typeAbstraction = parens $ do
     p <- getPosition <* reserved "lambda"
@@ -75,8 +70,8 @@ abstraction :: LCParser
 abstraction = do
     pos <- getPosition <* reserved "lambda"
     name <- identifier
-    ty <- termType <* dot <* optional spaces
-    withState (addVar name ty) $ TAbs pos name ty <$> notTypeBind
+    ty <- colon *> typeAnnotation <* dot
+    withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
 variable = do
@@ -88,10 +83,7 @@ variable = do
          Nothing -> unexpected $ "variable " <> show name <> " has't been bound in context " <> " " <> (show pos)
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = reserved name >> (t <$> getPosition)
-
-termType :: LCTypeParser
-termType = colon >> typeAnnotation
+constant name t = reserved name *> (t <$> getPosition)
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = try arrowAnnotation <|> notArrowAnnotation
