@@ -68,7 +68,7 @@ spec = do
                   ("if true then 3.14 else 9.8", pass "3.14:Float"),
                   (
                     "if true then {x=true,y=false,a=false} else {y=false,x={},b=false}",
-                    pass "{a=false, x=true, y=false}:{a=Bool, x=Bool, y=Bool}"
+                    pass  "{a=false, x=true, y=false}:{x=Top, y=Bool}"
                   )
                   -- TODO : check behaviour in ocaml implementations
 --                  (
@@ -114,11 +114,11 @@ spec = do
                     \if x y then z else p) (lambda x:Nat. zero? x) (succ zero) 3.14 9.8", pass "9.8:Float"),
                   ("(lambda x:{a:Bool,b:Bool}.x) {a=true, b=false}", pass "{a=true, b=false}:{a=Bool, b=Bool}"),
                   ("(lambda x:{a:Bool,b:Bool}.if x.a then false else true) {a=true, b=false}", pass "false:Bool"),
-                  ("(lambda x:Top. x) (lambda x:Top. x)", pass "(lambda x.x):(Top -> Top)"),
+                  ("(lambda x:Top. x) (lambda x:Top. x)", pass "(lambda x.x):Top"),
                   ("(lambda x:Top->Top. x) (lambda x:Top. x)", pass  "(lambda x.x):(Top -> Top)"),
                   (
                     "(lambda r:{x:Top->Top}. r.x r.x) {x=lambda z:Top.z, y=lambda z:Top.z}",
-                    pass "(lambda z.z):(Top -> Top)"
+                    pass "(lambda z.z):Top"
                   ),
                   (
                     "(lambda x:Bool->Bool. if x false then true else false) (lambda x:Bool. if x then false else true)",
@@ -239,10 +239,10 @@ spec = do
                     ),
                     (
                       "let {X,ops} = {*Nat, {c=zero, f=(lambda x:Nat. succ x)}} as {Some X, {c:X, f:X->Nat}} in ops.f",
-                      pass "(lambda x.succ x):(Nat -> Nat)"
+                      failed  "\"<stdin>\" (line 1, column 5) : attempt to use type variable in invalid scope"
                     ),
                     (
                       "let {X,ops} = {*Nat, {c=zero, f=(lambda x:Nat. succ x)}} as {Some X, {c:X, f:X->Nat}} in ops.c",
-                      pass "zero:Nat"
+                      failed  "\"<stdin>\" (line 1, column 5) : attempt to use type variable in invalid scope"
                     )
                  ]
