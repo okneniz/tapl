@@ -10,7 +10,7 @@ import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, ok, nvm)
 import Language.TAPL.FullEquirec.Types
 import Language.TAPL.FullEquirec.Context
 
@@ -228,9 +228,9 @@ computeType (TyVar i _) = do
     n <- get
     if isTypeAbb n i
     then return $ getTypeAbb n i
-    else return Nothing
+    else nvm
 
-computeType _ = return Nothing
+computeType _ = nvm
 
 simplifyType :: Type -> Eval Type
 simplifyType ty = do

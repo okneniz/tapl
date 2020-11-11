@@ -15,6 +15,7 @@ import Language.TAPL.Fomega.Context
 import Language.TAPL.Fomega.TypeChecker
 import Language.TAPL.Fomega.Pretty
 import Language.TAPL.Common.Context (bind)
+import Language.TAPL.Common.Helpers (ok, nvm)
 
 evalString :: String -> Either String String
 evalString code = do
@@ -44,17 +45,11 @@ fullNormalize t = do
          Just x -> fullNormalize x
          _ -> return t
 
-continue :: (Monad m1, Monad m2) => a -> m1 (m2 a)
-continue = return.return
-
-nvm :: Eval (Maybe Term)
-nvm = return Nothing
-
 normalize :: Term -> Eval (Maybe Term)
-normalize (TApp p (TAbs _ _ tyT11 t12) v2) | isVal v2 = continue $ termSubstitutionTop v2 t12
+normalize (TApp p (TAbs _ _ tyT11 t12) v2) | isVal v2 = ok $ termSubstitutionTop v2 t12
 normalize (TApp p v1 t2) | isVal v1 = fmap(TApp p v1) <$> normalize t2
 normalize (TApp p t1 t2) = fmap(flip (TApp p) t2) <$> normalize t1
 
-normalize (TTApp p (TTAbs _ _ _ t11) tyT2) = continue $ typeTermSubstitutionTop tyT2 t11
+normalize (TTApp p (TTAbs _ _ _ t11) tyT2) = ok $ typeTermSubstitutionTop tyT2 t11
 normalize (TTApp p t1 tyT2) = fmap(flip (TTApp p) tyT2) <$> normalize t1
 normalize _ = nvm

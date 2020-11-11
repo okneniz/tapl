@@ -368,9 +368,9 @@ computeType p (TyVar i _) = do
     x <- isTypeAdd p n i
     if x
     then getTypeAbb p n i
-    else return Nothing
+    else nvm
 
-computeType _ _ = return Nothing
+computeType _ _ = nvm
 
 simplifyType :: SourcePos -> Type -> Eval Type
 simplifyType p z@(TyApp ty1 ty2) = do
@@ -392,9 +392,9 @@ promote p (TyVar i _) = do
     x <- getBinding p n i
     case x of
          Just (TypeVarBind ty) -> return $ Just ty
-         _ -> return Nothing
+         _ -> nvm
 promote p (TyApp tyS tyT) = fmap(flip(TyApp) tyT) <$> promote p tyS
-promote _ _ = return Nothing
+promote _ _ = nvm
 
 lcst :: SourcePos -> Type -> Eval Type
 lcst p ty = do

@@ -9,7 +9,7 @@ import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
 import Language.TAPL.Common.Context (bind)
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, nvm)
 import Language.TAPL.PureFSub.Types
 import Language.TAPL.PureFSub.Pretty
 import Language.TAPL.PureFSub.Context
@@ -85,9 +85,9 @@ promote (TyVar i _) = do
     n <- get
     case getBinding n i of
          Just (TypeAddBind ty) -> return $ Just ty
-         _ -> return Nothing
+         _ -> nvm
 
-promote _ = return Nothing
+promote _ = nvm
 
 lcst :: Type -> Eval Type
 lcst ty = do

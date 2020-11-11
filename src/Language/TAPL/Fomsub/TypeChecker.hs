@@ -8,7 +8,7 @@ import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, ok, nvm)
 import Language.TAPL.Common.Context
 import Language.TAPL.Fomsub.Types
 import Language.TAPL.Fomsub.Context
@@ -141,8 +141,8 @@ typeEq ty1 ty2 = do
               _ -> return False
 
 computeType :: Type -> Eval (Maybe Type)
-computeType (TyApp (TyAbs _ _ ty1) ty2) = return.return $ typeSubstitutionTop ty2 ty1
-computeType _ = return Nothing
+computeType (TyApp (TyAbs _ _ ty1) ty2) = ok $ typeSubstitutionTop ty2 ty1
+computeType _ = nvm
 
 simplifyType :: Type -> Eval Type
 simplifyType z@(TyApp ty1 ty2) = do
@@ -163,10 +163,10 @@ promote (TyVar i _) = do
     n <- get
     case getBinding n i of
          Just (TypeVarBind ty) -> return $ Just ty
-         _ -> return Nothing
+         _ -> nvm
 
 promote (TyApp tyS tyT) = fmap(flip(TyApp) tyT) <$> promote tyS
-promote _ = return Nothing
+promote _ = nvm
 
 lcst :: Type -> Eval Type
 lcst ty = do

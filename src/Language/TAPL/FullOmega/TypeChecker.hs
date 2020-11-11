@@ -13,7 +13,7 @@ import Language.TAPL.FullOmega.Pretty (render, renderType)
 import Text.Parsec (SourcePos)
 
 import Language.TAPL.Common.Context
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, nvm)
 import Language.TAPL.FullOmega.Types
 import Language.TAPL.FullOmega.Context
 
@@ -281,9 +281,9 @@ computeType p (TyVar i _) = do
     x <- isTypeAdd p n i
     if x
     then getTypeAbb p n i
-    else return Nothing
+    else nvm
 
-computeType _ _ = return Nothing
+computeType _ _ = nvm
 
 simplifyType :: SourcePos -> Type -> Eval Type
 simplifyType p z@(TyApp ty1 ty2) = do

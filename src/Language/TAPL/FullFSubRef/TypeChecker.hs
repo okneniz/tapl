@@ -13,7 +13,7 @@ import Control.Monad.Trans.State.Lazy
 
 import Text.Parsec (SourcePos)
 
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, ok, nvm)
 import Language.TAPL.FullFSubRef.Types
 import Language.TAPL.FullFSubRef.Context
 
@@ -287,9 +287,6 @@ typeEq ty1 ty2 = do
 
               _ -> return False
 
-reasonable  x = (return.return) x
-nvm = return Nothing
-
 joinTypes :: Type -> Type -> Eval Type
 joinTypes tyS tyT = do
     x <- tyS <: tyT
@@ -352,10 +349,10 @@ meetTypes :: Type -> Type -> Eval (Maybe Type)
 meetTypes tyS tyT = do
     x <- tyS <: tyT
     if x
-    then reasonable tyS
+    then ok tyS
     else do y <- tyT <: tyS
             if y
-            then reasonable tyT
+            then ok tyT
             else do z <- (,) <$> simplifyType tyS <*> simplifyType tyT
                     case z of
                          (TyRecord fS, TyRecord fT) -> do
@@ -368,10 +365,10 @@ meetTypes tyS tyT = do
                              -- TODO : WTF ? https://github.com/enaudon/TAPL/blob/master/source/fullsub/core.ml#L240
                              -- what is Nothing (not found in original implementation) in this context?
                              -- how to handle it?
-                            reasonable $ TyRecord $ Map.fromList $ catMaybes fST
+                            ok $ TyRecord $ Map.fromList $ catMaybes fST
                             where f k (Just tySi, Just tyTi) = fmap ((,) k) <$> meetTypes tySi tyTi
-                                  f k (Just tySi, Nothing) = reasonable (k, tySi)
-                                  f k (Nothing, Just tyTi) = reasonable (k, tyTi)
+                                  f k (Just tySi, Nothing) = ok (k, tySi)
+                                  f k (Nothing, Just tyTi) = ok (k, tyTi)
 
                          (TyAll tyX tyS1 tyS2, TyAll _ tyT1 tyT2) -> do
                             x <- (&&) <$> (tyS1 <: tyT1) <*> (tyT1 <: tyS1)
@@ -380,67 +377,67 @@ meetTypes tyS tyT = do
                             else withTmpStateT (\s -> s { names = addTypeVar tyX tyT1 (names s)}) $ do
                                     y <- meetTypes tyT1 tyT2
                                     case y of
-                                         Just ty -> reasonable $ TyAll tyX tyS1 ty
+                                         Just ty -> ok $ TyAll tyX tyS1 ty
                                          Nothing -> nvm
 
                          (TyArrow tyS1 tyS2, TyArrow tyT1 tyT2) -> do
                             j <- (,) <$> joinTypes tyS1 tyT1 <*> meetTypes tyS2 tyT2
                             case j of
-                                 (ty1, Just ty2) -> reasonable $ TyArrow ty1 ty2
+                                 (ty1, Just ty2) -> ok $ TyArrow ty1 ty2
                                  (ty1, Nothing) -> nvm
 
                          (TyRef tyT1, TyRef tyT2) -> do
                             x <- (&&) <$> (tyT1 <: tyT2) <*> (tyT2 <: tyT1)
                             if x
-                            then reasonable $ TyRef tyT1
+                            then ok $ TyRef tyT1
                             else do
                                 x <- meetTypes tyT1 tyT2
                                 case x of
-                                     Just x -> reasonable $ TySource x
+                                     Just x -> ok $ TySource x
                                      Nothing -> lift $ throwE "i don't know how to handle it"
 
                          (TySource tyT1, TySource tyT2) -> do
                             x <- meetTypes tyT1 tyT2
                             case x of
-                                 Just ty -> reasonable $ TySource ty
+                                 Just ty -> ok $ TySource ty
                                  Nothing -> lift $ throwE "i don't know how to handle it"
 
                          (TyRef tyT1, TySource tyT2) -> do
                             x <- meetTypes tyT1 tyT2
                             case x of
-                                 Just ty -> reasonable $ TySource ty
+                                 Just ty -> ok $ TySource ty
                                  Nothing -> lift $ throwE "i don't know how to handle it"
 
                          (TySource tyT1, TyRef tyT2) -> do
                             x <- meetTypes tyT1 tyT2
                             case x of
-                                 Just ty -> reasonable $ TySource ty
+                                 Just ty -> ok $ TySource ty
                                  Nothing -> lift $ throwE "i don't know how to handle it"
 
                          (TySink tyT1, TySink tyT2) -> do
                             x <- meetTypes tyT1 tyT2
                             case x of
-                                 Just ty -> reasonable $ TySource ty
+                                 Just ty -> ok $ TySource ty
                                  Nothing -> lift $ throwE "i don't know how to handle it"
 
                          (TyRef tyT1, TySink tyT2) -> do
                             ty <- joinTypes tyT1 tyT2
-                            reasonable $ TySink ty
+                            ok $ TySink ty
 
                          (TySink tyT1, TyRef tyT2) -> do
                             ty <- joinTypes tyT1 tyT2
-                            reasonable $ TySink ty
+                            ok $ TySink ty
 
-                         _ -> reasonable TyBot
+                         _ -> ok TyBot
 
 computeType :: Type -> Eval (Maybe Type)
 computeType (TyVar i _) = do
     n <- getNames
     if isTypeAdd n i
     then return $ getTypeAbb n i
-    else return Nothing
+    else nvm
 
-computeType _ = return Nothing
+computeType _ = nvm
 
 simplifyType :: Type -> Eval Type
 simplifyType ty = do
@@ -454,8 +451,8 @@ promote (TyVar i _) = do
     n <- getNames
     case getBinding n i of
          Just (TypeVarBind ty) -> return $ Just ty
-         _ -> return Nothing
-promote _ = return Nothing
+         _ -> nvm
+promote _ = nvm
 
 lcst :: Type -> Eval Type
 lcst ty = do

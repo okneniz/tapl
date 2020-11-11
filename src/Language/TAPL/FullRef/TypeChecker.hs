@@ -10,7 +10,7 @@ import Control.Monad.Trans.Except
 
 import Text.Parsec (SourcePos)
 
-import Language.TAPL.Common.Helpers (unlessM, withTmpStateT)
+import Language.TAPL.Common.Helpers (unlessM, withTmpStateT, nvm)
 import Language.TAPL.FullRef.Types
 import Language.TAPL.FullRef.Pretty
 import Language.TAPL.FullRef.Context
@@ -338,8 +338,8 @@ computeType (TyVar i _) = do
     n <- getNames
     if isTypeAbb n i
     then return $ getTypeAbb n i
-    else return Nothing
-computeType _ = return Nothing
+    else nvm
+computeType _ = nvm
 
 simplifyType :: Type -> Eval Type
 simplifyType ty = do

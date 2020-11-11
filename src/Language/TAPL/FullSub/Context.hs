@@ -2,6 +2,7 @@ module Language.TAPL.FullSub.Context where
 
 import Language.TAPL.FullSub.Types
 import Language.TAPL.Common.Context
+import Language.TAPL.Common.Helpers (nvm)
 import Data.Maybe (isJust)
 
 import Control.Monad.Trans.State.Lazy
@@ -46,9 +47,9 @@ computeType (TyVar i _) = do
     n <- get
     if isTypeAbb n i
     then return $ getTypeAbb n i
-    else return Nothing
+    else nvm
 
-computeType _ = return Nothing
+computeType _ = nvm
 
 simplifyType :: Type -> Eval Type
 simplifyType ty = do

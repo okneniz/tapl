@@ -11,6 +11,7 @@ import qualified Data.Map.Lazy as Map
 import Text.Parsec (SourcePos)
 
 import Language.TAPL.Common.Context
+import Language.TAPL.Common.Helpers (ok, nvm)
 import Language.TAPL.FullFSub.Types
 
 type LCNames = Names Binding
@@ -40,7 +41,7 @@ getTypeAbb p names varName = do
     b <- getBinding p names varName
     case b of
          (Just (TypeAddBind ty)) -> return $ Just ty
-         _ -> return Nothing
+         _ -> nvm
 
 isTypeAdd :: SourcePos -> LCNames -> VarName -> Eval Bool
 isTypeAdd p names varName = isJust <$> getTypeAbb p names varName

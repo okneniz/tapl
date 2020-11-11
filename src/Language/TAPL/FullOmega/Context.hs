@@ -11,6 +11,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
 import Language.TAPL.Common.Context
+import Language.TAPL.Common.Helpers (nvm)
 import Language.TAPL.FullOmega.Types
 
 type LCNames = Names Binding
@@ -41,7 +42,7 @@ getTypeAbb p names varName = do
     b <- getBinding p names varName
     case b of
          (Just (TypeAddBind ty _)) -> return $ Just ty
-         _ -> return Nothing
+         _ -> nvm
 
 isTypeAdd :: SourcePos -> LCNames -> VarName -> Eval Bool
 isTypeAdd p names varName = isJust <$> getTypeAbb p names varName
