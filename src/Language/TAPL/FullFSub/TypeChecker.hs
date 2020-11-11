@@ -179,8 +179,6 @@ typeEq p ty1 ty2 = do
 
              (TyVar i _, TyVar j _) -> return $ i == j
 
-      (TyVar i _, TyVar j _) | i == j -> return True
-
       (TyBool, TyBool) -> return True
       (TyNat, TyNat) -> return True
 

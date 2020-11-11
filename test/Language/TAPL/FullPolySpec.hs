@@ -208,10 +208,10 @@ spec = do
                     ),
                     (
                       "let {X,ops} = {*Nat, {c=zero, f=(lambda x:Nat. succ x)}} as {Some X, {c:X, f:X->Nat}} in ops.f",
-                      pass "(lambda x.succ x):(Nat -> Nat)"
+                      failed "\"<stdin>\" (line 1, column 5) : attempt to use type variable in invalid scope"
                     ),
                     (
                       "let {X,ops} = {*Nat, {c=zero, f=(lambda x:Nat. succ x)}} as {Some X, {c:X, f:X->Nat}} in ops.c",
-                      pass "zero:Nat"
+                      failed "\"<stdin>\" (line 1, column 5) : attempt to use type variable in invalid scope"
                     )
                  ]

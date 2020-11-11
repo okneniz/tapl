@@ -7,7 +7,7 @@ import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
-import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Helpers (whileJust, ok, nvm)
 import Language.TAPL.Common.Context (bind)
 import Language.TAPL.FullPoly.Types
 import Language.TAPL.FullPoly.Parser
@@ -18,91 +18,82 @@ import Language.TAPL.FullPoly.Pretty
 evalString :: String -> Either String String
 evalString code = do
     case parse "<stdin>" code of
-        Left e -> Left $ show e
-        Right ([], _) -> return ""
-        Right (commands, names) -> runExcept (evalStateT (f commands) names)
-    where
-        f cs = do
-            names <- get
-            cs' <- evalCommands cs
-            if null cs'
-            then return ""
-            else do let t = last cs'
-                    ty <- typeOf t
-                    t' <- prettify t
-                    ty' <- prettifyType ty
-                    return $ show t' <> ":" <> show ty'
+         Left e -> Left $ show e
+         Right ([], _) -> return ""
+         Right (commands, names) -> runExcept $ evalStateT (f commands) names
+    where f cs = evalCommands cs >>= \x -> return $ if null x then [] else last x
 
-evalCommands :: [Command] -> Eval AST
+evalCommands :: [Command] -> Eval [String]
 evalCommands [] = return []
 
--- wtf ? https://github.com/enaudon/TAPL/blob/master/source/fullpoly/main.ml#L89
---evalCommands ((SomeBind _ String String Term):cs) = do
-
-evalCommands ((Bind _ name binding):cs) = do
-   modify $ bind name binding
-   evalCommands cs
+evalCommands ((Bind p name b):cs) = do
+    modify $ bind name b
+    evalCommands cs
 
 evalCommands ((Eval []):cs) = evalCommands cs
-evalCommands ((Eval ts):cs) = do
-    _ <- typeCheck ts
-    let ts' = whileJust normalize <$> ts
-    cs' <- evalCommands cs
-    return $ ts' <> cs'
+evalCommands ((Eval (t:ts)):cs) = do
+    ty <- typeOf t
+    t' <- fullNormalize t
+    (:) <$> render t' ty <*> evalCommands ((Eval ts):cs)
 
-typeCheck :: AST -> Eval Type
-typeCheck [] = lift $ throwE "attempt to check empty AST"
-typeCheck [t] = typeOf t
-typeCheck (t:ts) = typeOf t >> typeCheck ts
+fullNormalize :: Term -> Eval Term
+fullNormalize t = do
+    t' <- normalize t
+    case t' of
+         Just x -> fullNormalize x
+         _ -> return t
 
-normalize :: Term -> Maybe Term
-normalize (TApp _ (TAbs _ _ tyT11 t12) v2) | isVal v2 = return $ termSubstitutionTop v2 t12
-normalize (TApp p v1 t2) | isVal v1 = TApp p v1 <$> normalize t2
-normalize (TApp p t1 t2) = flip (TApp p) t2 <$> normalize t1
+normalize :: Term -> Eval (Maybe Term)
+normalize (TApp _ (TAbs p _ tyT11 t12) v2) | isVal v2 = Just <$> termSubstitutionTop p v2 t12
+normalize (TApp p v1 t2) | isVal v1 = fmap(TApp p v1) <$> normalize t2
+normalize (TApp p t1 t2) = fmap(flip(TApp p) t2) <$> normalize t1
 
-normalize (TLet _ _ t1 t2) | isVal t1 = return $ termSubstitutionTop t1 t2
-normalize (TLet p v t1 t2) = flip (TLet p v) t2 <$> normalize t1
+normalize (TLet p _ t1 t2) | isVal t1 = Just <$> termSubstitutionTop p t1 t2
+normalize (TLet p v t1 t2) = fmap(flip(TLet p v) t2) <$> normalize t1
 
-normalize t1@(TFix _ a@(TAbs _ _ _ t2)) | isVal a = return $ termSubstitutionTop t1 t2
-normalize (TFix p t) = TFix p <$> normalize t
+normalize t1@(TFix _ a@(TAbs p _ _ t2)) | isVal a = Just <$> termSubstitutionTop p t1 t2
+normalize (TFix p t) = fmap(TFix p) <$> normalize t
 
-normalize (TAscribe _ t _) | isVal t = return t
+normalize (TAscribe _ t _) | isVal t = ok t
 normalize (TAscribe _ t _) = normalize t
 
-normalize (TRecord _ fields) | (Map.size fields) == 0 = Nothing
-normalize t@(TRecord _ _) | isVal t = Nothing
+normalize (TRecord _ fields) | (Map.size fields) == 0 = nvm
+normalize t@(TRecord _ _) | isVal t = nvm
 normalize (TRecord p fs) = do
-    fs' <- sequence $ evalField <$> Map.toList fs
-    return $ TRecord p (Map.fromList fs')
-    where evalField (k, v) | isVal v = return (k, v)
-          evalField (k, v) = ((,) k) <$> normalize v
+    fs' <- mapM evalField $ Map.toList fs
+    ok $ TRecord p (Map.fromList fs')
+    where evalField (k,v) = (,) k <$> fullNormalize v
 
-normalize (TProj _ t@(TRecord _ fs) k) | isVal t = Map.lookup k fs
-normalize (TProj p t@(TRecord _ _) k) = flip (TProj p) k <$> normalize t
+normalize (TProj _ t@(TRecord _ fs) k) | isVal t = return $ Map.lookup k fs
+normalize (TProj p t@(TRecord _ _) k) = fmap(flip(TProj p) k) <$> normalize t
 
-normalize (TIf _ (TTrue _) t _ ) = return t
-normalize (TIf _ (TFalse _) _ t) = return t
-normalize (TIf p t1 t2 t3) = TIf p <$> normalize t1 <*> return t2 <*> return t3
+normalize (TIf _ (TTrue _) t _ ) = ok t
+normalize (TIf _ (TFalse _) _ t) = ok t
+normalize (TIf p t1 t2 t3) = fmap(\t1' -> TIf p t1' t2 t3) <$> normalize t1
 
-normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = return $ TFloat p (t1 * t2)
-normalize (TTimesFloat p t1 t2) | isVal t1 = TTimesFloat p t1 <$> normalize t2
-normalize (TTimesFloat p t1 t2) = flip (TTimesFloat p) t2 <$> normalize t1
+normalize (TTimesFloat p (TFloat _ t1) (TFloat _ t2)) = ok $ TFloat p (t1 * t2)
+normalize (TTimesFloat p t1 t2) | isVal t1 = fmap(TTimesFloat p t1) <$> normalize t2
+normalize (TTimesFloat p t1 t2) = fmap(flip(TTimesFloat p) t2) <$> normalize t1
 
-normalize (TSucc p t) = TSucc p <$> normalize t
+normalize (TSucc p t) = fmap(TSucc p) <$> normalize t
 
-normalize (TPred _ (TZero p)) = return $ TZero p
-normalize (TPred _ (TSucc _ t)) | isNumerical t = return t
-normalize (TPred p t) = TPred p <$> normalize t
+normalize (TPred _ (TZero p)) = ok $ TZero p
+normalize (TPred _ (TSucc _ t)) | isNumerical t = ok t
+normalize (TPred p t) = fmap(TPred p) <$> normalize t
 
-normalize (TIsZero _ (TZero p)) = return $ TTrue p
-normalize (TIsZero _ (TSucc p t)) | isNumerical t = return $ TFalse p
-normalize (TIsZero p t) = TIsZero p <$> normalize t
+normalize (TIsZero _ (TZero p)) = ok $ TTrue p
+normalize (TIsZero _ (TSucc p t)) | isNumerical t = ok $ TFalse p
+normalize (TIsZero p t) = fmap(TIsZero p) <$> normalize t
 
-normalize (TUnpack _ _ _ (TPack _ tyT11 v12 _) t2) | isVal v12 =
-    return $ typeTermSubstitutionTop tyT11 (termSubstitutionTop (termShift 1 v12) t2)
+normalize (TUnpack _ _ _ (TPack p2 tyT11 v12 _) t2) | isVal v12 = do
+    x <- termShift p2 1 v12
+    y <- termSubstitutionTop p2 x t2
+    Just <$> typeTermSubstitutionTop p2 tyT11 y
 
-normalize (TUnpack p ty x t1 t2) = flip (TUnpack p ty x) t2 <$> normalize t1
-normalize (TPack p ty1 t2 ty3) = flip (TPack p ty1) ty3 <$> normalize t2
-normalize (TTApp _ (TTAbs _ _ t11) tyT2) = return $ typeTermSubstitutionTop tyT2 t11
-normalize (TTApp p t1 tyT2) = flip (TTApp p) tyT2 <$> normalize t1
-normalize _ = Nothing
+normalize (TUnpack p ty x t1 t2) = fmap(flip(TUnpack p ty x) t2) <$> normalize t1
+
+normalize (TPack p ty1 t2 ty3) = fmap(flip(TPack p ty1) ty3) <$> normalize t2
+
+normalize (TTApp p (TTAbs _ _ t11) tyT2) = Just <$> typeTermSubstitutionTop p tyT2 t11
+normalize (TTApp p t1 tyT2) = fmap(flip(TTApp p) tyT2) <$> normalize t1
+normalize _ = nvm
