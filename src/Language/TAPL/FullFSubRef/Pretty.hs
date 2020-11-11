@@ -72,6 +72,8 @@ prettify (TApp _ t1 t2) = do
     doc2 <- prettify t2
     return $ doc1 <+> doc2
 
+prettify (TRecord _ ts) | Map.null ts = return $ pretty "{}"
+
 prettify (TRecord _ ts) = do
     ts' <- sequence (f <$> Map.toList ts)
     return $ braces $ foldl1 (\x y -> x <> comma <+> y) ts'

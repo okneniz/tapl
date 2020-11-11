@@ -65,12 +65,11 @@ spec = do
                   (
                     "if true then {x=true,y=false,a=false} else {y=false,x={},b=false}",
                     pass "{a=false, x=true, y=false}:{x=Top, y=Bool}"
+                  ),
+                  (
+                    "if false then {x=true,y=false,a=false} else {y=false,x={},b=false}",
+                    pass "{b=false, x={}, y=false}:{x=Top, y=Bool}"
                   )
-                  -- TODO : check behaviour in ocaml implementations
---                  (
---                    "if false then {x=true,y=false,a=false} else {y=false,x={},b=false}",
---                    pass "{a=false, x=true, y=false}:{a=Bool, x=Bool, y=Bool}"
---                  )
                 ]
 
         describe "predefined functions" $ do
