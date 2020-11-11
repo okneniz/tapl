@@ -276,7 +276,7 @@ typeEq ty1 ty2 = do
               (TyAll tyX1 tyS1 tyS2, TyAll _ tyT1 tyT2) -> do
                 x <- (&&) <$> (tyS1 <: tyT1) <*> (tyT1 <: tyS1)
                 if x
-                then withTmpStateT (\s -> s { names = addTypeVar tyX1 tyT1 (names s)}) $ do { tyS2 <: tyT2 }
+                then withTmpStateT (\s -> s { names = addTypeVar tyX1 tyT1 (names s)}) $ tyS2 <: tyT2
                 else return False
 
               (TyRef ty1, TyRef ty2) -> (&&) <$> (ty1 <: ty2) <*> (ty2 <: ty1)

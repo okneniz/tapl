@@ -94,7 +94,7 @@ typeOf (TTimesFloat p t1 t2) = do
     unlessM (isSubtype p ty2 TyFloat) (argumentError p TyFloat ty2)
     return TyFloat
 
-typeOf (TTAbs p tyX tyT1 t2) = withTmpStateT (addTypeVar tyX tyT1) $ do { TyAll tyX tyT1 <$> typeOf t2 }
+typeOf (TTAbs p tyX tyT1 t2) = withTmpStateT (addTypeVar tyX tyT1) $ TyAll tyX tyT1 <$> typeOf t2
 
 typeOf (TTApp p t1 tyT2) = do
     tyT1 <- lcst p =<< typeOf t1
@@ -216,13 +216,13 @@ isSubtype p tyS tyT = do
               (TyAll tyX1 tyS1 tyS2, TyAll _ tyT1 tyT2) -> do
                     x <- (&&) <$> (isSubtype p tyS1 tyT1) <*> (isSubtype p tyT1 tyS1)
                     if x
-                    then withTmpStateT (addTypeVar tyX1 tyT1) $ do { isSubtype p tyS2 tyT2 }
+                    then withTmpStateT (addTypeVar tyX1 tyT1) $ isSubtype p tyS2 tyT2
                     else return False
 
               (TySome tyX1 tyS1 tyS2, TySome _ tyT1 tyT2) -> do
                     x <- (&&) <$> (isSubtype p tyS1 tyT1) <*> (isSubtype p tyT1 tyS1)
                     if x
-                    then withTmpStateT (addTypeVar tyX1 tyT1) $ do { isSubtype p tyS2 tyT2 }
+                    then withTmpStateT (addTypeVar tyX1 tyT1) $ isSubtype p tyS2 tyT2
                     else return False
 
               _ -> return False

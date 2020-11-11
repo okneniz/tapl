@@ -17,7 +17,7 @@ import Language.TAPL.PureFSub.Context
 data TypeError = TypeMissmatch SourcePos String
 
 typeOf :: Term -> Eval Type
-typeOf (TTAbs p tyX tyT1 t2) = withTmpStateT (bind tyX (TypeAddBind tyT1)) $ do { TyAll tyX tyT1 <$> typeOf t2 }
+typeOf (TTAbs p tyX tyT1 t2) = withTmpStateT (bind tyX (TypeAddBind tyT1)) $ TyAll tyX tyT1 <$> typeOf t2
 
 typeOf (TTApp p t1 tyT2) = do
     tyT1 <- lcst =<< typeOf t1
@@ -73,7 +73,7 @@ instance Show TypeError where
                     (TyAll tyX tyS1 tyS2, TyAll _ tyT1 tyT2) -> do
                         x <- (&&) <$> (tyS2 <: tyT1) <*> (tyT1 <: tyS1)
                         if x
-                        then withTmpStateT (addVar tyX tyT1) $ do { tyS2 <: tyT2 }
+                        then withTmpStateT (addVar tyX tyT1) $ tyS2 <: tyT2
                         else return False
 
                     (_, TyTop) -> return True
