@@ -78,8 +78,8 @@ spec = do
                     ("(lambda x:A.x)", pass "(lambda x.x):(A -> A)"),
                     ("lambda x:Top. x", pass "(lambda x.x):(Top -> Top)"),
                     ("lambda x:Bot. x", pass "(lambda x.x):(Bot -> Bot)"),
-                    ("(lambda x:Bot.error)", pass "(lambda x.error):(Bot -> Bot)")
---                    ("(lambda x:Bot. x x)", failed "arrow type expected") TODO
+                    ("(lambda x:Bot.error)", pass "(lambda x.error):(Bot -> Bot)"),
+                    ("(lambda x:Bot. x x)", pass "(lambda x.x x):(Bot -> Bot)")
                  ]
 
     describe "operations" $ do
@@ -163,13 +163,16 @@ spec = do
                     \let app = clean sink in \
                     \!sink",
                     pass "zero:Nat"
+                  ),
+                  (
+                    "error true",
+                    failed "\"<stdin>\" (line 1, column 7): error"
+                  ),
+                  (
+                    "(lambda x:Bool. x) error",
+                    failed "\"<stdin>\" (line 1, column 25): error"
                   )
-                  -- TODO
---                  (
---                    "error true",
---                    failed "arrow type expected TyBot"
---                  )
-                 ]
+                ]
 
         describe "fix" $ do
            tests evalString [
