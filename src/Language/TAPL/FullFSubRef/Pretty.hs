@@ -88,8 +88,12 @@ prettify (TProj _ t k) = do
 prettify (TLet _ v t1 t2) = do
     doc1 <- prettify t1
     doc2 <- prettify t2
-    return $ pretty "let"
-         <+> align (pretty v <+> equals <+> doc1 <+> pretty "in" <+> doc2)
+    return $ pretty "let" <+> align (pretty v <+> equals <+> doc1 <+> pretty "in" <+> doc2)
+
+prettify (TTry _ t1 t2) = do
+    doc1 <- prettify t1
+    doc2 <- prettify t2
+    return $ pretty "try" <+> doc1 <+> pretty "with" <+> doc2
 
 prettify (TTag _ key t _) = do
     doc <- prettify t

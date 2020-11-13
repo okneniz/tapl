@@ -39,6 +39,8 @@ languageDefinition = emptyDef {
         "case",
         "of",
         "fix",
+        "try",
+        "with",
         "All",
         "|"
     ],

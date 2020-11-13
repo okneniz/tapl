@@ -183,6 +183,38 @@ spec = do
                   )
                  ]
 
+        describe "simple error handling" $ do
+           tests evalString [
+                (
+                  "try true with false",
+                  pass "true:Bool"
+                ),
+                (
+                  "try error with false",
+                  pass "false:Bool"
+                ),
+                (
+                  "try (lambda x:Nat.if zero? x then succ x else error) 1 with false",
+                  pass "false:Top"
+                ),
+                (
+                  "try (lambda x:Nat.if zero? x then succ x else error) 0 with false",
+                  pass "succ zero:Top"
+                ),
+                (
+                  "try (lambda x:Nat.if zero? x then succ x else error) 1 with 2",
+                  pass "succ succ zero:Nat"
+                ),
+                (
+                  "try (lambda x:Nat.if zero? x then succ x else error) 0 with 2",
+                  pass "succ zero:Nat"
+                ),
+                (
+                  "(lambda x:Nat.if zero? x then succ x else error) 1",
+                  failed "\"<stdin>\" (line 1, column 48): error"
+                )
+              ]
+
         describe "assignment and let" $ do
             tests evalString [
                   ("(ref true) := false", pass "unit:Unit"),

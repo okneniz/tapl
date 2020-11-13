@@ -90,17 +90,19 @@ construction :: LCParser
 construction = (condition <?> "condition")
            <|> (letT <?> "let")
            <|> (caseT <?> "case")
+           <|> (tryT <?> "try")
 
 value :: LCParser
-value = optionalAscribed $ nat <|> (boolean <?> "boolean")
-                               <|> (unit <?> "unit")
-                               <|> (errorT <?> "error")
-                               <|> (stringT <?> "string")
-                               <|> (float <?> "float")
-                               <|> (variant <?> "variant")
-                               <|> ((optionalProjection identifier record) <?> "record")
-                               <|> (typeAbstraction <?> "type abstraction")
-                               <|> (abstraction <?> "abstraction")
+value = optionalAscribed $ (boolean <?> "boolean")
+                       <|> (unit <?> "unit")
+                       <|> (errorT <?> "error")
+                       <|> (float <?> "float")
+                       <|> (nat <?> "nat")
+                       <|> (stringT <?> "string")
+                       <|> (variant <?> "variant")
+                       <|> ((optionalProjection identifier record) <?> "record")
+                       <|> (typeAbstraction <?> "type abstraction")
+                       <|> (abstraction <?> "abstraction")
 
 isZero :: LCParser
 isZero = fun "zero?" TIsZero
@@ -117,11 +119,21 @@ timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply
 derefT :: LCParser
 derefT = TDeref <$> (reservedOp "!" >> getPosition) <*> term
 
+tryT :: LCParser
+tryT = TTry <$> (reserved "try" *> getPosition) <*> (term <* reserved "with") <*> term
+
 nat :: LCParser
-nat = (zero <?> "zero") <|> (succ <?> "succ") <|> (pred <?> "pred")
-  where zero = constant "zero" TZero
-        succ = fun "succ" TSucc
-        pred = fun "pred" TPred
+nat = succ <|> pred <|> zero <|> integer
+    where succ = fun "succ" TSucc
+          pred = fun "pred" TPred
+          zero = constant "zero" TZero
+          integer = do
+            p <- getPosition
+            i <- try natural
+            toNat p i (TZero p)
+          toNat _ i _ | i < 0 = unexpected "unexpected negative number"
+          toNat _ 0 t = return t
+          toNat p i t = toNat p (i - 1) (TSucc p t)
 
 typeAbstraction :: LCParser
 typeAbstraction = try $ do
