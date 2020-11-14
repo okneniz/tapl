@@ -78,15 +78,15 @@ construction = (condition <?> "condition")
            <|> (letT <?> "let")
 
 value :: LCParser
-value = optionalAscribed $ nat <|> (boolean <?> "boolean")
-                               <|> (unit <?> "unit")
-                               <|> (stringT <?> "string")
-                               <|> (float <?> "float")
-                               <|> (boolean <?> "boolean")
-                               <|> ((optionalProjection identifier record) <?> "record")
-                               <|> (typeAbstraction <?> "type abstraction")
-                               <|> (abstraction <?> "abstraction")
-                               <|> (parens value)
+value = optionalAscribed $ (boolean <?> "boolean")
+                       <|> (unit <?> "unit")
+                       <|> (float <?> "float")
+                       <|> nat
+                       <|> (stringT <?> "string")
+                       <|> ((optionalProjection identifier record) <?> "record")
+                       <|> (typeAbstraction <?> "type abstraction")
+                       <|> (abstraction <?> "abstraction")
+                       <|> (parens value)
 
 isZero :: LCParser
 isZero = fun "zero?" TIsZero
@@ -98,10 +98,17 @@ timesFloat :: LCParser
 timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply <*> (spaces *> notApply)
 
 nat :: LCParser
-nat = (zero <?> "zero") <|> (succ <?> "succ") <|> (pred <?> "pred")
-  where zero = constant "zero" TZero
-        succ = fun "succ" TSucc
-        pred = fun "pred" TPred
+nat = succ <|> pred <|> zero <|> integer
+    where succ = fun "succ" TSucc
+          pred = fun "pred" TPred
+          zero = constant "zero" TZero
+          integer = do
+            p <- getPosition
+            i <- try natural
+            toNat p i (TZero p)
+          toNat _ i _ | i < 0 = unexpected "unexpected negative number"
+          toNat _ 0 t = return t
+          toNat p i t = toNat p (i - 1) (TSucc p t)
 
 typeAbstraction :: LCParser
 typeAbstraction = try $ optionalParens $ do
