@@ -80,7 +80,7 @@ errorT :: LCParser
 errorT = constant "error" TError
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = reserved name >> (t <$> getPosition)
+constant name t = reserved name *> (t <$> getPosition)
 
 condition :: LCParser
 condition = TIf <$> getPosition

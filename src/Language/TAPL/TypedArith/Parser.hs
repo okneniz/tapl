@@ -88,7 +88,7 @@ nat = succ <|> pred <|> zero <|> integer
           toNat p i t = toNat p (i - 1) (TSucc p t)
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = reserved name >> (t <$> getPosition)
+constant name t = reserved name *> (t <$> getPosition)
 
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
 fun name tm = tm <$> (reserved name *> getPosition) <*> term

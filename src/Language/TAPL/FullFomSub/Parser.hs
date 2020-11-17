@@ -166,7 +166,7 @@ float :: LCParser
 float = TFloat <$> getPosition <*> try floatNum
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = reserved name >> (t <$> getPosition)
+constant name t = reserved name *> (t <$> getPosition)
 
 unit :: LCParser
 unit = constant "unit" TUnit
@@ -305,7 +305,7 @@ typeVarOrID = try $ do
                   Nothing -> TyID name
 
 optionalKind :: LCKindParser
-optionalKind = (reservedOp "::" >> kindAnnotation) <|> return Star
+optionalKind = (reservedOp "::" *> kindAnnotation) <|> return Star
 
 kindAnnotation :: LCKindParser
 kindAnnotation = arrowKind <|> startKind

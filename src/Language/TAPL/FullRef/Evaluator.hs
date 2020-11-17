@@ -68,7 +68,7 @@ normalize (TRef p t) = fmap(TRef p) <$> normalize t
 normalize (TDeref _ (TLoc _ l)) = return <$> deref l
 normalize (TDeref p t) = fmap(TDeref p) <$> normalize t
 
-normalize (TAssign p (TLoc _ l) t2) | isVal t2 = assign l t2 >> ok (TUnit p)
+normalize (TAssign p (TLoc _ l) t2) | isVal t2 = assign l t2 *> ok (TUnit p)
 normalize (TAssign p t1 t2) | isVal t1 = fmap(TAssign p t1) <$> normalize t2
 normalize (TAssign p t1 t2)  = fmap(flip(TAssign p) t2) <$> normalize t1
 

@@ -48,7 +48,7 @@ evalCommands ((Eval ts):cs) = do
 typeCheck :: AST -> Eval Type
 typeCheck [] = lift $ throwE "attempt to check empty AST"
 typeCheck [t] = typeOf t
-typeCheck (t:ts) = typeOf t >> typeCheck ts
+typeCheck (t:ts) = typeOf t *> typeCheck ts
 
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ _ t) v) | isVal v = return $ termSubstitutionTop v t

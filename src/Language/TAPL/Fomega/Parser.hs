@@ -113,7 +113,7 @@ typeVar = try $ do
          Nothing -> unexpected $ "type variable " <> show name <> " hasn't been bound in context " <> (show names)
 
 optionalKind :: LCKindParser
-optionalKind = (reservedOp "::" >> kindAnnotation) <|> return Star
+optionalKind = (reservedOp "::" *> kindAnnotation) <|> return Star
 
 kindAnnotation :: LCKindParser
 kindAnnotation = arrowKind <|> startKind

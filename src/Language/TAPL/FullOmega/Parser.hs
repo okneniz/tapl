@@ -68,7 +68,7 @@ notApply = value
        <|> (parens notApply)
 
 assignT :: LCParser
-assignT = chainl1 (notAssign <|> parens notAssign) $ padded (reservedOp ":=") >> TAssign <$> getPosition
+assignT = chainl1 (notAssign <|> parens notAssign) $ padded (reservedOp ":=") *> (TAssign <$> getPosition)
 
 notAssign :: LCParser
 notAssign = value
@@ -114,7 +114,7 @@ timesFloat :: LCParser
 timesFloat = TTimesFloat <$> (reserved "timesfloat" *> getPosition) <*> notApply <*> (spaces *> notApply)
 
 derefT :: LCParser
-derefT = TDeref <$> (reservedOp "!" >> getPosition) <*> term
+derefT = TDeref <$> (reservedOp "!" *> getPosition) <*> term
 
 nat :: LCParser
 nat = succ <|> pred <|> zero <|> integer
@@ -187,7 +187,7 @@ boolean = true <|> false
           false = constant "false" TFalse
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = reserved name >> (t <$> getPosition)
+constant name t = reserved name *> (t <$> getPosition)
 
 unit :: LCParser
 unit = constant "unit" TUnit
@@ -320,7 +320,7 @@ typeVarOrID = try $ do
                   Nothing -> TyID name
 
 optionalKind :: LCKindParser
-optionalKind = (reservedOp "::" >> kindAnnotation) <|> return Star
+optionalKind = (reservedOp "::" *> kindAnnotation) <|> return Star
 
 kindAnnotation :: LCKindParser
 kindAnnotation = arrowKind <|> startKind

@@ -20,14 +20,14 @@ unlessM p s = flip(unless) s =<< p
 withTmpStateT :: Monad m => (s -> s) -> StateT s m b -> StateT s m b
 withTmpStateT f g = do
     s <- get
-    x <- modify f >> g
+    x <- modify f *> g
     put s
     return x
 
 withState :: (u -> u) -> Parsec String u a -> Parsec String u a
 withState f g = do
     s <- getState
-    x <- modifyState f >> g
+    x <- modifyState f *> g
     putState s
     return x
 

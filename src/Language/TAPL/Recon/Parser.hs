@@ -97,7 +97,7 @@ fun :: String -> (SourcePos -> Term -> Term) -> LCParser
 fun name tm = tm <$> (reserved name *> getPosition) <*> term
 
 constant :: String -> (SourcePos -> Term) -> LCParser
-constant name t = reserved name >> (t <$> getPosition)
+constant name t = reserved name *> (t <$> getPosition)
 
 condition :: LCParser
 condition = TIf <$> getPosition
@@ -106,7 +106,7 @@ condition = TIf <$> getPosition
                 <*> (reserved "else" *> term)
 
 termType :: LCTypeParser
-termType = colon >> typeAnnotation
+termType = colon *> typeAnnotation
 
 typeAnnotation :: LCTypeParser
 typeAnnotation = arrowAnnotation <|> notArrowAnnotation
