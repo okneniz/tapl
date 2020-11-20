@@ -14,25 +14,17 @@ import Control.Monad.Trans.Except
 evalString :: String -> Either String String
 evalString code = do
     case parse "<stdin>" code of
-        Left e -> Left $ show e
-        Right ([], _) -> return ""
-        Right (commands, names) -> runExcept (evalStateT (f commands) names)
-    where
-        f cs = do
-            cs' <- evalCommands cs
-            if null cs'
-            then return ""
-            else do let t = last cs'
-                    t' <- prettify t
-                    return $ show t'
+         Left e -> Left $ show e
+         Right ([], _) -> return ""
+         Right (commands, names) -> runExcept $ evalStateT (f commands) names
+    where f cs = evalCommands cs >>= \x -> return $ if null x then [] else last x
 
-evalCommands :: [Command] -> Eval AST
+evalCommands :: [Command] -> Eval [String]
 evalCommands [] = return []
 evalCommands ((Eval []):cs) = evalCommands cs
-evalCommands ((Eval ts):cs) = do
-    let ts' = whileJust normalize <$> ts
-    cs' <- evalCommands cs
-    return $ ts' <> cs'
+evalCommands ((Eval (t:ts)):cs) = do
+    let t' = whileJust normalize t
+    (:) <$> render t' <*> evalCommands ((Eval ts):cs)
 
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _ ) = return t

@@ -1,4 +1,4 @@
-module Language.TAPL.FullSub.Pretty (prettify, prettifyType) where
+module Language.TAPL.FullSub.Pretty (render, renderType, prettifyType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
@@ -11,6 +11,15 @@ import Control.Monad.Trans.Except
 import Language.TAPL.FullSub.Types
 import Language.TAPL.FullSub.Context
 import Language.TAPL.Common.Context (nameFromContext)
+
+render :: Term -> Type -> Eval String
+render t ty = do
+    docT <- prettify t
+    docTy <- prettifyType ty
+    return $ show $ docT <> colon <> docTy
+
+renderType :: Type -> Eval String
+renderType ty = show <$> prettifyType ty
 
 prettify :: Term -> Eval (Doc a)
 prettify (TTrue _) = return $ pretty "true"
@@ -58,6 +67,7 @@ prettify (TAbs _ name _ t) = do
 
 prettify (TApp _ t1 t2) = (<+>) <$> prettify t1 <*> prettify t2
 
+prettify (TRecord _ ts) | Map.null ts = return $ pretty "{}"
 prettify (TRecord _ ts) = do
     ts' <- sequence (f <$> Map.toList ts)
     return $ braces $ foldl1 (\x y -> x <> comma <+> y) ts'

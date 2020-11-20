@@ -28,7 +28,7 @@ spec = do
                     ),
                     (
                       "(lambda x:Top. x) (lambda x:Top. x)",
-                      pass "(lambda x.x):(Top -> Top)"
+                      pass "(lambda x.x):Top"
                     ),
                     (
                       "(lambda x:Top->Top. x) (lambda x:Top. x)",

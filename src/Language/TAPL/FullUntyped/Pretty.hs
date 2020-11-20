@@ -1,4 +1,4 @@
-module Language.TAPL.FullUntyped.Pretty (prettify) where
+module Language.TAPL.FullUntyped.Pretty (render) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
@@ -11,6 +11,9 @@ import Control.Monad.Trans.Except
 import Language.TAPL.FullUntyped.Types
 import Language.TAPL.FullUntyped.Context
 import Language.TAPL.Common.Context (nameFromContext)
+
+render :: Term -> Eval String
+render t = show <$> prettify t
 
 prettify :: Term -> Eval (Doc a)
 prettify (TTrue _) = return $ pretty "true"

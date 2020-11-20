@@ -1,4 +1,4 @@
-module Language.TAPL.TypedArith.Pretty (prettify, prettifyType) where
+module Language.TAPL.TypedArith.Pretty (render, prettify, prettifyType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
@@ -10,6 +10,15 @@ import Control.Monad.Trans.Except
 import Language.TAPL.TypedArith.Types
 import Language.TAPL.TypedArith.Context
 import Language.TAPL.Common.Context (nameFromContext)
+
+render :: Term -> Type -> Eval String
+render t ty = do
+    docT <- prettify t
+    docTy <- prettifyType ty
+    return $ show $ docT <> colon <> docTy
+
+renderType :: Type -> Eval String
+renderType ty = show <$> prettifyType ty
 
 prettify :: Term -> Eval (Doc a)
 prettify (TTrue _) = return $ pretty "true"

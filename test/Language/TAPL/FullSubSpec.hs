@@ -70,14 +70,12 @@ spec = do
                   ("if true then 3.14 else 9.8", pass "3.14:Float"),
                   (
                     "if true then {x=true,y=false,a=false} else {y=false,x={},b=false};",
-                    pass "{a=false, x=true, y=false}:{a=Bool, x=Bool, y=Bool}"
+                    pass "{a=false, x=true, y=false}:{x=Top, y=Bool}"
+                  ),
+                  (
+                    "if false then {x=true,y=false,a=false} else {y=false,x={},b=false};",
+                    pass "{b=false, x={}, y=false}:{x=Top, y=Bool}"
                   )
-                  -- this is failed, wtf?
-                  -- https://github.com/enaudon/TAPL/blob/master/source/fullsub/test.f#L26
-                  -- (
-                  --   "if false then {x=true,y=false,a=false} else {y=false,x={},b=false};",
-                  --   pass "{a=false, x=true, y=false}:{a=Bool, x=Bool, y=Bool}"
-                  -- )
                 ]
 
         describe "predefined functions" $ do
@@ -117,11 +115,10 @@ spec = do
                     \if x y then z else p) (lambda x:Nat. zero? x) 1 3.14 9.8", pass "9.8:Float"),
                   ("(lambda x:{a:Bool,b:Bool}.x) {a=true, b=false}", pass "{a=true, b=false}:{a=Bool, b=Bool}"),
                   ("(lambda x:{a:Bool,b:Bool}.if x.a then false else true) {a=true, b=false}", pass "false:Bool"),
-                  ("(lambda x:Top. x) (lambda x:Top. x)", pass "(lambda x.x):(Top -> Top)"),
+                  ("(lambda x:Top. x) (lambda x:Top. x)", pass "(lambda x.x):Top"),
                   (
-
                     "(lambda r:{x:Top->Top}.(r.x r.x)) {x=(lambda z:Top.z), y=(lambda z:Top.z)}",
-                    pass "(lambda z.z):(Top -> Top)"
+                    pass "(lambda z.z):Top"
                   )
                  ]
 

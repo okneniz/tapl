@@ -8,7 +8,6 @@ import Control.Monad.Trans.Except
 
 import Language.TAPL.Common.Context
 import Language.TAPL.SimpleBool.Types
-import Language.TAPL.SimpleBool.Pretty
 import Language.TAPL.SimpleBool.Context
 
 typeOf :: Term -> Eval Type

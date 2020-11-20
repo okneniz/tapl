@@ -205,7 +205,7 @@ spec = do
             tests evalString [
                     (
                       "Bit = Bool; (lambda x:Bit.x) true",
-                      pass "true:Bool"
+                      pass "true:Bit"
                     ),
                     (
                       "T = Nat->Nat",

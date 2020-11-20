@@ -33,6 +33,6 @@ spec = do
                   ("(lambda x:Bool. if x then false else true) true", pass "false:Bool"),
                   (
                     "(lambda x:Bool.lambda y:(Bool -> (Bool -> Bool)). if x then y true else y false) true",
-                    pass "(lambda y.if true then y true else y false):((Bool -> (Bool -> Bool)) -> (Bool -> Bool))"
+                    pass "(lambda y.if true then y true\n          else y false):((Bool -> (Bool -> Bool)) -> (Bool -> Bool))"
                   )
                  ]

@@ -209,7 +209,7 @@ spec = do
             tests evalString [
                     (
                       "Bit = Bool; (lambda x:Bit.x) true",
-                      pass "true:Bool"
+                      pass "true:Bit"
                     ),
                     (
                       "T = Nat->Nat",
@@ -227,7 +227,7 @@ spec = do
                     ),
                     (
                         "Counter = Rec P.{get:Nat, inc:Unit->P}; let counter = fix (lambda cr:{x:Nat}->Counter.(lambda s:{x:Nat}.{get=s.x, inc=(lambda b:Unit. cr {x=succ(s.x)})})) in counter",
-                        pass "(lambda s.{get=s.x, inc=(lambda b.(lambda cr.(lambda s'.{get=s'.x, inc=(lambda b'.cr {x=succ s'.x})})) {x=succ s.x})}):({x=Nat} -> {get=Nat, inc=(Unit -> {get=Nat, inc=(Unit -> Counter)})})"
+                        pass "(lambda s.{get=s.x, inc=(lambda b.(lambda cr.(lambda s'.{get=s'.x, inc=(lambda b'.cr {x=succ s'.x})})) {x=succ s.x})}):({x=Nat} -> {get=Nat, inc=(Unit -> Counter)})"
                     ),
                     (
                       "Counter = Rec P.{get:Nat, inc:Unit->P}; \
@@ -243,7 +243,7 @@ spec = do
                     (
                       "Hungry = Rec A. Nat -> A; \
                       \ let f0 = fix (lambda f:Nat->Hungry.(lambda n:Nat.f)) in f0;",
-                      pass "(lambda n.(lambda f.(lambda n'.f))):(Nat -> (Nat -> (Nat -> Hungry)))"
+                      pass "(lambda n.(lambda f.(lambda n'.f))):(Nat -> (Nat -> Hungry))"
                     ),
                     (
                       "Hungry = Rec A. Nat -> A; \
@@ -251,7 +251,7 @@ spec = do
                       \ let f1 = f0 zero in \
                       \ let f2 = f1 (succ succ zero) in \
                       \ f2;",
-                      pass "(lambda n.(lambda f.(lambda n'.f))):(Nat -> (Nat -> (Nat -> Hungry)))"
+                      pass "(lambda n.(lambda f.(lambda n'.f))):Hungry"
                     ),
                     (
                       "T = Nat; \
@@ -278,7 +278,7 @@ spec = do
                       \let ap = (lambda f:D.(lambda a:D. f a)) in \
                       \let myfix = lam (lambda f:D. ap (lam (lambda x:D. ap f (ap x x))) (lam (lambda x:D. ap f (ap x x)))) in \
                       \myfix",
-                      pass "(lambda f.(lambda f'.(lambda a.f' a)) (lambda f'.f') (lambda x.(lambda f'.(lambda a.f' a)) f (lambda f'.(lambda a.f' a)) x x) (lambda f'.f') (lambda x.(lambda f'.(lambda a.f' a)) f (lambda f'.(lambda a.f' a)) x x)):(D -> Rec X.(X -> X))"
+                      pass "(lambda f.(lambda f'.(lambda a.f' a)) (lambda f'.f') (lambda x.(lambda f'.(lambda a.f' a)) f (lambda f'.(lambda a.f' a)) x x) (lambda f'.f') (lambda x.(lambda f'.(lambda a.f' a)) f (lambda f'.(lambda a.f' a)) x x)):(D -> D)"
                     ),
                     (
                       "Natlist = Rec X. <nil:Unit, cons:{Nat*X}>; \

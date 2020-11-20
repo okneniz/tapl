@@ -17,7 +17,7 @@ spec = do
     describe "operations" $ do
         describe "apply" $ do
             tests evalString [
-              ("(lambda x:Top. x) (lambda x:Top. x)", pass "(lambda x.x):Top -> Top"),
+              ("(lambda x:Top. x) (lambda x:Top. x)", pass "(lambda x.x):Top"),
               ("(lambda x:Bot.x x)", pass "(lambda x.x x):Bot -> Bot"),
               ("(lambda x:Top -> Top. x) (lambda x:Top. x)", pass "(lambda x.x):Top -> Top")
              ]

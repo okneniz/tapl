@@ -1,4 +1,4 @@
-module Language.TAPL.FullError.Pretty (prettify, prettifyType) where
+module Language.TAPL.FullError.Pretty (render, renderType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
@@ -11,6 +11,15 @@ import Language.TAPL.Common.Helpers (withTmpStateT)
 import Language.TAPL.Common.Context (nameFromContext, findName)
 import Language.TAPL.FullError.Types
 import Language.TAPL.FullError.Context
+
+render :: Term -> Type -> Eval String
+render t ty = do
+    docT <- prettify t
+    docTy <- prettifyType ty
+    return $ show $ docT <> colon <> docTy
+
+renderType :: Type -> Eval String
+renderType ty = show <$> prettifyType ty
 
 prettify :: Term -> Eval (Doc a)
 prettify (TTrue _) = return $ pretty "true"

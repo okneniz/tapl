@@ -40,7 +40,7 @@ spec = do
                   ("(lambda x:Nat. if zero? x then false else true) succ zero", pass "true:Bool"),
                   (
                     "(lambda x:Bool.lambda y:(Bool -> (Bool -> Bool)). if x then y true else y false) true",
-                    pass "(lambda y.if true then y true else y false):((Bool -> (Bool -> Bool)) -> (Bool -> Bool))"
+                    pass "(lambda y.if true then y true\n          else y false):((Bool -> (Bool -> Bool)) -> (Bool -> Bool))"
                   ),
                   (
                     "(lambda x:Nat.if zero? x then succ x else x) 0",
