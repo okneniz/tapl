@@ -1,6 +1,6 @@
 module Language.TAPL.Untyped.Evaluator (evalString) where
 
-import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Helpers (whileM)
 import Language.TAPL.Untyped.Types
 import Language.TAPL.Untyped.Parser
 import Language.TAPL.Untyped.Pretty
@@ -17,7 +17,7 @@ evalString code = do
         Right ([], _) -> return ""
         Right (ast, names) -> runExcept (evalStateT (f ast) names)
     where
-        f ast = fmap show $ prettify $ fromJust $ last $ whileJust normalize <$> ast
+        f ast = fmap show $ prettify $ fromJust $ last $ whileM normalize <$> ast
 
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ t) v) | isVal v = return $ substitutionTop v t

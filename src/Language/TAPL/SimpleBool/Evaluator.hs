@@ -1,6 +1,6 @@
 module Language.TAPL.SimpleBool.Evaluator (evalString) where
 
-import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Helpers (whileM)
 import Language.TAPL.SimpleBool.Context
 import Language.TAPL.SimpleBool.Types
 import Language.TAPL.SimpleBool.Parser
@@ -24,7 +24,7 @@ evalCommands :: [Term] -> Eval [String]
 evalCommands [] = return []
 evalCommands (t:ts) = do
     ty <- typeOf t
-    let t' = fromJust $ whileJust  normalize t
+    let t' = fromJust $ whileM normalize t
     (:) <$> render t' ty <*> evalCommands ts
 
 normalize :: Term -> Maybe Term

@@ -7,7 +7,7 @@ import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
-import Language.TAPL.Common.Helpers (whileJust, ok, nvm)
+import Language.TAPL.Common.Helpers (whileM, ok, nvm)
 import Language.TAPL.Common.Context (bind)
 import Language.TAPL.FullPoly.Types
 import Language.TAPL.FullPoly.Parser

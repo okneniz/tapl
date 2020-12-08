@@ -2,7 +2,7 @@ module Language.TAPL.FullSimple.Evaluator (evalString) where
 
 import qualified Data.Map.Lazy as Map
 
-import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Helpers (whileM)
 import Language.TAPL.Common.Context (bind)
 import Language.TAPL.FullSimple.Types
 import Language.TAPL.FullSimple.Parser
@@ -33,7 +33,7 @@ evalCommands ((Bind _ name b):cs) = do
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval (t:ts)):cs) = do
     ty <- typeOf t
-    let t' = fromJust $ whileJust  normalize t
+    let t' = fromJust $ whileM normalize t
     (:) <$> render t' ty <*> evalCommands ((Eval ts):cs)
 
 normalize :: Term -> Maybe Term

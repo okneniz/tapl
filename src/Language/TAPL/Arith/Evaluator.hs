@@ -1,7 +1,7 @@
 module Language.TAPL.Arith.Evaluator (evalString) where
 
 import Data.Text.Prettyprint.Doc (pretty)
-import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Helpers (whileM)
 import Language.TAPL.Arith.Types
 import Language.TAPL.Arith.Parser
 
@@ -12,7 +12,7 @@ evalString code = do
         Right ast -> return $ show
                             $ pretty
                             $ last
-                            $ whileJust normalize <$> ast
+                            $ whileM normalize <$> ast
 
 normalize :: Term -> Maybe Term
 normalize TTrue = Nothing

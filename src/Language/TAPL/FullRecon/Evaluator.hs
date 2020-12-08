@@ -6,7 +6,7 @@ import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
-import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Helpers (whileM)
 import Language.TAPL.Common.Context (bind)
 import Language.TAPL.FullRecon.Types
 import Language.TAPL.FullRecon.Parser
@@ -31,7 +31,7 @@ evalCommands ((Bind _ name binding):cs) = do
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval (t:ts)):cs) = do
     ty <- typeOf t
-    let t' = fromJust $ whileJust normalize t
+    let t' = fromJust $ whileM normalize t
     (:) <$> render t' ty <*> evalCommands ((Eval ts):cs)
 
 normalize :: Term -> Maybe Term

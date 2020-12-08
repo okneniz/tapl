@@ -1,6 +1,6 @@
 module Language.TAPL.TypedArith.Evaluator (evalString) where
 
-import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Helpers (whileM)
 import Language.TAPL.Common.Context
 import Language.TAPL.TypedArith.Context
 import Language.TAPL.TypedArith.Types
@@ -31,7 +31,7 @@ evalCommands ((Bind _ name b):cs) = do
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval (t:ts)):cs) = do
     ty <- typeOf t
-    let t' = fromJust $ whileJust  normalize t
+    let t' = fromJust $ whileM normalize t
     (:) <$> render t' ty <*> evalCommands ((Eval ts):cs)
 
 normalize :: Term -> Maybe Term

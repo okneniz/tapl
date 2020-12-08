@@ -2,7 +2,7 @@ module Language.TAPL.FullUntyped.Evaluator (evalString) where
 
 import qualified Data.Map.Lazy as Map
 
-import Language.TAPL.Common.Helpers (whileJust)
+import Language.TAPL.Common.Helpers (whileM)
 import Language.TAPL.FullUntyped.Types
 import Language.TAPL.FullUntyped.Parser
 import Language.TAPL.FullUntyped.Pretty
@@ -25,7 +25,7 @@ evalCommands :: [Command] -> Eval [String]
 evalCommands [] = return []
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval (t:ts)):cs) = do
-    let t' = fromJust $ whileJust  normalize t
+    let t' = fromJust $ whileM normalize t
     (:) <$> render t' <*> evalCommands ((Eval ts):cs)
 
 normalize :: Term -> Maybe Term
