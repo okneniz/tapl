@@ -1,6 +1,7 @@
 module Language.TAPL.FullRecon.Evaluator (evalString) where
 
 import Data.List (last)
+import Data.Maybe (fromJust)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
@@ -16,37 +17,22 @@ import Language.TAPL.FullRecon.Pretty
 evalString :: String -> Either String String
 evalString code = do
     case parse "<stdin>" code of
-        Left e -> Left $ show e
-        Right ([], _) -> return ""
-        Right (commands, ns) -> runExcept (evalStateT (f commands) (newState ns))
-    where
-        f cs = do
-            cs' <- evalCommands cs
-            if null cs'
-            then return ""
-            else do let t = last cs'
-                    ty <- typeOf t
-                    t' <- prettify t
-                    ty' <- prettifyType ty
-                    return $ show t' <> ":" <> show ty'
+         Left e -> Left $ show e
+         Right ([], _) -> return ""
+         Right (commands, ns) -> runExcept (evalStateT (f commands) (newState ns))
+    where f cs = evalCommands cs >>= \x -> return $ if null x then [] else last x
 
-evalCommands :: [Command] -> Eval AST
+evalCommands :: [Command] -> Eval [String]
 evalCommands [] = return []
 evalCommands ((Bind _ name binding):cs) = do
    modify $ \s -> s { names = (bind name binding (names s)) }
    evalCommands cs
 
 evalCommands ((Eval []):cs) = evalCommands cs
-evalCommands ((Eval ts):cs) = do
-    _ <- typeCheck ts
-    let ts' = whileJust normalize <$> ts
-    cs' <- evalCommands cs
-    return $ ts' <> cs'
-
-typeCheck :: AST -> Eval Type
-typeCheck [] = lift $ throwE "attempt to check empty AST"
-typeCheck [t] = typeOf t
-typeCheck (t:ts) = typeOf t *> typeCheck ts
+evalCommands ((Eval (t:ts)):cs) = do
+    ty <- typeOf t
+    let t' = fromJust $ whileJust normalize t
+    (:) <$> render t' ty <*> evalCommands ((Eval ts):cs)
 
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _) = return t

@@ -22,11 +22,11 @@ spec = do
             tests evalString [
                     (
                       "(lambda x:Bool->Bool. if x false then true else false)",
-                      pass "(lambda x.if x false then true else false):((Bool -> Bool) -> Bool)"
+                      pass "(lambda x'.if x' false then true else false):((Bool -> Bool) -> Bool)"
                     ),
                     (
                       "(lambda x:Nat. succ x)",
-                      pass "(lambda x.succ x):(Nat -> Nat)"
+                      pass  "(lambda x'.succ x'):(Nat -> Nat)"
                     ),
                     (
                       "(lambda x:Nat. succ (succ x)) (succ zero)",
@@ -34,27 +34,27 @@ spec = do
                     ),
                     (
                       "(lambda x:Bool.x)",
-                      pass "(lambda x.x):(Bool -> Bool)"
+                      pass  "(lambda x'.x'):(Bool -> Bool)"
                     ),
                     (
                       "(lambda x:Bool.lambda y:A.x)",
-                      pass "(lambda x.(lambda y.x)):(Bool -> (A -> Bool))"
+                      pass "(lambda x'.(lambda y'.x')):(Bool -> (A -> Bool))"
                     ),
                     (
                       "(lambda x:Bool.lambda y:A.y)",
-                      pass "(lambda x.(lambda y.y)):(Bool -> (A -> A))"
+                      pass "(lambda x'.(lambda y'.y')):(Bool -> (A -> A))"
                     ),
                     (
                       "(lambda x:(Bool -> A).lambda y:A.y)",
-                      pass "(lambda x.(lambda y.y)):((Bool -> A) -> (A -> A))"
+                      pass "(lambda x'.(lambda y'.y')):((Bool -> A) -> (A -> A))"
                     ),
                     (
                       "(lambda x:A -> A.lambda y:A.x y)",
-                      pass "(lambda x.(lambda y.x y)):((A -> A) -> (A -> x0))"
+                      pass "(lambda x'.(lambda y'.x' y')):((A -> A) -> (A -> A))"
                     ),
                     (
                       "(lambda x:A.x)",
-                      pass "(lambda x.x):(A -> A)"
+                      pass "(lambda x'.x'):(A -> A)"
                     )
                  ]
 
@@ -87,7 +87,7 @@ spec = do
                   ),
                   (
                     "(lambda x:Bool -> Bool.lambda y:A. x true)",
-                    pass "(lambda x.(lambda y.x true)):((Bool -> Bool) -> (A -> x0))"
+                    pass "(lambda x'.(lambda y'.x' true)):((Bool -> Bool) -> (A -> Bool))"
                   ),
                   (
                     "(lambda x:Nat. succ x) succ zero",
@@ -107,7 +107,7 @@ spec = do
                   ),
                   (
                     "lambda x:Nat. succ x",
-                    pass "(lambda x.succ x):(Nat -> Nat)"
+                    pass "(lambda x'.succ x'):(Nat -> Nat)"
                   ),
                   (
                     "(lambda x:Nat. succ (succ x)) (succ 0)",
@@ -115,35 +115,18 @@ spec = do
                   ),
                   (
                     "lambda x:A. x",
-                    pass "(lambda x.x):(A -> A)"
+                    pass "(lambda x'.x'):(A -> A)"
                   ),
                   (
                     "(lambda x:X. lambda y:X->X. y x)",
-                    pass  "(lambda x.(lambda y.y x)):(X -> ((X -> X) -> x0))"
+                    pass "(lambda x'.(lambda y'.y' x')):(X -> ((X -> X) -> X))"
                   ),
---                  (
---                    "(lambda x:X. lambda y:X->X. y x) 1",
---                    pass  "(lambda x.(lambda y.y x)):(X -> ((X -> X) -> x0))"
---                  ),
+                  (
+                    "(lambda x:X. lambda y:X->X. y x) 1",
+                    pass "(lambda y'.y' succ zero):((Nat -> Nat) -> Nat)"
+                  ),
                   (
                     "(lambda x:X->X. x 0) (lambda y:Nat. y)",
                     pass "zero:Nat"
                   )
                  ]
-
---TODO : fix it!
---        describe "type binding" $ do
---            tests evalString [
---                    (
---                      "Bit = Bool; (lambda x:Bit.x) true",
---                      pass "true:Bool"
---                    ),
---                    (
---                      "T = Nat->Nat",
---                      pass ""
---                    ),
---                    (
---                      "T = Nat->Nat; (lambda x:T.x zero) (lambda y:Nat. if zero? y then succ y else y)",
---                      pass "succ zero:Nat"
---                    )
---                 ]

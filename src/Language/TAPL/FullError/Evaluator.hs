@@ -6,6 +6,8 @@ import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class (lift)
 
+import Data.Maybe (fromJust)
+
 import Language.TAPL.Common.Helpers (whileJust)
 import Language.TAPL.Common.Context (bind)
 import Language.TAPL.FullError.Types
@@ -32,7 +34,7 @@ evalCommands ((Bind _ name b):cs) = do
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval (t:ts)):cs) = do
     ty <- typeOf t
-    let t' = whileJust normalize t
+    let t' = fromJust $ whileJust  normalize t
     (:) <$> render t' ty <*> evalCommands ((Eval ts):cs)
 
 normalize :: Term -> Maybe Term

@@ -67,10 +67,7 @@ prettify (TAbs _ name _ t) = do
              $ pretty "lambda"
            <+> pretty newName <> dot <> doc
 
-prettify (TApp _ t1 t2) = do
-    doc1 <- prettify t1
-    doc2 <- prettify t2
-    return $ doc1 <+> doc2
+prettify (TApp _ t1 t2) = (<+>) <$> prettify t1 <*> prettify t2
 
 prettify (TPair _ t1 t2) = do
     doc1 <- prettify t1

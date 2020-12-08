@@ -8,6 +8,8 @@ import Language.TAPL.FullUntyped.Parser
 import Language.TAPL.FullUntyped.Pretty
 import Language.TAPL.FullUntyped.Context
 
+import Data.Maybe (fromJust)
+
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
@@ -23,7 +25,7 @@ evalCommands :: [Command] -> Eval [String]
 evalCommands [] = return []
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval (t:ts)):cs) = do
-    let t' = whileJust normalize t
+    let t' = fromJust $ whileJust  normalize t
     (:) <$> render t' <*> evalCommands ((Eval ts):cs)
 
 normalize :: Term -> Maybe Term

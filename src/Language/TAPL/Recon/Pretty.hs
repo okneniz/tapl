@@ -10,12 +10,14 @@ import Control.Monad.Trans.Except
 import Language.TAPL.Common.Helpers
 import Language.TAPL.Recon.Types
 import Language.TAPL.Recon.Context
+import Language.TAPL.Recon.TypeChecker (applySubst)
 import Language.TAPL.Common.Context (nameFromContext)
 
-render :: Term -> Eval String
-render t = do
-    x <- prettify t
-    return $ show x
+render :: Term -> Type -> Eval String
+render t ty = do
+    docT <- prettify t
+    docTy <- prettifyType =<< applySubst ty
+    return $ show $ docT <> colon <> docTy
 
 prettify :: Term -> Eval (Doc a)
 prettify (TTrue _) = return $ pretty "true"
@@ -57,10 +59,7 @@ prettify (TAbs _ name _ t) = do
         doc <- prettify t
         return $ parens $ pretty "lambda" <+> pretty newName <> dot <> doc
 
-prettify (TApp _ t1 t2) = do
-    doc1 <- prettify t1
-    doc2 <- prettify t2
-    return $ doc1 <+> doc2
+prettify (TApp _ t1 t2) = (<+>) <$> prettify t1 <*> prettify t2
 
 prettifyType :: Type -> Eval (Doc a)
 prettifyType TyBool = return $ pretty "Bool"

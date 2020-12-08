@@ -8,6 +8,8 @@ import Language.TAPL.Untyped.Pretty
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
 
+import Data.Maybe (fromJust)
+
 evalString :: String  -> Either String String
 evalString code = do
     case parse "<stdin>" code of
@@ -15,7 +17,7 @@ evalString code = do
         Right ([], _) -> return ""
         Right (ast, names) -> runExcept (evalStateT (f ast) names)
     where
-        f ast = fmap show $ prettify $ last $ whileJust normalize <$> ast
+        f ast = fmap show $ prettify $ fromJust $ last $ whileJust normalize <$> ast
 
 normalize :: Term -> Maybe Term
 normalize (TApp _ (TAbs _ _ t) v) | isVal v = return $ substitutionTop v t

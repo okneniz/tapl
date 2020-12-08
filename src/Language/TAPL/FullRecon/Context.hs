@@ -18,6 +18,12 @@ newState x = LCState { names = x, varIndex = 0, constraints = [] }
 getNames :: Eval LCNames
 getNames = names <$> get
 
+getConstraints :: Eval [Constraint]
+getConstraints = constraints <$> get
+
+putConstraints :: [Constraint] -> Eval ()
+putConstraints x = get >>= \s -> put $ s { constraints = x }
+
 putVar :: String -> Type -> LCState -> LCState
 putVar x ty s = s { names = (bind x (VarBind ty) (names s)) }
 

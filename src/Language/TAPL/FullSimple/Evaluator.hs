@@ -13,6 +13,7 @@ import Language.TAPL.FullSimple.Context
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Except
+import Data.Maybe (fromJust)
 
 evalString :: String -> Either String String
 evalString code = do
@@ -32,13 +33,8 @@ evalCommands ((Bind _ name b):cs) = do
 evalCommands ((Eval []):cs) = evalCommands cs
 evalCommands ((Eval (t:ts)):cs) = do
     ty <- typeOf t
-    let t' = whileJust normalize t
+    let t' = fromJust $ whileJust  normalize t
     (:) <$> render t' ty <*> evalCommands ((Eval ts):cs)
-
-typeCheck :: AST -> Eval Type
-typeCheck [] = lift $ throwE "attempt to check empty AST"
-typeCheck [t] = typeOf t
-typeCheck (t:ts) = typeOf t *> typeCheck ts
 
 normalize :: Term -> Maybe Term
 normalize (TIf _ (TTrue _) t _) = return t

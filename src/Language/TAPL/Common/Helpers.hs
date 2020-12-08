@@ -3,11 +3,10 @@ module Language.TAPL.Common.Helpers where
 import Text.Parsec (Parsec, try, oneOf, many, spaces, optional, getState, putState, modifyState)
 import Control.Monad (unless)
 import Control.Monad.Trans.State.Lazy
+import Control.Applicative ((<|>))
 
-whileJust :: (a -> Maybe a) -> a -> a
-whileJust f x = case f x of
-                     Just x' -> whileJust f x'
-                     Nothing -> x
+whileJust :: (a -> Maybe a) -> a -> Maybe a
+whileJust f x = (whileJust f =<< f x) <|> return x
 
 ucid :: Parsec String a String
 ucid = (:) <$> (try x) <*> try (many y)

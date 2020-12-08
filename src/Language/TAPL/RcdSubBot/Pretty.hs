@@ -1,4 +1,4 @@
-module Language.TAPL.RcdSubBot.Pretty (prettify, prettifyType) where
+module Language.TAPL.RcdSubBot.Pretty (render, prettify, prettifyType) where
 
 import Prelude hiding ((<>))
 import Data.Text.Prettyprint.Doc
@@ -12,6 +12,12 @@ import qualified Data.Map.Lazy as Map
 import Language.TAPL.RcdSubBot.Types
 import Language.TAPL.RcdSubBot.Context
 import Language.TAPL.Common.Context (nameFromContext)
+
+render :: Term -> Type -> Eval String
+render t ty = do
+    docT <- prettify t
+    docTy <- prettifyType ty
+    return $ show $ docT <> colon <> docTy
 
 prettify :: Term -> Eval (Doc a)
 prettify (TVar _ varname _) = do

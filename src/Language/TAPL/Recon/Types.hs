@@ -1,6 +1,7 @@
 module Language.TAPL.Recon.Types where
 
 import Text.Parsec (SourcePos)
+import Language.TAPL.Common.Context
 
 data Command = Eval [Term]
              | Bind SourcePos String Binding
@@ -29,9 +30,7 @@ data Binding = NameBind
              | VarBind Type
              deriving (Show)
 
-type VarName = Int
 type VarIndex = Int
-type Depth = Int
 type AST = [Term]
 type Constraint = (Type, Type)
 

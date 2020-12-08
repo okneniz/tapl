@@ -11,16 +11,14 @@ import Language.TAPL.FullRecon.TypeReconstructor
 
 typeOf :: Term -> Eval Type
 typeOf t = do
-    ty <- reconstruct t
-    state <- get
-    case unify (constraints state) of
-        Right cs' -> do
-            put $ state { constraints = cs' }
-            return $ applySubst cs' ty
-        Left x -> lift $ throwE $ show x
+  c1 <- getConstraints
+  ty <- reconstruct t
+  c2 <- getConstraints
+  putConstraints $ c1 <> c2
+  unify *> applySubst ty
 
-applySubst :: [Constraint] -> Type -> Type
-applySubst constraints tyT = foldl f tyT (reverse constraints)
+applySubst :: Type -> Eval Type
+applySubst tyT = foldl f tyT <$> (reverse <$> getConstraints)
     where f tyS ((TyID tyX), tyC2) = substInType tyX tyC2 tyS
 
 substInType :: String -> Type -> Type -> Type
@@ -40,27 +38,18 @@ occursInt _ TyNat = False
 occursInt _ TyBool = False
 occursInt tyX (TyID s) = s == tyX
 
-unify :: [Constraint] -> Either TypeError [Constraint]
-unify [] = return []
-
-unify (((TyID x), (TyID y)):xs) | x == y = unify xs
-unify cs@((tyS, (TyID tyX)):_) | occursInt tyX tyS = Left $ CircularConstrains cs
-unify cs@(((TyID tyX), tyT):_) | occursInt tyX tyT = Left $ CircularConstrains cs
-
-unify ((tyS, (TyID tyX)):xs) = do
-    case unify (substInConstraint tyX tyS xs) of
-        Right cs -> Right $ cs <> [(TyID tyX, tyS)]
-        Left e -> Left e
-
-unify (((TyID tyX), tyT):xs) = do
-    case unify (substInConstraint tyX tyT xs) of
-        Right cs -> Right $ cs <> [(TyID tyX, tyT)]
-        Left e -> Left e
-
-unify ((TyNat, TyNat):xs) = unify xs
-unify ((TyBool, TyBool):xs) = unify xs
-unify ((TyArrow tyS1 tyS2, TyArrow tyT1 tyT2):xs) = unify ((tyS1,tyT1):(tyS2,tyT2):xs)
-unify cs = Left $ UnresolvedConstraints cs
+unify :: Eval ()
+unify = getConstraints >>= f >>= putConstraints
+  where f [] = return []
+        f (((TyID x), (TyID y)):xs) | x == y = f xs
+        f cs@((tyS, (TyID tyX)):_) | occursInt tyX tyS = lift $ throwE $ show $ CircularConstrains cs
+        f cs@(((TyID tyX), tyT):_) | occursInt tyX tyT = lift $ throwE $ show $ CircularConstrains cs
+        f ((tyS, (TyID tyX)):xs) = (<>) [(TyID tyX, tyS)] <$> f (substInConstraint tyX tyS xs)
+        f (((TyID tyX), tyT):xs) = (<>) [(TyID tyX, tyT)] <$> f (substInConstraint tyX tyT xs)
+        f ((TyNat, TyNat):xs) = f xs
+        f ((TyBool, TyBool):xs) = f xs
+        f ((TyArrow tyS1 tyS2, TyArrow tyT1 tyT2):xs) = f ((tyS1,tyT1):(tyS2,tyT2):xs)
+        f cs = lift $ throwE $ show $ UnresolvedConstraints cs
 
 typeMap :: (Int -> Depth -> VarName -> Type) -> Int -> Type -> Type
 typeMap onVar s ty = walk s ty

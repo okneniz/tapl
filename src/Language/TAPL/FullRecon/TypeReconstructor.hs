@@ -46,29 +46,30 @@ recover (TVar p varName _) = do
          Just (_, VarBind ty) -> return ty
          _ -> lift $ throwE $ show $ TypeMissmatch p "Wrong type of binding"
 
-recover (TAbs _ x (Just tyT1) t2) =
-    withTmpStateT (putVar x tyT1) $ do
-        tyT2 <- recover t2
-        return $ TyArrow tyT1 tyT2
+recover (TAbs _ x (Just tyT1) t2) = do
+    modify $ putVar x tyT1
+    tyT2 <- recover t2
+    return $ TyArrow tyT1 tyT2
 
 recover (TAbs _ x Nothing t2) = do
     u <- newVar
-    withTmpStateT (putVar x (TyID u)) $ do
-        tyT2 <- recover t2
-        return $ TyArrow (TyID u) tyT2
+    modify $ putVar x (TyID u)
+    tyT2 <- recover t2
+    return $ TyArrow (TyID u) tyT2
 
 recover (TApp _ t1 t2) = do
     tyT1 <- recover t1
     tyT2 <- recover t2
     tyX <- newVar
-    appendConstraint (tyT1, TyArrow tyT2 (TyID tyX))
+    prependConstraint (tyT1, TyArrow tyT2 (TyID tyX))
     return $ TyID tyX
 
 recover (TLet _ _ t1 t2) | isVal t1 = recover $ termSubstitutionTop t1 t2
 
 recover (TLet _ x t1 t2) = do
     tyT1 <- recover t1
-    withTmpStateT (putVar x tyT1) (recover t2)
+    modify $ putVar x tyT1
+    recover t2
 
 newVar :: Eval String
 newVar = do
