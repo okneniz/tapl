@@ -136,11 +136,7 @@ optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
     try (f t) <|> return t
-  where f t = do
-          reserved "as"
-          ty <- typeAnnotation
-          pos <- getPosition
-          return $ TAscribe pos t ty
+  where f t = TAscribe <$> getPosition <*> return t <*> (reserved "as" *> typeAnnotation)
 
 pair :: LCParser
 pair = try $ braces $ TPair <$> getPosition <*> (term <* comma) <*> term

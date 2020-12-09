@@ -198,11 +198,7 @@ optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
     try (f t) <|> return t
-  where f t = do
-          reserved "as"
-          ty <- typeAnnotation
-          pos <- getPosition
-          return $ TAscribe pos t ty
+  where f t = TAscribe <$> getPosition <*> return t <*> (reserved "as" *> typeAnnotation)
 
 fun :: String -> (SourcePos -> Term -> Term) -> LCParser
 fun name tm = tm <$> (reserved name *> getPosition) <*> (notApply <|> parens termApply)

@@ -133,11 +133,7 @@ optionalAscribed :: LCParser -> LCParser
 optionalAscribed e = do
     t <- e
     try (f t) <|> return t
-  where f t = do
-          padded $ reserved "as"
-          ty <- typeAnnotation
-          pos <- getPosition
-          return $ TAscribe pos t ty
+  where f t = TAscribe <$> getPosition <*> return t <*> (reserved "as" *> typeAnnotation)
 
 record :: LCParser
 record = try $ braces $ TRecord <$> getPosition <*> (Map.fromList <$> (keyValue (reservedOp "=") term) `sepBy` comma)
