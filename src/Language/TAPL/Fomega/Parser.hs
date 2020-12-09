@@ -100,9 +100,7 @@ typeAbstractionAnnotation = try $ optionalParens $ do
 
 typeApplyAnnotation :: LCTypeParser
 typeApplyAnnotation =
-    try $ chainl1 (typeVar <|> bracketType <|> (parens typeApplyAnnotation)) $ do
-        optional spaces
-        return TyApp
+    try $ chainl1 (typeVar <|> bracketType <|> (parens typeApplyAnnotation)) $ optional spaces $> TyApp
 
 typeVar:: LCTypeParser
 typeVar = try $ do

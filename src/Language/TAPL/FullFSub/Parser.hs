@@ -113,7 +113,7 @@ abstraction :: LCParser
 abstraction = do
     pos <- getPosition <* reserved "lambda"
     name <- identifier
-    ty <- termType <* dot <* optional spaces
+    ty <- termType <* dot
     withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser

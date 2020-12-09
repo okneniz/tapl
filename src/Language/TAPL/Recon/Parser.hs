@@ -60,7 +60,6 @@ abstraction = do
     reserved "lambda"
     name <- identifier
     ty <- termType <* dot
-    optional spaces
     withState (addVar name ty) $ TAbs pos name ty <$> term
 
 isZero :: LCParser

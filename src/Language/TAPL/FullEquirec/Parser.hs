@@ -137,9 +137,7 @@ optionalAscribed e = do
     t <- e
     try (f t) <|> return t
   where f t = do
-          spaces
           reserved "as"
-          optional spaces
           ty <- typeAnnotation
           pos <- getPosition
           return $ TAscribe pos t ty

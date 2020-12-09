@@ -219,9 +219,7 @@ optionalAscribed e = do
     t <- e
     try (f t) <|> return t
   where f t = do
-          spaces
           reserved "as"
-          optional spaces
           ty <- typeAnnotation
           pos <- getPosition
           return $ TAscribe pos t ty
@@ -282,9 +280,7 @@ typeAbstractionAnnotation = try $ optionalParens $ do
 
 typeApplyAnnotation :: LCTypeParser
 typeApplyAnnotation =
-    try $ chainl1 (typeVarOrID <|> bracketType <|> (parens typeApplyAnnotation)) $ do
-        optional spaces
-        return TyApp
+    try $ chainl1 (typeVarOrID <|> bracketType <|> (parens typeApplyAnnotation)) $ optional spaces $> TyApp
 
 primitiveType :: String -> Type -> LCTypeParser
 primitiveType name ty = reserved name $> ty

@@ -122,7 +122,7 @@ abstraction :: LCParser
 abstraction = do
     pos <- getPosition <* reserved "lambda"
     name <- identifier <* colon
-    ty <- typeAnnotation <* dot <* optional spaces
+    ty <- typeAnnotation <* dot
     withState (addVar name ty) $ TAbs pos name ty <$> term
 
 variable :: LCParser
@@ -177,9 +177,7 @@ optionalAscribed e = do
     t <- e
     try (f t) <|> return t
   where f t = do
-          spaces
           reserved "as"
-          optional spaces
           ty <- typeAnnotation
           pos <- getPosition
           return $ TAscribe pos t ty
