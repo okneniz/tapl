@@ -44,7 +44,7 @@ term = termApply
    <|> (parens term)
 
 termApply :: LCParser
-termApply = try $ chainl1 p $ TApp <$> (optional spaces *> getPosition)
+termApply = try $ chainl1 p $ TApp <$> getPosition
     where p = try typeApply <|> try notApply <|> try (parens typeApply) <|> parens termApply
 
 typeApply :: LCParser

@@ -40,7 +40,7 @@ term :: LCParser
 term = apply <|> notApply <|> parens term
 
 apply :: LCParser
-apply = chainl1 notApply $ TApp <$> (optional spaces *> getPosition)
+apply = chainl1 notApply $ TApp <$> getPosition
 
 notApply :: LCParser
 notApply = value

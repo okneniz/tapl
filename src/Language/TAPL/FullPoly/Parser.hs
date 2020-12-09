@@ -59,7 +59,7 @@ typeApply :: LCParser
 typeApply = TTApp <$> getPosition <*> padded typeAbstraction <*> (brackets typeAnnotation)
 
 termApply :: LCParser
-termApply = try $ chainl1 (notApply <|> parens termApply) $ TApp <$> (optional spaces *> getPosition)
+termApply = try $ chainl1 (notApply <|> parens termApply) $ TApp <$> getPosition
 
 notApply :: LCParser
 notApply = optionalAscribed
